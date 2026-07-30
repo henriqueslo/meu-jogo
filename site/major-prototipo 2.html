@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Major Simulator — monte seu roster e dispute o Major</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0D1114;
+    --panel:#151B1F;
+    --panel2:#1B2328;
+    --line:#2A343B;
+    --line-strong:#3A4750;
+    --text:#EAF0F3;
+    --dim:#8DA0AB;
+    --ct:#6EA8DC;       /* lado CT */
+    --t:#E0953A;        /* lado T */
+    --gold:#D9B44A;     /* sticker foil */
+    --danger:#C0392B;
+    --good:#58B368;
+    --chamfer: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    --chamfer-sm: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  }
+  *{box-sizing:border-box;}
+  html{scrollbar-color:var(--line-strong) var(--bg);}
+  body{
+    margin:0; color:var(--text);
+    background:
+      radial-gradient(1200px 500px at 50% -140px, rgba(110,168,220,.07), transparent 60%),
+      radial-gradient(900px 420px at 85% 110%, rgba(224,149,58,.05), transparent 60%),
+      var(--bg);
+    font-family:'Rajdhani','Segoe UI',Roboto,sans-serif;
+    font-weight:500; font-size:16px; line-height:1.45;
+    min-height:100vh;
+  }
+  .mono{font-family:'JetBrains Mono','Consolas',monospace; font-weight:500;}
+
+  /* ============ HEADER: barra de scoreboard ============ */
+  header{
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(21,27,31,.9), rgba(13,17,20,.4));
+    padding:14px 20px 12px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    position:relative;
+  }
+  header::after{
+    content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+    background:linear-gradient(90deg, var(--t) 0%, var(--t) 38%, transparent 46%, transparent 54%, var(--ct) 62%, var(--ct) 100%);
+    opacity:.85;
+  }
+  header h1{
+    font-size:24px; margin:0; letter-spacing:2px; font-weight:700;
+    text-transform:uppercase; line-height:1;
+  }
+  header h1 .h-t{color:var(--t);}
+  header h1 .h-sep{color:var(--dim); font-weight:500; margin:0 2px;}
+  header h1 .h-ct{color:var(--ct);}
+  header .tag{
+    color:var(--dim); font-size:12px; letter-spacing:.8px; text-transform:uppercase;
+    border-left:1px solid var(--line); padding-left:14px;
+  }
+
+  main{max-width:640px; margin:0 auto; padding:18px 16px 8px;}
+  .screen{display:none;}
+  .screen.active{display:block; animation:fade .28s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+  h3{font-size:20px; letter-spacing:.6px; text-transform:uppercase; font-weight:700;}
+
+  /* ============ SLOTS: células de loadout ============ */
+  .slots{display:grid; grid-template-columns:repeat(5,1fr); gap:7px; margin:14px 0;}
+  .slot{
+    background:var(--panel);
+    border:1px dashed var(--line);
+    clip-path:var(--chamfer-sm);
+    padding:9px 4px; text-align:center; min-height:70px;
+    display:flex; flex-direction:column; justify-content:center; gap:2px;
+    transition:background .15s ease;
+  }
+  .slot.filled{
+    border-style:solid; border-color:transparent;
+    background:
+      linear-gradient(180deg, rgba(110,168,220,.14), rgba(110,168,220,.03)),
+      var(--panel2);
+    box-shadow:inset 0 1px 0 rgba(110,168,220,.35);
+  }
+  .slot .role{font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:1.2px; font-weight:600;}
+  .slot .nick{font-size:14px; font-weight:700; letter-spacing:.3px;}
+  .slot .team{font-size:9px; color:var(--dim); letter-spacing:.3px;}
+
+  /* ============ BOTÕES: chanfrados, uppercase ============ */
+  .rollbtn, .primary, .secondary{
+    display:inline-block; padding:11px 20px; border:none;
+    clip-path:var(--chamfer-sm);
+    font-family:inherit; font-weight:700; font-size:14px;
+    letter-spacing:1.2px; text-transform:uppercase;
+    cursor:pointer; margin:4px 4px 4px 0;
+    transition:filter .12s ease, transform .12s ease;
+  }
+  .primary{background:linear-gradient(180deg, #EDA84E, var(--t)); color:#17110A;}
+  .primary:hover:not(:disabled){filter:brightness(1.08);}
+  .primary:active:not(:disabled){transform:translateY(1px);}
+  .secondary{background:var(--panel2); color:var(--text); box-shadow:inset 0 0 0 1px var(--line-strong);}
+  .secondary:hover{filter:brightness(1.15);}
+  .primary:disabled{opacity:.35; cursor:not-allowed;}
+  button:focus-visible, input:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--ct); outline-offset:2px;
+  }
+
+  input[type="text"]{
+    font-family:inherit; font-weight:700; letter-spacing:.5px;
+    clip-path:var(--chamfer-sm);
+  }
+  input[type="text"]:focus{border-color:var(--ct) !important; outline:none;}
+
+  /* ============ CARDS DE LINEUP no draft ============ */
+  .lineup-card{
+    background:var(--panel);
+    clip-path:var(--chamfer);
+    border-left:3px solid var(--line-strong);
+    padding:12px 14px; margin-bottom:10px;
+  }
+  .lineup-card .lname{font-weight:700; font-size:16px; letter-spacing:.4px;}
+  .lineup-card .lmeta{color:var(--dim); font-size:11.5px; margin-bottom:9px; letter-spacing:.3px;}
+  .players{display:flex; flex-wrap:wrap; gap:6px;}
+  .player-chip{
+    background:var(--panel2);
+    clip-path:var(--chamfer-sm);
+    box-shadow:inset 0 0 0 1px var(--line);
+    padding:7px 11px; font-size:12px; cursor:pointer; text-align:left;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .player-chip:hover{
+    box-shadow:inset 0 0 0 1px var(--t);
+    transform:translateY(-1px);
+  }
+  .player-chip.disabled{opacity:.28; cursor:not-allowed; text-decoration:line-through;}
+  .player-chip b{display:block; font-size:14px; letter-spacing:.3px;}
+  .player-chip small{color:var(--dim); text-transform:uppercase; font-size:9.5px; letter-spacing:.8px;}
+
+  /* ============ BADGES: acabamentos de sticker de Major ============ */
+  .badge{
+    display:inline-block; font-size:9.5px; padding:3px 9px;
+    clip-path:var(--chamfer-sm);
+    font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
+    vertical-align:2px;
+  }
+  .badge.Lendário{
+    background:linear-gradient(110deg, #6b5416, #D9B44A 40%, #f5e3a0 50%, #D9B44A 60%, #6b5416);
+    color:#171204;
+  }
+  .badge.Histórico{
+    background:linear-gradient(110deg, #23445f, var(--ct) 45%, #b7d6f0 52%, var(--ct) 60%, #23445f);
+    color:#0b141c;
+  }
+  .badge.Underdog{
+    background:rgba(224,149,58,.14);
+    box-shadow:inset 0 0 0 1px var(--t);
+    color:var(--t);
+  }
+
+  /* ============ ESTILOS DE JOGO ============ */
+  .style-opts{display:flex; gap:8px; margin:10px 0;}
+  .style-opt{
+    flex:1; background:var(--panel);
+    clip-path:var(--chamfer-sm);
+    box-shadow:inset 0 0 0 1px var(--line);
+    padding:13px 8px; text-align:center; cursor:pointer;
+    transition:box-shadow .12s ease;
+  }
+  .style-opt:hover{box-shadow:inset 0 0 0 1px var(--line-strong);}
+  .style-opt.sel{
+    box-shadow:inset 0 0 0 1px var(--t), inset 0 -3px 0 var(--t);
+    background:var(--panel2);
+  }
+  .style-opt b{display:block; font-size:14px; text-transform:uppercase; letter-spacing:.8px;}
+  .style-opt small{color:var(--dim); font-size:10px;}
+
+  /* ============ CARD DE PARTIDA: dualidade T × CT ============ */
+  .card{
+    background:var(--panel);
+    clip-path:var(--chamfer);
+    padding:14px 16px 12px; margin-bottom:12px;
+    position:relative;
+  }
+  .card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--t), rgba(224,149,58,.25) 42%, rgba(110,168,220,.25) 58%, var(--ct));
+  }
+  .row{display:flex; justify-content:space-between; align-items:center;}
+  .score{font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:700;}
+  .row .score:first-child{color:var(--t);}
+  .row .score:last-child{color:var(--ct);}
+  .score.loser{color:var(--dim) !important; opacity:.7;}
+  .vs{color:var(--dim); font-size:11px; margin:0 8px; text-transform:uppercase; letter-spacing:1px;}
+  .maprow{
+    display:flex; justify-content:space-between; font-size:12px; color:var(--dim);
+    padding:4px 0; border-top:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .winner{font-weight:700;}
+  .loser{color:var(--dim);}
+  .you{color:var(--gold) !important;}
+  .you::before{content:"★ "; font-size:11px;}
+
+  /* ============ RÓTULOS DE FASE ============ */
+  .stage-label{
+    text-transform:uppercase; font-size:11.5px; letter-spacing:2.5px; color:var(--dim);
+    font-weight:600;
+    margin:22px 0 10px; padding-bottom:7px;
+    border-bottom:1px solid var(--line);
+    position:relative;
+  }
+  .stage-label::after{
+    content:""; position:absolute; left:0; bottom:-1px; width:44px; height:1px;
+    background:var(--t);
+  }
+  .bracket-match{
+    display:flex; justify-content:space-between;
+    background:var(--panel);
+    clip-path:var(--chamfer-sm);
+    box-shadow:inset 0 0 0 1px var(--line);
+    padding:9px 14px; margin-bottom:6px; font-size:14px;
+  }
+
+  /* ============ CONQUISTA: placa dourada ============ */
+  .achievement{
+    text-align:center; padding:30px 16px 26px;
+    clip-path:var(--chamfer);
+    margin:16px 0;
+    background:
+      linear-gradient(160deg, rgba(217,180,74,.12), transparent 55%),
+      var(--panel2);
+    box-shadow:inset 0 0 0 1px var(--gold);
+  }
+  .achievement h2{
+    color:var(--gold); margin:0 0 6px; font-size:28px;
+    letter-spacing:2px; text-transform:uppercase;
+  }
+  .achievement p{color:var(--dim); margin:0; font-size:13.5px;}
+
+  .log{max-height:340px; overflow-y:auto;}
+  footer{text-align:center; color:var(--dim); font-size:11px; letter-spacing:.5px; padding:30px 16px;}
+  .progress{
+    font-size:12px; color:var(--dim); margin-bottom:6px;
+    text-transform:uppercase; letter-spacing:1.5px; font-weight:600;
+  }
+
+  /* ============ SELETOR DE MODO ============ */
+  .mode-row{display:flex; gap:8px; margin-bottom:16px;}
+  .mode-btn{
+    flex:1; padding:10px 8px; border:none;
+    clip-path:var(--chamfer-sm);
+    background:var(--panel);
+    box-shadow:inset 0 0 0 1px var(--line);
+    color:var(--dim);
+    font-family:inherit; font-weight:700; font-size:13px;
+    letter-spacing:1.2px; text-transform:uppercase;
+    cursor:pointer; transition:box-shadow .12s ease, color .12s ease;
+  }
+  .mode-btn:hover{box-shadow:inset 0 0 0 1px var(--line-strong);}
+  .mode-btn.sel{
+    color:var(--text);
+    background:var(--panel2);
+    box-shadow:inset 0 0 0 1px var(--ct), inset 0 -3px 0 var(--ct);
+  }
+  .share-box{
+    font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.6;
+    background:var(--bg); padding:12px 14px; margin:10px 0;
+    white-space:pre-wrap; word-break:break-word;
+    box-shadow:inset 0 0 0 1px var(--line);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{animation:none !important; transition:none !important;}
+  }
+  @media (max-width:480px){
+    header .tag{border-left:none; padding-left:0; width:100%;}
+    .slot .nick{font-size:12px;}
+    .score{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="h-t">MAJOR</span> <span class="h-ct">SIMULATOR</span></h1>
+  <span class="tag">monte o roster · simule o Major · seja campeão invicto</span>
+</header>
+
+<main>
+
+  <!-- DRAFT SCREEN -->
+  <section id="screen-draft" class="screen active">
+    <div class="mode-row">
+      <button id="mode-livre" class="mode-btn sel">Jogo livre</button>
+      <button id="mode-daily" class="mode-btn">Desafio do dia</button>
+    </div>
+    <label for="team-name-input" style="color:var(--dim); font-size:13px; display:block; margin-bottom:4px;">Nome do seu time:</label>
+    <input type="text" id="team-name-input" maxlength="24" placeholder="Ex: Falcons BR" style="width:100%; padding:11px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:15px; margin-bottom:14px;">
+    <div class="progress" id="draft-progress">Vaga 1 de 5</div>
+    <div class="slots" id="slots"></div>
+    <button class="rollbtn primary" id="btn-roll">🎲 Atualizar Lineups (3 restantes)</button>
+    <p id="refresh-hint" style="color:var(--dim); font-size:12px; margin:4px 0 0;"></p>
+    <div id="lineup-offers"></div>
+  </section>
+
+  <!-- TEAM / STYLE SCREEN -->
+  <section id="screen-team" class="screen">
+    <h3 style="margin-bottom:4px;">Seu roster está pronto</h3>
+    <div class="slots" id="team-final" style="margin-top:14px;"></div>
+    <p style="color:var(--dim); font-size:13px;">Escolha o estilo de jogo do seu time:</p>
+    <div class="style-opts" id="style-opts">
+      <div class="style-opt" data-style="rush"><b>Rush</b><small>agressivo, mais variância</small></div>
+      <div class="style-opt" data-style="tatico"><b>Tático</b><small>consistente, menos zebra</small></div>
+      <div class="style-opt" data-style="aim"><b>Aim puro</b><small>ganha os duelos individuais</small></div>
+    </div>
+    <button class="primary" id="btn-start" disabled>Disputar o Major →</button>
+  </section>
+
+  <!-- SIMULATION SCREEN -->
+  <section id="screen-sim" class="screen">
+    <div id="sim-content"></div>
+    <button class="primary" id="btn-next" style="display:none;">Continuar →</button>
+  </section>
+
+  <!-- RESULTS SCREEN -->
+  <section id="screen-results" class="screen">
+    <div id="results-content"></div>
+    <button class="secondary" id="btn-restart">Montar outro time</button>
+  </section>
+
+</main>
+
+<footer>Protótipo v1 · dados de lineups históricos reais, curados a mão · resultados simulados</footer>
+
+<script>
+/* ====================== CONFIG DA API (Fase 0 com ranking) ======================
+   Preencher com a URL do Worker após o deploy (ex: https://api.seudominio.com.br).
+   Vazio = jogo funciona 100% offline, sem ranking global. */
+const API_URL = "";
+
+/* URL do site usada no texto de compartilhamento.
+   Trocar pelo domínio final quando ele estiver ativo. */
+const SITE_URL = "https://meu-jogo.henriquelino31.workers.dev";
+
+/* ====================== DADOS ====================== */
+const LINEUPS = [
+{id:"fnatic-2013",time:"Fnatic",ano:2013,evento:"DreamHack Winter 2013",forca:82,raridade:"Lendário",
+ jogadores:[{nick:"JW",pais:"SE",papel:"Rifler"},{nick:"flusha",pais:"SE",papel:"Rifler"},{nick:"KRIMZ",pais:"SE",papel:"Support"},{nick:"pronax",pais:"SE",papel:"IGL"},{nick:"Devilwalk",pais:"SE",papel:"AWP"}]},
+{id:"vp-goldenfive-2014",time:"Virtus.pro",ano:2014,evento:"EMS One Katowice 2014",forca:88,raridade:"Lendário",
+ jogadores:[{nick:"TaZ",pais:"PL",papel:"IGL"},{nick:"NEO",pais:"PL",papel:"AWP"},{nick:"pashaBiceps",pais:"PL",papel:"Rifler"},{nick:"kuben",pais:"PL",papel:"Support"},{nick:"byali",pais:"PL",papel:"Entry"}]},
+{id:"nip-2014",time:"Ninjas in Pyjamas",ano:2014,evento:"ESL One Cologne 2014",forca:85,raridade:"Lendário",
+ jogadores:[{nick:"f0rest",pais:"SE",papel:"Rifler"},{nick:"GeT_RiGhT",pais:"SE",papel:"Entry"},{nick:"friberg",pais:"SE",papel:"Support"},{nick:"Xizt",pais:"SE",papel:"IGL"},{nick:"fifflaren",pais:"SE",papel:"AWP"}]},
+{id:"ldlc-2014",time:"Team LDLC.com",ano:2014,evento:"DreamHack Winter 2014",forca:78,raridade:"Histórico",
+ jogadores:[{nick:"kennyS",pais:"FR",papel:"AWP"},{nick:"Happy",pais:"FR",papel:"IGL"},{nick:"apEX",pais:"FR",papel:"Entry"},{nick:"shox",pais:"FR",papel:"Rifler"},{nick:"SmithZz",pais:"FR",papel:"Support"}]},
+{id:"fnatic-2015",time:"Fnatic",ano:2015,evento:"ESL One Katowice/Cologne 2015",forca:90,raridade:"Lendário",
+ jogadores:[{nick:"JW",pais:"SE",papel:"Rifler"},{nick:"flusha",pais:"SE",papel:"Entry"},{nick:"KRIMZ",pais:"SE",papel:"Support"},{nick:"olofmeister",pais:"SE",papel:"Rifler"},{nick:"Lekr0",pais:"SE",papel:"IGL"}]},
+{id:"envyus-2015",time:"Team EnVyUs",ano:2015,evento:"DreamHack Cluj-Napoca 2015",forca:80,raridade:"Histórico",
+ jogadores:[{nick:"kennyS",pais:"FR",papel:"AWP"},{nick:"apEX",pais:"FR",papel:"IGL"},{nick:"NBK-",pais:"FR",papel:"Rifler"},{nick:"Happy",pais:"FR",papel:"Entry"},{nick:"shox",pais:"FR",papel:"Support"}]},
+{id:"luminosity-2016",time:"Luminosity Gaming",ano:2016,evento:"MLG Columbus 2016",forca:89,raridade:"Lendário",
+ jogadores:[{nick:"FalleN",pais:"BR",papel:"IGL"},{nick:"fer",pais:"BR",papel:"Rifler"},{nick:"coldzera",pais:"BR",papel:"Rifler"},{nick:"fnx",pais:"BR",papel:"Entry"},{nick:"TACO",pais:"BR",papel:"Support"}]},
+{id:"sk-2016",time:"SK Gaming",ano:2016,evento:"ESL One Cologne 2016",forca:90,raridade:"Lendário",
+ jogadores:[{nick:"FalleN",pais:"BR",papel:"AWP"},{nick:"fer",pais:"BR",papel:"Rifler"},{nick:"coldzera",pais:"BR",papel:"Entry"},{nick:"fnx",pais:"BR",papel:"Rifler"},{nick:"TACO",pais:"BR",papel:"IGL"}]},
+{id:"astralis-2017",time:"Astralis",ano:2017,evento:"ELEAGUE Atlanta 2017",forca:86,raridade:"Lendário",
+ jogadores:[{nick:"Xyp9x",pais:"DK",papel:"Support"},{nick:"dupreeh",pais:"DK",papel:"Entry"},{nick:"device",pais:"DK",papel:"AWP"},{nick:"karrigan",pais:"DK",papel:"IGL"},{nick:"Kjaerbye",pais:"DK",papel:"Rifler"}]},
+{id:"gambit-2017",time:"Gambit Esports",ano:2017,evento:"PGL Major Kraków 2017",forca:79,raridade:"Histórico",
+ jogadores:[{nick:"mou",pais:"RU",papel:"Rifler"},{nick:"Dosia",pais:"RU",papel:"IGL"},{nick:"AdreN",pais:"KZ",papel:"Entry"},{nick:"seized",pais:"RU",papel:"Support"},{nick:"Ax1Le",pais:"RU",papel:"AWP"}]},
+{id:"cloud9-2018",time:"Cloud9",ano:2018,evento:"ELEAGUE Boston 2018",forca:83,raridade:"Lendário",
+ jogadores:[{nick:"tarik",pais:"US",papel:"Rifler"},{nick:"Skadoodle",pais:"US",papel:"AWP"},{nick:"autimatic",pais:"US",papel:"Rifler"},{nick:"RUSH",pais:"CA",papel:"Entry"},{nick:"Stewie2K",pais:"US",papel:"IGL"}]},
+{id:"astralis-2019",time:"Astralis",ano:2019,evento:"London/Katowice/Berlin (three-peat)",forca:99,raridade:"Lendário",
+ jogadores:[{nick:"device",pais:"DK",papel:"AWP"},{nick:"dupreeh",pais:"DK",papel:"Entry"},{nick:"Xyp9x",pais:"DK",papel:"Support"},{nick:"gla1ve",pais:"DK",papel:"IGL"},{nick:"Magisk",pais:"DK",papel:"Rifler"}]},
+{id:"navi-2021",time:"Natus Vincere",ano:2021,evento:"PGL Major Stockholm 2021",forca:97,raridade:"Lendário",
+ jogadores:[{nick:"s1mple",pais:"UA",papel:"AWP"},{nick:"electroNic",pais:"RU",papel:"Rifler"},{nick:"Perfecto",pais:"RU",papel:"Rifler"},{nick:"Boombl4",pais:"UA",papel:"IGL"},{nick:"b1t",pais:"UA",papel:"Entry"}]},
+{id:"faze-2022",time:"FaZe Clan",ano:2022,evento:"PGL Major Antwerp 2022",forca:91,raridade:"Lendário",
+ jogadores:[{nick:"karrigan",pais:"DK",papel:"IGL"},{nick:"rain",pais:"NO",papel:"Entry"},{nick:"ropz",pais:"EE",papel:"Rifler"},{nick:"Twistzz",pais:"CA",papel:"Rifler"},{nick:"broky",pais:"LV",papel:"AWP"}]},
+{id:"outsiders-2022",time:"Outsiders",ano:2022,evento:"IEM Rio Major 2022",forca:84,raridade:"Histórico",
+ jogadores:[{nick:"Jame",pais:"RU",papel:"Entry"},{nick:"qikert",pais:"RU",papel:"Rifler"},{nick:"Perfecto",pais:"RU",papel:"Rifler"},{nick:"n0rb3r7",pais:"RU",papel:"Support"},{nick:"Fl1t",pais:"RU",papel:"AWP"}]},
+{id:"vitality-2023",time:"Team Vitality",ano:2023,evento:"BLAST Paris Major 2023",forca:92,raridade:"Lendário",
+ jogadores:[{nick:"ZywOo",pais:"FR",papel:"AWP"},{nick:"apEX",pais:"FR",papel:"IGL"},{nick:"dupreeh",pais:"DK",papel:"Entry"},{nick:"Magisk",pais:"DK",papel:"Rifler"},{nick:"Spinx",pais:"IL",papel:"Rifler"}]},
+{id:"navi-2024",time:"Natus Vincere",ano:2024,evento:"PGL Major Copenhagen 2024",forca:88,raridade:"Lendário",
+ jogadores:[{nick:"jL",pais:"LT",papel:"Rifler"},{nick:"Aleksib",pais:"FI",papel:"IGL"},{nick:"iM",pais:"KZ",papel:"Rifler"},{nick:"b1t",pais:"UA",papel:"Entry"},{nick:"w0nderful",pais:"RU",papel:"AWP"}]},
+{id:"spirit-2024",time:"Team Spirit",ano:2024,evento:"Perfect World Shanghai 2024",forca:90,raridade:"Lendário",
+ jogadores:[{nick:"donk",pais:"RU",papel:"Rifler"},{nick:"chopper",pais:"RU",papel:"IGL"},{nick:"sh1ro",pais:"RU",papel:"AWP"},{nick:"magixx",pais:"RU",papel:"Rifler"},{nick:"zont1x",pais:"RU",papel:"Entry"}]},
+{id:"vitality-2025a",time:"Team Vitality",ano:2025,evento:"BLAST Austin Major 2025",forca:93,raridade:"Lendário",
+ jogadores:[{nick:"ZywOo",pais:"FR",papel:"AWP"},{nick:"apEX",pais:"FR",papel:"IGL"},{nick:"flameZ",pais:"IL",papel:"Rifler"},{nick:"mezii",pais:"GB",papel:"Support"},{nick:"ropz",pais:"EE",papel:"Entry"}]},
+{id:"vitality-2025b",time:"Team Vitality",ano:2025,evento:"StarLadder Budapest Major 2025",forca:95,raridade:"Lendário",
+ jogadores:[{nick:"ZywOo",pais:"FR",papel:"AWP"},{nick:"apEX",pais:"FR",papel:"IGL"},{nick:"flameZ",pais:"IL",papel:"Rifler"},{nick:"mezii",pais:"GB",papel:"Support"},{nick:"ropz",pais:"EE",papel:"Entry"}]},
+
+/* ===== vice-campeões e semifinalistas (expansão "top 5 por Major") ===== */
+{id:"nip-2013",time:"Ninjas in Pyjamas",ano:2013,evento:"DreamHack Winter 2013 (vice)",forca:83,raridade:"Lendário",
+ jogadores:[{nick:"f0rest",pais:"SE",papel:"Rifler"},{nick:"GeT_RiGhT",pais:"SE",papel:"Entry"},{nick:"friberg",pais:"SE",papel:"Support"},{nick:"Xizt",pais:"SE",papel:"IGL"},{nick:"fifflaren",pais:"SE",papel:"AWP"}]},
+{id:"fnatic-2014-cologne",time:"Fnatic",ano:2014,evento:"ESL One Cologne 2014 (vice)",forca:83,raridade:"Lendário",
+ jogadores:[{nick:"JW",pais:"SE",papel:"Rifler"},{nick:"flusha",pais:"SE",papel:"Entry"},{nick:"KRIMZ",pais:"SE",papel:"Support"},{nick:"olofmeister",pais:"SE",papel:"Rifler"},{nick:"pronax",pais:"SE",papel:"IGL"}]},
+{id:"dignitas-2014",time:"Dignitas",ano:2014,evento:"ESL One Cologne 2014 (3º-4º lugar)",forca:76,raridade:"Histórico",
+ jogadores:[{nick:"aizy",pais:"DK",papel:"Rifler"},{nick:"device",pais:"DK",papel:"AWP"},{nick:"dupreeh",pais:"DK",papel:"Entry"},{nick:"FeTiSh",pais:"DK",papel:"Support"},{nick:"Xyp9x",pais:"DK",papel:"IGL"}]},
+{id:"nip-2015-katowice",time:"Ninjas in Pyjamas",ano:2015,evento:"ESL One Katowice 2015 (vice)",forca:83,raridade:"Lendário",
+ jogadores:[{nick:"f0rest",pais:"SE",papel:"Rifler"},{nick:"GeT_RiGhT",pais:"SE",papel:"Entry"},{nick:"friberg",pais:"SE",papel:"Support"},{nick:"Xizt",pais:"SE",papel:"IGL"},{nick:"fifflaren",pais:"SE",papel:"AWP"}]},
+{id:"vp-2015",time:"Virtus.pro",ano:2015,evento:"Katowice/Cologne 2015 (3º-4º lugar)",forca:84,raridade:"Lendário",
+ jogadores:[{nick:"TaZ",pais:"PL",papel:"IGL"},{nick:"NEO",pais:"PL",papel:"AWP"},{nick:"pashaBiceps",pais:"PL",papel:"Rifler"},{nick:"Snax",pais:"PL",papel:"Entry"},{nick:"byali",pais:"PL",papel:"Support"}]},
+{id:"envyus-2015-cologne",time:"Team EnVyUs",ano:2015,evento:"ESL One Cologne 2015 (vice)",forca:82,raridade:"Histórico",
+ jogadores:[{nick:"kennyS",pais:"FR",papel:"AWP"},{nick:"apEX",pais:"FR",papel:"IGL"},{nick:"NBK-",pais:"FR",papel:"Rifler"},{nick:"Happy",pais:"FR",papel:"Entry"},{nick:"shox",pais:"FR",papel:"Support"}]},
+{id:"tsm-2015",time:"Team SoloMid",ano:2015,evento:"ESL One Cologne 2015 (3º-4º lugar)",forca:75,raridade:"Histórico",
+ jogadores:[{nick:"Xyp9x",pais:"DK",papel:"Support"},{nick:"device",pais:"DK",papel:"AWP"},{nick:"dupreeh",pais:"DK",papel:"Entry"},{nick:"cajunb",pais:"DK",papel:"Rifler"},{nick:"karrigan",pais:"DK",papel:"IGL"}]},
+{id:"navi-2016",time:"Natus Vincere",ano:2016,evento:"MLG Columbus 2016 (vice)",forca:86,raridade:"Lendário",
+ jogadores:[{nick:"Edward",pais:"UA",papel:"Rifler"},{nick:"Zeus",pais:"UA",papel:"IGL"},{nick:"GuardiaN",pais:"SK",papel:"AWP"},{nick:"seized",pais:"RU",papel:"Rifler"},{nick:"flamie",pais:"RU",papel:"Entry"}]},
+{id:"astralis-2016",time:"Astralis",ano:2016,evento:"MLG Columbus 2016 (3º-4º lugar)",forca:80,raridade:"Histórico",
+ jogadores:[{nick:"karrigan",pais:"DK",papel:"IGL"},{nick:"cajunb",pais:"DK",papel:"Rifler"},{nick:"Xyp9x",pais:"DK",papel:"Support"},{nick:"dupreeh",pais:"DK",papel:"Entry"},{nick:"device",pais:"DK",papel:"AWP"}]},
+{id:"vp-2017-atlanta",time:"Virtus.pro",ano:2017,evento:"ELEAGUE Atlanta 2017 (vice)",forca:83,raridade:"Histórico",
+ jogadores:[{nick:"TaZ",pais:"PL",papel:"IGL"},{nick:"NEO",pais:"PL",papel:"AWP"},{nick:"pashaBiceps",pais:"PL",papel:"Rifler"},{nick:"Snax",pais:"PL",papel:"Entry"},{nick:"byali",pais:"PL",papel:"Support"}]},
+{id:"faze-2018-boston",time:"FaZe Clan",ano:2018,evento:"ELEAGUE Boston 2018 (vice)",forca:85,raridade:"Histórico",
+ jogadores:[{nick:"NiKo",pais:"BA",papel:"Rifler"},{nick:"rain",pais:"NO",papel:"Entry"},{nick:"GuardiaN",pais:"SK",papel:"AWP"},{nick:"olofmeister",pais:"SE",papel:"Rifler"},{nick:"karrigan",pais:"DK",papel:"IGL"}]},
+
+/* ===== rodada 2 de expansão: Krakow17 a Cologne26 ===== */
+{id:"immortals-2017",time:"Immortals",ano:2017,evento:"PGL Major Kraków 2017 (vice)",forca:79,raridade:"Histórico",
+ jogadores:[{nick:"steel",pais:"US",papel:"IGL"},{nick:"boltz",pais:"BR",papel:"Rifler"},{nick:"HEN1",pais:"BR",papel:"AWP"},{nick:"LUCAS1",pais:"BR",papel:"Rifler"},{nick:"kNg",pais:"BR",papel:"Entry"}]},
+{id:"navi-2018-london",time:"Natus Vincere",ano:2018,evento:"FACEIT Major London 2018 (vice)",forca:87,raridade:"Lendário",
+ jogadores:[{nick:"s1mple",pais:"UA",papel:"AWP"},{nick:"electroNic",pais:"RU",papel:"Rifler"},{nick:"flamie",pais:"RU",papel:"Rifler"},{nick:"Edward",pais:"UA",papel:"Entry"},{nick:"Zeus",pais:"UA",papel:"IGL"}]},
+{id:"mibr-2018",time:"MIBR",ano:2018,evento:"FACEIT Major London 2018 (3º-4º lugar)",forca:82,raridade:"Histórico",
+ jogadores:[{nick:"FalleN",pais:"BR",papel:"IGL"},{nick:"fer",pais:"BR",papel:"Rifler"},{nick:"coldzera",pais:"BR",papel:"Rifler"},{nick:"TACO",pais:"BR",papel:"Support"},{nick:"Stewie2K",pais:"US",papel:"Entry"}]},
+{id:"liquid-2018",time:"Team Liquid",ano:2018,evento:"FACEIT Major London 2018 (3º-4º lugar)",forca:83,raridade:"Histórico",
+ jogadores:[{nick:"EliGE",pais:"US",papel:"Rifler"},{nick:"Nitr0",pais:"US",papel:"IGL"},{nick:"NAF",pais:"CA",papel:"Rifler"},{nick:"Twistzz",pais:"CA",papel:"Entry"},{nick:"RUSH",pais:"CA",papel:"Support"}]},
+{id:"ence-2019",time:"ENCE",ano:2019,evento:"IEM Katowice 2019 (vice)",forca:80,raridade:"Histórico",
+ jogadores:[{nick:"Aleksib",pais:"FI",papel:"IGL"},{nick:"allu",pais:"FI",papel:"Rifler"},{nick:"sergej",pais:"FI",papel:"Rifler"},{nick:"xseveN",pais:"FI",papel:"Support"},{nick:"aerial",pais:"FI",papel:"AWP"}]},
+{id:"avangar-2019",time:"AVANGAR",ano:2019,evento:"StarLadder Berlin 2019 (vice, underdog)",forca:76,raridade:"Underdog",
+ jogadores:[{nick:"Jame",pais:"RU",papel:"Entry"},{nick:"mou",pais:"RU",papel:"AWP"},{nick:"Buster",pais:"RU",papel:"Rifler"},{nick:"jR",pais:"RU",papel:"Support"},{nick:"fitch",pais:"RU",papel:"IGL"}]},
+{id:"g2-2021",time:"G2 Esports",ano:2021,evento:"PGL Major Stockholm 2021 (vice)",forca:89,raridade:"Lendário",
+ jogadores:[{nick:"NiKo",pais:"BA",papel:"Rifler"},{nick:"huNter-",pais:"BA",papel:"Entry"},{nick:"nexa",pais:"RS",papel:"IGL"},{nick:"AmaNEk",pais:"FR",papel:"Support"},{nick:"HooXi",pais:"DK",papel:"AWP"}]},
+{id:"gambit-2021",time:"Gambit Esports",ano:2021,evento:"PGL Major Stockholm 2021 (3º-4º lugar)",forca:85,raridade:"Lendário",
+ jogadores:[{nick:"sh1ro",pais:"RU",papel:"AWP"},{nick:"Ax1Le",pais:"RU",papel:"Rifler"},{nick:"Hobbit",pais:"RU",papel:"IGL"},{nick:"interz",pais:"RU",papel:"Entry"},{nick:"Dima",pais:"RU",papel:"Support"}]},
+{id:"heroic-2021",time:"Heroic",ano:2021,evento:"PGL Major Stockholm 2021 (3º-4º lugar)",forca:83,raridade:"Histórico",
+ jogadores:[{nick:"cadiaN",pais:"DK",papel:"IGL"},{nick:"TeSeS",pais:"DK",papel:"Support"},{nick:"stavn",pais:"DK",papel:"Rifler"},{nick:"sjuush",pais:"DK",papel:"Rifler"},{nick:"Jabbi",pais:"DK",papel:"Entry"}]},
+{id:"heroic-2022-rio",time:"Heroic",ano:2022,evento:"IEM Rio Major 2022 (vice)",forca:85,raridade:"Histórico",
+ jogadores:[{nick:"cadiaN",pais:"DK",papel:"IGL"},{nick:"TeSeS",pais:"DK",papel:"Support"},{nick:"stavn",pais:"DK",papel:"Rifler"},{nick:"sjuush",pais:"DK",papel:"Rifler"},{nick:"Jabbi",pais:"DK",papel:"Entry"}]},
+{id:"navi-2022-antwerp",time:"Natus Vincere",ano:2022,evento:"PGL Major Antwerp 2022 (vice)",forca:90,raridade:"Lendário",
+ jogadores:[{nick:"s1mple",pais:"UA",papel:"AWP"},{nick:"electroNic",pais:"RU",papel:"Rifler"},{nick:"Perfecto",pais:"RU",papel:"Rifler"},{nick:"b1t",pais:"UA",papel:"Entry"},{nick:"Boombl4",pais:"UA",papel:"IGL"}]},
+{id:"ence-2022",time:"ENCE",ano:2022,evento:"PGL Major Antwerp 2022 (3º-4º lugar)",forca:81,raridade:"Histórico",
+ jogadores:[{nick:"Aleksib",pais:"FI",papel:"IGL"},{nick:"Snappi",pais:"DK",papel:"Rifler"},{nick:"maden",pais:"NO",papel:"Rifler"},{nick:"dycha",pais:"PL",papel:"Support"},{nick:"NertZ",pais:"FI",papel:"Entry"}]},
+{id:"gamerlegion-2023",time:"GamerLegion",ano:2023,evento:"BLAST Paris Major 2023 (vice, underdog)",forca:78,raridade:"Underdog",
+ jogadores:[{nick:"cadiaN",pais:"DK",papel:"IGL"},{nick:"jks",pais:"AU",papel:"Rifler"},{nick:"nexa",pais:"RS",papel:"Rifler"},{nick:"JDC",pais:"GB",papel:"Entry"},{nick:"Tauson",pais:"DK",papel:"AWP"}]},
+{id:"falcons-2026",time:"Team Falcons",ano:2026,evento:"IEM Cologne Major 2026",forca:94,raridade:"Lendário",
+ jogadores:[{nick:"NiKo",pais:"BA",papel:"Rifler"},{nick:"m0NESY",pais:"RU",papel:"AWP"},{nick:"karrigan",pais:"DK",papel:"IGL"},{nick:"kyousuke",pais:"RU",papel:"Entry"},{nick:"TeSeS",pais:"DK",papel:"Support"}]},
+{id:"furia-2026",time:"FURIA Esports",ano:2026,evento:"IEM Cologne Major 2026 (vice)",forca:88,raridade:"Lendário",
+ jogadores:[{nick:"FalleN",pais:"BR",papel:"IGL"},{nick:"yuurih",pais:"BR",papel:"Support"},{nick:"YEKINDAR",pais:"LV",papel:"Entry"},{nick:"KSCERATO",pais:"BR",papel:"Rifler"},{nick:"molodoy",pais:"KZ",papel:"AWP"}]},
+];
+
+const ROLES = ["AWP","IGL","Entry","Support","Rifler"];
+const MAPS = ["Mirage","Inferno","Nuke","Ancient","Anubis","Dust2","Train"];
+
+/* ====================== RNG SEEDÁVEL (Fase 1 do roadmap) ======================
+   Todo o aleatório do jogo passa por PRNGs seedados. No modo livre a seed é
+   aleatória; no Desafio do Dia a seed vem da data -> mesmo baralho pra todo mundo.
+   Dois streams separados:
+   - draftRand: sorteio das levas do draft
+   - simRand: montagem dos adversários + simulação das partidas
+   Separados para que o nº de atualizações que o jogador usa no draft NÃO mude
+   os adversários/resultados do dia (essencial pra ranking justo na Fase 2). */
+function hashSeed(str){
+  let h = 1779033703 ^ str.length;
+  for(let i=0;i<str.length;i++){
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h<<13) | (h>>>19);
+  }
+  return h>>>0;
+}
+function mulberry32(a){
+  return function(){
+    a|=0; a = (a + 0x6D2B79F5)|0;
+    let t = Math.imul(a ^ (a>>>15), 1|a);
+    t = (t + Math.imul(t ^ (t>>>7), 61|t)) ^ t;
+    return ((t ^ (t>>>14))>>>0) / 4294967296;
+  };
+}
+function shuffle(arr, rand){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(rand()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+// localStorage com try/catch: em ambientes que bloqueiam storage (ex: alguns
+// previews embutidos) o jogo segue funcionando, só sem persistir o "1x por dia".
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+function localDateStr(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+let gameMode = 'livre'; // 'livre' | 'daily'
+let baseSeed = 0;
+let draftRand = Math.random;
+let simRand = Math.random;
+let aiIdCounter = 0;
+let lastShareText = "";
+function initSeeds(mode){
+  const seedStr = mode==='daily'
+    ? 'major30-'+localDateStr()
+    : 'livre-'+Date.now()+'-'+Math.random();
+  baseSeed = hashSeed(seedStr);
+  draftRand = mulberry32(baseSeed);
+  simRand = mulberry32(baseSeed ^ 0x9E3779B9);
+  aiIdCounter = 0;
+}
+
+/* ====================== ESTADO ====================== */
+let squad = {}; // role -> {nick, pais, team, forca}
+let userStyle = null;
+let userTeamName = "";
+let tournament = null;
+let refreshesLeft = 3; // atualizações restantes para a vaga atual (a 1ª exibição não conta)
+const MAX_REFRESHES = 3;
+let globalPlayerStats = {}; // chave: teamId::nick -> stats acumuladas do campeonato inteiro
+
+/* ====================== DRAFT ====================== */
+function renderSlots(){
+  const cont = document.getElementById('slots');
+  cont.innerHTML = "";
+  ROLES.forEach(r=>{
+    const s = squad[r];
+    const div = document.createElement('div');
+    div.className = 'slot' + (s?' filled':'');
+    div.innerHTML = s
+      ? `<div class="role">${r}</div><div class="nick">${s.nick}</div><div class="team">${s.team} · ${s.ano}</div>`
+      : `<div class="role">${r}</div><div class="nick" style="color:var(--dim)">vazio</div>`;
+    cont.appendChild(div);
+  });
+  const filled = ROLES.filter(r=>squad[r]).length;
+  document.getElementById('draft-progress').textContent = filled<5 ? `Vaga ${filled+1} de 5` : "Roster completo!";
+  document.getElementById('btn-roll').style.display = filled<5 ? 'inline-block' : 'none';
+}
+
+function showLineups(picks){
+  const cont = document.getElementById('lineup-offers');
+  cont.innerHTML = "";
+  picks.forEach(lu=>{
+    const card = document.createElement('div');
+    card.className = 'lineup-card';
+    card.innerHTML = `<div class="lname">${lu.time} <span class="badge ${lu.raridade}">${lu.raridade}</span></div>
+      <div class="lmeta">${lu.evento} · força ${lu.forca}</div>
+      <div class="players">${lu.jogadores.map(p=>{
+        const taken = !!squad[p.papel];
+        return `<div class="player-chip ${taken?'disabled':''}" data-role="${p.papel}" data-nick="${p.nick}" data-team="${lu.time}" data-ano="${lu.ano}" data-forca="${lu.forca}" data-pais="${p.pais}" data-lineupid="${lu.id}">
+          <b>${p.nick}</b><small>${p.papel} · ${p.pais}</small></div>`;
+      }).join('')}</div>`;
+    cont.appendChild(card);
+  });
+  cont.querySelectorAll('.player-chip:not(.disabled)').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const role = chip.dataset.role;
+      squad[role] = {nick:chip.dataset.nick, team:chip.dataset.team, ano:chip.dataset.ano, forca:Number(chip.dataset.forca), pais:chip.dataset.pais, lineupId:chip.dataset.lineupid};
+      refreshesLeft = MAX_REFRESHES; // nova vaga, atualizações renovadas
+      renderSlots();
+      if(ROLES.every(r=>squad[r])){
+        document.getElementById('lineup-offers').innerHTML = "";
+        goToTeamScreen();
+      } else {
+        rollLineups(); // 1ª exibição da nova vaga, não gasta atualização
+      }
+    });
+  });
+}
+
+function pickRandomLineups(){
+  const shuffled = shuffle(LINEUPS, draftRand);
+  const picks = [];
+  const usedTeams = new Set();
+  for(const lu of shuffled){
+    if(picks.length>=3) break;
+    if(usedTeams.has(lu.time)) continue; // não repete o mesmo time dentro da MESMA leva de 3
+    picks.push(lu);
+    usedTeams.add(lu.time);
+  }
+  return picks;
+}
+
+// Exibe a primeira leva de 3 para a vaga atual (não consome atualização)
+function rollLineups(){
+  showLineups(pickRandomLineups());
+  updateRefreshUI();
+}
+
+// Chamado pelo botão: cada clique é uma ATUALIZAÇÃO, limitada a 3 por vaga
+function refreshLineups(){
+  if(refreshesLeft<=0) return;
+  refreshesLeft--;
+  showLineups(pickRandomLineups());
+  updateRefreshUI();
+}
+
+function updateRefreshUI(){
+  const btn = document.getElementById('btn-roll');
+  const hint = document.getElementById('refresh-hint');
+  if(refreshesLeft<=0){
+    btn.disabled = true;
+    btn.textContent = "Sem atualizações — escolha um jogador";
+    hint.textContent = "Você usou as 3 atualizações desta vaga. Escolha um dos jogadores acima pra seguir.";
+  } else {
+    btn.disabled = false;
+    btn.textContent = `🎲 Atualizar Lineups (${refreshesLeft} restante${refreshesLeft>1?'s':''})`;
+    hint.textContent = "";
+  }
+}
+
+document.getElementById('btn-roll').addEventListener('click', refreshLineups);
+
+/* ====================== MODOS: LIVRE × DESAFIO DO DIA ====================== */
+function dailyKey(){ return 'm30-daily-'+localDateStr(); }
+
+function updateModeButtons(){
+  document.getElementById('mode-livre').classList.toggle('sel', gameMode==='livre');
+  document.getElementById('mode-daily').classList.toggle('sel', gameMode==='daily');
+  document.getElementById('mode-daily').textContent = 'Desafio do dia · '+localDateStr().slice(5).split('-').reverse().join('/');
+}
+
+function setMode(mode){
+  if(mode==='daily' && store.get(dailyKey())){
+    gameMode='daily';
+    updateModeButtons();
+    showDailyAlreadyPlayed();
+    return;
+  }
+  gameMode = mode;
+  initSeeds(mode);
+  squad = {}; refreshesLeft = MAX_REFRESHES; globalPlayerStats = {};
+  updateModeButtons();
+  renderSlots();
+  rollLineups();
+}
+
+function showDailyAlreadyPlayed(){
+  const saved = store.get(dailyKey()) || "";
+  document.getElementById('btn-roll').style.display='none';
+  document.getElementById('refresh-hint').textContent='';
+  document.getElementById('slots').innerHTML='';
+  document.getElementById('draft-progress').textContent='Desafio do dia';
+  const cont = document.getElementById('lineup-offers');
+  cont.innerHTML = `<div class="card">
+    <b>Você já jogou o Desafio de hoje.</b>
+    <p style="color:var(--dim); font-size:13px; margin:6px 0 0;">Volte amanhã pra um baralho novo — ou jogue no modo livre à vontade.</p>
+    <div class="share-box">${saved.replace(/[<>&]/g,'')}</div>
+    <button class="primary" onclick="shareResult(this)">📤 Compartilhar</button>
+  </div>`;
+  lastShareText = saved;
+}
+
+document.getElementById('mode-livre').addEventListener('click', ()=>setMode('livre'));
+document.getElementById('mode-daily').addEventListener('click', ()=>setMode('daily'));
+
+setMode('livre'); // inicialização
+
+/* ====================== TELA DE TIME / ESTILO ====================== */
+function goToTeamScreen(){
+  showScreen('screen-team');
+  const cont = document.getElementById('team-final');
+  cont.innerHTML = "";
+  ROLES.forEach(r=>{
+    const s = squad[r];
+    const div = document.createElement('div');
+    div.className = 'slot filled';
+    div.innerHTML = `<div class="role">${r}</div><div class="nick">${s.nick}</div><div class="team">${s.team}</div>`;
+    cont.appendChild(div);
+  });
+}
+
+document.querySelectorAll('.style-opt').forEach(opt=>{
+  opt.addEventListener('click', ()=>{
+    document.querySelectorAll('.style-opt').forEach(o=>o.classList.remove('sel'));
+    opt.classList.add('sel');
+    userStyle = opt.dataset.style;
+    document.getElementById('btn-start').disabled = false;
+  });
+});
+
+document.getElementById('team-name-input').addEventListener('input', (e)=>{
+  userTeamName = e.target.value;
+});
+
+document.getElementById('btn-start').addEventListener('click', startTournament);
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ====================== MOTOR DE SIMULAÇÃO ====================== */
+function styleBias(style){ return {rush:1, tatico:0, aim:0.5}[style] || 0; }
+function styleVariance(style){ return {rush:0.09, tatico:0.0, aim:0.04}[style] || 0.03; }
+
+function pWinRound(forceA, forceB, styleA, styleB){
+  let base = 0.5 + (forceA - forceB)/250;
+  base += (styleBias(styleA) - styleBias(styleB)) * 0.02;
+  const noise = (simRand()-0.5) * (0.14 + styleVariance(styleA) + styleVariance(styleB));
+  return Math.min(0.93, Math.max(0.07, base + noise));
+}
+
+function simulateMap(teamA, teamB, mapName){
+  let a=0, b=0;
+  const p = pWinRound(teamA.forca, teamB.forca, teamA.estilo, teamB.estilo);
+  while(true){
+    if(simRand() < p) a++; else b++;
+    if(a>=13 && a-b>=2) return {map:mapName, a, b, winner:'A'};
+    if(b>=13 && b-a>=2) return {map:mapName, a, b, winner:'B'};
+  }
+}
+
+function simulateMatch(teamA, teamB, bo){
+  const need = Math.ceil(bo/2);
+  const pool = shuffle(MAPS, simRand);
+  let winsA=0, winsB=0;
+  const maps=[];
+  let i=0;
+  while(winsA<need && winsB<need){
+    const res = simulateMap(teamA, teamB, pool[i % pool.length]);
+    i++;
+    if(res.winner==='A') winsA++; else winsB++;
+    maps.push(res);
+  }
+  return {winner: winsA>winsB?teamA:teamB, loser: winsA>winsB?teamB:teamA, winsA, winsB, maps};
+}
+
+/* ====================== ESTATÍSTICAS FICTÍCIAS (K/D, MVP) ====================== */
+function rolePower(papel){
+  return {AWP:1.3, Entry:1.15, Rifler:1.0, Support:0.9, IGL:0.9}[papel] || 1.0;
+}
+
+function statsForTeamInMatch(team, roundsWon, roundsLost){
+  const players = (team.jogadores && team.jogadores.length===5) ? team.jogadores : ROLES.map(r=>({nick:'?',papel:r,pais:''}));
+  const killsPool = Math.max(5, Math.round(roundsWon*3.2 + roundsLost*1.3));
+  const deathsPool = Math.max(5, Math.round(roundsLost*3.2 + roundsWon*1.3));
+  const killW = players.map(p=> rolePower(p.papel) * (0.75+simRand()*0.5));
+  const deathW = players.map(()=> (0.75+simRand()*0.5));
+  const killWSum = killW.reduce((s,v)=>s+v,0);
+  const deathWSum = deathW.reduce((s,v)=>s+v,0);
+  return players.map((p,i)=>{
+    const kills = Math.max(0, Math.round(killsPool*killW[i]/killWSum));
+    const deaths = Math.max(1, Math.round(deathsPool*deathW[i]/deathWSum));
+    const impact = kills - deaths*0.9;
+    return {nick:p.nick, papel:p.papel, pais:p.pais||'', kills, deaths, impact};
+  });
+}
+
+// Calcula e acumula as estatísticas ficticias de uma partida inteira (soma de todos os mapas)
+function computeMatchStats(teamA, teamB, res){
+  let aWon=0, aLost=0, bWon=0, bLost=0;
+  res.maps.forEach(m=>{ aWon+=m.a; aLost+=m.b; bWon+=m.b; bLost+=m.a; });
+  const statsA = statsForTeamInMatch(teamA, aWon, aLost);
+  const statsB = statsForTeamInMatch(teamB, bWon, bLost);
+  res.matchStats = {A:statsA, B:statsB};
+  [[teamA,statsA],[teamB,statsB]].forEach(([team,stats])=>{
+    stats.forEach(s=>{
+      const key = team.id+"::"+s.nick;
+      if(!globalPlayerStats[key]){
+        globalPlayerStats[key] = {nick:s.nick, papel:s.papel, pais:s.pais, teamNome:team.nome, isUser:team.isUser, kills:0, deaths:0, impact:0, maps:0};
+      }
+      const g = globalPlayerStats[key];
+      g.kills += s.kills; g.deaths += s.deaths; g.impact += s.impact; g.maps += res.maps.length;
+    });
+  });
+}
+
+function makeAiTeam(lineup){
+  const styles=['rush','tatico','aim'];
+  return {
+    id: lineup.id+"-ai"+(++aiIdCounter),
+    nome: lineup.time,
+    forca: lineup.forca,
+    estilo: styles[Math.floor(simRand()*3)],
+    isUser:false,
+    jogadores: lineup.jogadores,
+    wins:0, losses:0, mapsLostPlayoffs:0
+  };
+}
+
+function buildUserTeam(){
+  const avgForca = Math.round(ROLES.reduce((s,r)=>s+squad[r].forca,0)/5);
+  // Sanitização: nome vai para innerHTML em vários pontos; remover metacaracteres de HTML
+  // evita self-XSS hoje e stored XSS no futuro (ranking global exibindo nomes de outros usuários)
+  const nomeLimpo = (userTeamName||"").trim().replace(/[<>&"'`]/g,"");
+  const nomeEscolhido = nomeLimpo || "Seu time";
+  const jogadores = ROLES.map(r=>({nick:squad[r].nick, papel:r, pais:squad[r].pais||''}));
+  return {
+    id:"you", nome:nomeEscolhido, forca:avgForca, estilo:userStyle, isUser:true,
+    wins:0, losses:0, mapsLostPlayoffs:0, squad, jogadores
+  };
+}
+
+/* ====================== TORNEIO ====================== */
+let simLog = [];
+let simStageQueue = [];
+
+function startTournament(){
+  const you = buildUserTeam();
+  const pool = shuffle(LINEUPS, simRand).slice(0,15).map(makeAiTeam);
+  const teams = [you, ...pool];
+
+  globalPlayerStats = {};
+  tournament = {
+    teams,
+    active: [...teams],
+    qualified: [],
+    eliminated: [],
+    playoffTeams: [],
+    phase:'swiss',
+    roundNum:1
+  };
+  simLog = [];
+  showScreen('screen-sim');
+  renderSimStep();
+}
+
+function groupByRecord(teams){
+  const groups = {};
+  teams.forEach(t=>{
+    const key = t.wins+"-"+t.losses;
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(t);
+  });
+  return groups;
+}
+
+function boForRecord(w,l){
+  if(w===0 && l===0) return 1;
+  if((w===1&&l===0)||(w===0&&l===1)) return 1;
+  if(w===1&&l===1) return 1;
+  return 3; // 2-0, 0-2, 2-1, 1-2, 2-2
+}
+
+function runSwissRound(){
+  const groups = groupByRecord(tournament.active);
+  const roundResults = [];
+  Object.keys(groups).forEach(key=>{
+    const [w,l] = key.split('-').map(Number);
+    const bo = boForRecord(w,l);
+    const arr = shuffle(groups[key], simRand);
+    for(let i=0;i<arr.length;i+=2){
+      const a=arr[i], b=arr[i+1];
+      if(!b) return; // ímpar sobra (não deve acontecer)
+      const res = simulateMatch(a,b,bo);
+      computeMatchStats(a,b,res);
+      if(res.winner===a){ a.wins++; b.losses++; } else { b.wins++; a.losses++; }
+      roundResults.push({a,b,res,bo});
+    }
+  });
+
+  // mover quem bateu 3 vitórias ou 3 derrotas
+  tournament.active = tournament.active.filter(t=>{
+    if(t.wins>=3){ tournament.qualified.push(t); return false; }
+    if(t.losses>=3){ tournament.eliminated.push(t); return false; }
+    return true;
+  });
+
+  simLog.push({type:'swiss-round', round: tournament.roundNum, results: roundResults});
+  tournament.roundNum++;
+}
+
+function seedPlayoffs(){
+  const q = [...tournament.qualified].sort((x,y)=>{
+    const diffX = x.wins - x.losses, diffY = y.wins - y.losses;
+    if(diffY!==diffX) return diffY-diffX;
+    return y.forca - x.forca;
+  });
+  // seed padrão de chave: 1v8, 4v5, 3v6, 2v7
+  const seeds = [q[0],q[7],q[3],q[4],q[2],q[5],q[1],q[6]];
+  return seeds;
+}
+
+function runPlayoffRound(pairs, bo){
+  const results = [];
+  const winners = [];
+  for(let i=0;i<pairs.length;i+=2){
+    const a=pairs[i], b=pairs[i+1];
+    const res = simulateMatch(a,b,bo);
+    computeMatchStats(a,b,res);
+    if(res.loser===a || res.loser===b){
+      const loser = res.loser;
+      if(loser.isUser){ /* nada extra aqui, já contabilizado abaixo */ }
+    }
+    // conta mapas perdidos pelo usuário nos playoffs
+    const userInMatch = a.isUser ? a : (b.isUser ? b : null);
+    if(userInMatch){
+      const userLostMaps = userInMatch===a ? res.winsB - 0 : res.winsA - 0;
+      // mapas perdidos = vitórias do adversário
+      userInMatch.mapsLostPlayoffs += (userInMatch===a ? res.maps.filter(m=>m.winner==='B').length : res.maps.filter(m=>m.winner==='A').length);
+    }
+    results.push({a,b,res,bo});
+    winners.push(res.winner);
+  }
+  return {results, winners};
+}
+
+/* ====================== RENDER DO PASSO A PASSO ====================== */
+function renderSimStep(){
+  const cont = document.getElementById('sim-content');
+  const nextBtn = document.getElementById('btn-next');
+
+  if(tournament.phase==='swiss'){
+    if(tournament.active.length===0){
+      tournament.phase='seed';
+      renderSimStep();
+      return;
+    }
+    runSwissRound();
+    const last = simLog[simLog.length-1];
+    cont.innerHTML = `<div class="stage-label">Fase Suíça · Rodada ${last.round}</div>` + renderRoundHTML(last.results) +
+      `<p style="color:var(--dim); font-size:12px;">Classificados até agora: ${tournament.qualified.length}/8 · Eliminados: ${tournament.eliminated.length}/8</p>`;
+    nextBtn.style.display='inline-block';
+    nextBtn.textContent = tournament.active.length>0 ? "Próxima rodada →" : "Ver seed dos playoffs →";
+    nextBtn.onclick = renderSimStep;
+    return;
+  }
+
+  if(tournament.phase==='seed'){
+    tournament.playoffSeeds = seedPlayoffs();
+    tournament.phase='qf';
+    cont.innerHTML = `<div class="stage-label">Playoffs · Chaveamento (Bo3 até a final Bo5)</div>` +
+      tournament.playoffSeeds.map((t,i)=>`<div class="bracket-match"><span>#${i+1} seed</span><span class="${t.isUser?'you':''}">${t.nome} (força ${t.forca})</span></div>`).join('');
+    nextBtn.style.display='inline-block';
+    nextBtn.textContent = "Começar quartas de final →";
+    nextBtn.onclick = renderSimStep;
+    return;
+  }
+
+  if(tournament.phase==='qf'){
+    const s = tournament.playoffSeeds;
+    const pairs = [s[0],s[1],s[2],s[3],s[4],s[5],s[6],s[7]];
+    const {results, winners} = runPlayoffRound(pairs,3);
+    tournament.semis = winners;
+    tournament.phase='sf';
+    cont.innerHTML = `<div class="stage-label">Quartas de final · Bo3</div>` + renderRoundHTML(results);
+    nextBtn.style.display='inline-block'; nextBtn.textContent="Semifinal →"; nextBtn.onclick=renderSimStep;
+    return;
+  }
+
+  if(tournament.phase==='sf'){
+    const {results, winners} = runPlayoffRound(tournament.semis,3);
+    tournament.finalPair = winners;
+    tournament.phase='final';
+    cont.innerHTML = `<div class="stage-label">Semifinal · Bo3</div>` + renderRoundHTML(results);
+    nextBtn.style.display='inline-block'; nextBtn.textContent="Grande final →"; nextBtn.onclick=renderSimStep;
+    return;
+  }
+
+  if(tournament.phase==='final'){
+    const {results} = runPlayoffRound(tournament.finalPair,5);
+    tournament.champion = results[0].res.winner;
+    tournament.finalResult = results[0];
+    tournament.phase='done';
+    cont.innerHTML = `<div class="stage-label">Grande Final · Bo5</div>` + renderRoundHTML(results);
+    nextBtn.style.display='inline-block'; nextBtn.textContent="Ver resultado final →"; nextBtn.onclick=renderResults;
+    return;
+  }
+}
+
+let matchIdCounter = 0;
+function renderRoundHTML(results){
+  return results.map(r=>{
+    const {a,b,res,bo} = r;
+    matchIdCounter++;
+    const mid = 'match-'+matchIdCounter;
+    return `<div class="card" style="cursor:pointer;" onclick="toggleMatchDetails('${mid}')">
+      <div class="row">
+        <div class="${a.isUser?'you':''}" style="font-weight:700;">${a.nome}</div>
+        <div class="vs">Bo${bo}</div>
+        <div class="${b.isUser?'you':''}" style="font-weight:700; text-align:right;">${b.nome}</div>
+      </div>
+      <div class="row" style="margin-top:4px;">
+        <div class="score ${res.winner===a?'winner':'loser'}">${res.winsA}</div>
+        <div class="vs">×</div>
+        <div class="score ${res.winner===b?'winner':'loser'}">${res.winsB}</div>
+      </div>
+      ${res.maps.map(m=>`<div class="maprow"><span>${m.map}</span><span>${m.a} - ${m.b}</span></div>`).join('')}
+      <div style="text-align:center; font-size:11px; color:var(--dim); margin-top:6px;">▾ clique pra ver o K/D da partida</div>
+      <div id="${mid}-details" style="display:none; margin-top:8px; border-top:1px solid var(--line); padding-top:8px;" onclick="event.stopPropagation()">
+        ${renderMatchDetails(a,b,res)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMatchDetails(a,b,res){
+  const all = [
+    ...res.matchStats.A.map(s=>({...s, teamNome:a.nome})),
+    ...res.matchStats.B.map(s=>({...s, teamNome:b.nome})),
+  ].sort((x,y)=> y.impact - x.impact);
+  return `<div style="font-size:11px; color:var(--dim); margin-bottom:6px;">Ranking de K/D da partida (estatísticas simuladas)</div>` +
+    all.map((p,i)=>`<div class="row" style="font-size:12px; padding:3px 0;">
+      <span>${i+1}. <b>${p.nick}</b> <span style="color:var(--dim);">(${p.teamNome})</span></span>
+      <span class="mono">${p.kills}/${p.deaths}</span>
+    </div>`).join('');
+}
+
+function toggleMatchDetails(id){
+  const el = document.getElementById(id+'-details');
+  if(!el) return;
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+/* ====================== RESULTADOS FINAIS ====================== */
+function renderResults(){
+  showScreen('screen-results');
+  const cont = document.getElementById('results-content');
+  const you = tournament.teams.find(t=>t.isUser);
+  const champion = tournament.champion;
+  const isChampion = champion.isUser;
+  const cleanSwiss = you.wins===3 && you.losses===0;
+  const wasInPlayoffs = tournament.qualified.includes(you);
+  const cleanPlayoffs = wasInPlayoffs && you.mapsLostPlayoffs===0;
+  const perfeito = isChampion && cleanSwiss && cleanPlayoffs;
+
+  let html = "";
+  if(perfeito){
+    html += `<div class="achievement"><h2>🏆 MAJOR PERFEITO</h2><p>3-0 no Suíço + campeão invicto nos playoffs, sem perder um mapa sequer.</p></div>`;
+  } else if(isChampion){
+    html += `<div class="achievement"><h2>🏆 CAMPEÃO</h2><p>Seu time ergueu o troféu do Major! Recorde no Suíço: ${you.wins}-${you.losses}${cleanPlayoffs?' · invicto nos playoffs':''}.</p></div>`;
+  } else if(wasInPlayoffs){
+    html += `<div class="card" style="text-align:center;"><h3>Classificado para os playoffs</h3><p style="color:var(--dim);">Recorde no Suíço: ${you.wins}-${you.losses}. Eliminado antes da final.</p></div>`;
+  } else {
+    html += `<div class="card" style="text-align:center;"><h3>Eliminado na fase Suíça</h3><p style="color:var(--dim);">Recorde final: ${you.wins}-${you.losses}.</p></div>`;
+  }
+
+  html += `<div class="stage-label">Seu roster</div><div class="slots">` +
+    ROLES.map(r=>`<div class="slot filled"><div class="role">${r}</div><div class="nick">${squad[r].nick}</div><div class="team">${squad[r].team}</div></div>`).join('') +
+    `</div>`;
+
+  html += `<div class="stage-label">Campeão do Major</div><div class="card row"><b>${champion.nome}</b><span style="color:var(--dim);">força ${champion.forca}</span></div>`;
+
+  const mvp = computeTournamentMVP();
+  if(mvp){
+    const kd = mvp.deaths>0 ? (mvp.kills/mvp.deaths).toFixed(2) : mvp.kills.toFixed(2);
+    html += `<div class="stage-label">MVP do campeonato</div>
+      <div class="card row">
+        <div><b>${mvp.nick}</b> ${mvp.isUser?'<span style="color:var(--t); font-size:11px;">(seu time)</span>':''}
+          <div style="color:var(--dim); font-size:12px;">${mvp.teamNome} · ${mvp.papel}</div>
+        </div>
+        <div class="mono" style="text-align:right;">
+          ${mvp.kills}/${mvp.deaths}
+          <div style="color:var(--dim); font-size:11px;">K/D ${kd} · ${mvp.maps} mapas</div>
+        </div>
+      </div>`;
+  }
+
+  /* ===== Share estilo Wordle + trava do desafio diário ===== */
+  lastShareText = buildShareText(you, isChampion, perfeito, wasInPlayoffs, cleanPlayoffs);
+  lastShareData = {
+    nome: you.nome,
+    modo: gameMode==='daily' ? 'Desafio do dia · '+localDateStr().split('-').reverse().join('/') : 'Modo livre',
+    wins: you.wins, losses: you.losses,
+    perfeito, isChampion,
+    resultadoCurto: perfeito ? '💎 MAJOR PERFEITO'
+      : isChampion ? '🏆 CAMPEÃO DO MAJOR'
+      : wasInPlayoffs ? 'PLAYOFFS' : 'ELIMINADO NO SUÍÇO',
+    resultadoSub: perfeito ? 'campeão sem perder um único mapa'
+      : isChampion ? (cleanPlayoffs ? 'invicto nos playoffs' : '')
+      : wasInPlayoffs ? 'eliminado antes da final' : '',
+    roster: ROLES.map(r=>({papel:r, nick:squad[r].nick}))
+  };
+  if(gameMode==='daily' && !store.get(dailyKey())){
+    store.set(dailyKey(), lastShareText);
+    submitDailyScore(); // envia escolhas pra API (se configurada); servidor re-simula
+  }
+  html += `<div class="stage-label">Compartilhar</div>
+    <div class="share-box">${lastShareText.replace(/[<>&]/g,'')}</div>
+    <button class="primary" onclick="shareResult(this)">📤 Compartilhar</button>`;
+
+  if(gameMode==='daily' && API_URL){
+    html += `<div class="stage-label">Ranking do dia</div><div id="daily-rank" style="color:var(--dim); font-size:13px;">Carregando ranking…</div>`;
+  }
+
+  cont.innerHTML = html;
+  if(gameMode==='daily' && API_URL) loadLeaderboard();
+}
+
+/* ===== Integração com a API do ranking (só ativa com API_URL configurada) ===== */
+function submitDailyScore(){
+  if(!API_URL) return;
+  const picks = ROLES.map(r=>({role:r, lineupId:squad[r].lineupId, nick:squad[r].nick}));
+  fetch(API_URL+'/api/daily/submit', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({date: localDateStr(), teamName: userTeamName, style: userStyle, picks})
+  }).then(r=>r.json()).then(data=>{
+    const el = document.getElementById('daily-rank');
+    if(el && data.ok) el.dataset.myScore = data.score;
+  }).catch(()=>{}); // falha de rede não quebra o jogo
+}
+
+function loadLeaderboard(){
+  fetch(API_URL+'/api/daily/leaderboard?date='+localDateStr())
+    .then(r=>r.json())
+    .then(data=>{
+      const el = document.getElementById('daily-rank');
+      if(!el) return;
+      if(!data.top || !data.top.length){ el.textContent = 'Seja o primeiro do ranking de hoje!'; return; }
+      // Escape na saída: nomes vêm de OUTROS usuários — nunca renderizar bruto
+      const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      el.innerHTML = data.top.slice(0,10).map((row,i)=>
+        `<div class="row" style="font-size:13px; padding:4px 0; border-bottom:1px solid var(--line);">
+          <span>${i+1}. <b>${esc(row.team_name)}</b> ${row.perfect?'💎':''}</span>
+          <span class="mono">${row.score} pts · força ${row.forca}</span>
+        </div>`).join('');
+    })
+    .catch(()=>{ const el=document.getElementById('daily-rank'); if(el) el.textContent='Ranking indisponível no momento.'; });
+}
+
+function buildShareText(you, isChampion, perfeito, wasInPlayoffs, cleanPlayoffs){
+  const modo = gameMode==='daily'
+    ? 'Desafio do dia '+localDateStr().split('-').reverse().join('/')
+    : 'Modo livre';
+  const swiss = '🟩'.repeat(you.wins) + '🟥'.repeat(you.losses);
+
+  // Abertura e provocação variam com o resultado
+  let abertura, desafio;
+  if(perfeito){
+    abertura = `💎🏆 FIZ O MAJOR PERFEITO com o ${you.nome}!`;
+    desafio  = 'Campeão sem perder UM único mapa. Duvido você repetir essa. 😏';
+  } else if(isChampion){
+    abertura = `🏆 Fui CAMPEÃO DO MAJOR com o ${you.nome}!`;
+    desafio  = 'Olha onde eu cheguei — será que você consegue fazer melhor? 👀';
+  } else if(wasInPlayoffs){
+    abertura = `🎯 Cheguei aos playoffs do Major com o ${you.nome}.`;
+    desafio  = 'Parei antes do título. Aposto que você não passa daí também. 😅';
+  } else {
+    abertura = `❌ Meu ${you.nome} caiu na fase Suíça (${you.wins}-${you.losses}).`;
+    desafio  = 'Monta um time melhor que o meu, então. Duvido. 🤨';
+  }
+
+  return `${abertura}\n${desafio}\n\n${modo}\nSuíço: ${swiss} (${you.wins}-${you.losses})\nRoster: ${ROLES.map(r=>squad[r].nick).join(', ')}\n\n🎮 Monte o seu: ${SITE_URL}`;
+}
+
+/* ====================== CARD DE COMPARTILHAMENTO ======================
+   Desenha um card 1080×1080 no canvas e entrega ao share sheet nativo do
+   device (Web Share API com arquivo). Cascata de fallback:
+   1. navigator.share com imagem  -> share sheet nativo (ideal, mobile)
+   2. navigator.share só com texto -> share sheet nativo (iOS/Android antigos)
+   3. download da imagem + copia o texto -> desktop sem Web Share API */
+let lastShareData = null; // {nome, wins, losses, resultado, perfeito, isChampion, roster}
+
+function drawShareCard(){
+  const d = lastShareData;
+  const W = 1080, H = 1080;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  const T = '#E0953A', CT = '#6EA8DC', GOLD = '#D9B44A';
+  const TEXT = '#EAF0F3', DIM = '#8DA0AB';
+
+  // fundo
+  c.fillStyle = '#0D1114'; c.fillRect(0,0,W,H);
+  const glow = c.createRadialGradient(W/2, -80, 0, W/2, -80, 760);
+  glow.addColorStop(0, 'rgba(110,168,220,0.10)');
+  glow.addColorStop(1, 'rgba(110,168,220,0)');
+  c.fillStyle = glow; c.fillRect(0,0,W,H);
+
+  // barra T | CT no topo
+  const bar = c.createLinearGradient(0,0,W,0);
+  bar.addColorStop(0, T); bar.addColorStop(0.42, 'rgba(224,149,58,0.25)');
+  bar.addColorStop(0.58, 'rgba(110,168,220,0.25)'); bar.addColorStop(1, CT);
+  c.fillStyle = bar; c.fillRect(0,0,W,10);
+
+  // título — mede as duas palavras pra centralizar o par sem sobreposição
+  c.font = '700 62px Rajdhani, sans-serif';
+  c.textAlign = 'left';
+  const w1 = c.measureText('MAJOR').width;
+  const w2 = c.measureText('SIMULATOR').width;
+  const gapT = 18;
+  let tx = W/2 - (w1 + gapT + w2)/2;
+  c.fillStyle = T; c.fillText('MAJOR', tx, 130);
+  c.fillStyle = CT; c.fillText('SIMULATOR', tx + w1 + gapT, 130);
+
+  c.textAlign = 'center';
+  c.font = '600 26px Rajdhani, sans-serif'; c.fillStyle = DIM;
+  c.fillText(d.modo.toUpperCase(), W/2, 178);
+
+  // nome do time
+  c.font = '700 76px Rajdhani, sans-serif'; c.fillStyle = TEXT;
+  c.fillText(d.nome.toUpperCase().slice(0,20), W/2, 288);
+
+  // roster
+  c.font = '600 22px Rajdhani, sans-serif'; c.fillStyle = DIM;
+  c.fillText('ROSTER', W/2, 350);
+  d.roster.forEach((p,i)=>{
+    const y = 402 + i*54;
+    c.textAlign = 'right';
+    c.font = '600 24px Rajdhani, sans-serif'; c.fillStyle = DIM;
+    c.fillText(p.papel.toUpperCase(), W/2 - 24, y);
+    c.textAlign = 'left';
+    c.font = '700 30px Rajdhani, sans-serif'; c.fillStyle = TEXT;
+    c.fillText(p.nick, W/2 + 24, y);
+  });
+
+  // quadradinhos do suíço
+  const total = d.wins + d.losses;
+  const sq = 52, gap = 12;
+  const startX = W/2 - (total*sq + (total-1)*gap)/2;
+  const sqY = 700;
+  for(let i=0;i<total;i++){
+    c.fillStyle = i < d.wins ? '#58B368' : '#C0392B';
+    c.fillRect(startX + i*(sq+gap), sqY, sq, sq);
+  }
+  c.textAlign = 'center';
+  c.font = '600 24px Rajdhani, sans-serif'; c.fillStyle = DIM;
+  c.fillText(`FASE SUÍÇA  ${d.wins}-${d.losses}`, W/2, sqY + 96);
+
+  // resultado
+  const boxY = 848, boxH = 132;
+  c.fillStyle = d.perfeito || d.isChampion ? 'rgba(217,180,74,0.10)' : '#1B2328';
+  c.fillRect(70, boxY, W-140, boxH);
+  c.strokeStyle = d.perfeito || d.isChampion ? GOLD : '#2A343B';
+  c.lineWidth = 2; c.strokeRect(70, boxY, W-140, boxH);
+  c.font = '700 46px Rajdhani, sans-serif';
+  c.fillStyle = d.perfeito || d.isChampion ? GOLD : TEXT;
+  c.fillText(d.resultadoCurto, W/2, boxY + 62);
+  if(d.resultadoSub){
+    c.font = '600 24px Rajdhani, sans-serif'; c.fillStyle = DIM;
+    c.fillText(d.resultadoSub, W/2, boxY + 102);
+  }
+
+  c.font = '600 22px Rajdhani, sans-serif'; c.fillStyle = DIM;
+  c.fillText('monte seu roster · dispute o Major · busque o 3-0', W/2, 1035);
+
+  return cv;
+}
+
+function canvasToFile(cv){
+  return new Promise(resolve=>{
+    cv.toBlob(blob=>{
+      if(!blob) return resolve(null);
+      resolve(new File([blob], 'major-simulator.png', {type:'image/png'}));
+    }, 'image/png');
+  });
+}
+
+async function shareResult(btn){
+  const setLabel = (txt, ms)=>{
+    if(!btn) return;
+    const orig = btn.dataset.orig || btn.textContent;
+    btn.dataset.orig = orig;
+    btn.textContent = txt;
+    if(ms) setTimeout(()=>{ btn.textContent = orig; }, ms);
+  };
+
+  try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    // sem dados do roster em memória (ex: recarregou a página) -> compartilha só texto
+    const cv = lastShareData ? drawShareCard() : null;
+    const file = cv ? await canvasToFile(cv) : null;
+
+    // 1) share nativo com imagem
+    if(file && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], text:lastShareText, title:'Major Simulator'});
+      return;
+    }
+    // 2) share nativo só com texto
+    if(navigator.share){
+      await navigator.share({text:lastShareText, title:'Major Simulator'});
+      return;
+    }
+    // 3) desktop: baixa a imagem e copia o texto
+    if(file){
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'major-simulator.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(lastShareText);
+    }
+    setLabel('✅ Card baixado!', 2200);
+  }catch(e){
+    // usuário cancelou o share sheet: não é erro, não mostra nada
+    if(e && e.name === 'AbortError') return;
+    try{
+      if(navigator.clipboard) await navigator.clipboard.writeText(lastShareText);
+      setLabel('✅ Texto copiado!', 2200);
+    }catch(_){ setLabel('Não foi possível compartilhar', 2600); }
+  }
+}
+
+function computeTournamentMVP(){
+  const arr = Object.values(globalPlayerStats);
+  if(arr.length===0) return null;
+  arr.sort((a,b)=> b.impact - a.impact);
+  return arr[0];
+}
+
+document.getElementById('btn-restart').addEventListener('click', ()=>{
+  userStyle=null; userTeamName=""; tournament=null;
+  document.getElementById('team-name-input').value = "";
+  document.querySelectorAll('.style-opt').forEach(o=>o.classList.remove('sel'));
+  document.getElementById('btn-start').disabled = true;
+  showScreen('screen-draft');
+  // desafio do dia já jogado -> nova partida cai no modo livre
+  const nextMode = (gameMode==='daily' && store.get(dailyKey())) ? 'livre' : gameMode;
+  setMode(nextMode);
+});
+</script>
+</body>
+</html>
