@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google-adsense-account" content="ca-pub-5654800185992965">
+<title>Como funciona o formato suíço dos Majors de CS — Minha LineUp</title>
+<meta name="description" content="O formato suíço usado nos Majors de Counter-Strike explicado: pareamento por campanha, classificação com 3 vitórias, eliminação com 3 derrotas e o critério de Buchholz.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/pagina.css">
+<style>
+  table{
+    width:100%; border-collapse:collapse; margin:0 0 18px;
+    font-size:14.5px;
+  }
+  th,td{
+    text-align:left; padding:9px 10px; border-bottom:1px solid var(--line);
+  }
+  th{
+    color:var(--dim); font-size:11px; text-transform:uppercase;
+    letter-spacing:1.5px; font-weight:600;
+  }
+  td:first-child{font-family:'JetBrains Mono',monospace; color:var(--ct);}
+  .destaque{
+    background:var(--panel); clip-path:var(--chamfer);
+    padding:14px 16px; margin:0 0 18px; color:var(--dim); font-size:15px;
+  }
+  .destaque strong{color:var(--text);}
+  .cta{
+    background:linear-gradient(160deg, rgba(224,149,58,.12), transparent 60%), var(--panel2);
+    clip-path:var(--chamfer); padding:20px; text-align:center; margin:30px 0 10px;
+  }
+  .cta a{
+    display:inline-block; margin-top:10px; padding:11px 22px;
+    background:linear-gradient(180deg,#EDA84E,var(--t)); color:#17110A;
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+    font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
+    text-decoration:none; font-size:14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/"><h1><span class="h-t">MINHA</span> <span class="h-ct">LINEUP</span></h1></a>
+</header>
+
+<main>
+  <h1 class="page-title">Como funciona o formato suíço</h1>
+  <p class="updated">O sistema que decide quem avança nos Majors de Counter-Strike</p>
+
+  <p>Quem assiste a um Major pela primeira vez costuma estranhar: não há grupos, não há tabela fixa, e ninguém sabe quem vai jogar contra quem até o dia anterior. Esse é o <strong>formato suíço</strong> — um sistema emprestado do xadrez que a Valve adotou por resolver bem um problema específico.</p>
+
+  <h2>O problema que ele resolve</h2>
+  <p>Num formato de grupos tradicional, o sorteio decide muito. Um time forte pode cair num grupo com outros dois times fortes e ser eliminado cedo, enquanto um time mediano avança por ter pegado adversários fracos. É o clássico "grupo da morte".</p>
+  <p>O formato suíço ataca isso com uma ideia simples: <strong>em vez de sortear grupos, pareia os times pela campanha</strong>. Quem está indo bem enfrenta quem está indo bem; quem está indo mal enfrenta quem está indo mal.</p>
+
+  <h2>Como funciona na prática</h2>
+  <p>São 16 times. Na primeira rodada, os confrontos são definidos por sorteio ou por ranking prévio. A partir daí, o pareamento segue a campanha de cada um:</p>
+
+  <table>
+    <tr><th>Rodada</th><th>Como os confrontos são formados</th></tr>
+    <tr><td>1ª</td><td>Todos estão 0-0. Confrontos definidos por sorteio ou seed.</td></tr>
+    <tr><td>2ª</td><td>Quem venceu (1-0) joga contra quem venceu. Quem perdeu (0-1) joga contra quem perdeu.</td></tr>
+    <tr><td>3ª</td><td>Aparecem três grupos de campanha: 2-0, 1-1 e 0-2. Cada time enfrenta alguém do mesmo grupo.</td></tr>
+    <tr><td>4ª</td><td>Restam os que estão 2-1 e 1-2 — todos a uma partida de classificar ou de cair.</td></tr>
+    <tr><td>5ª</td><td>Última rodada, só para quem está 2-2. É tudo ou nada.</td></tr>
+  </table>
+
+  <div class="destaque">
+    A regra que define tudo: <strong>3 vitórias classificam</strong> para os playoffs, <strong>3 derrotas eliminam</strong>. Ninguém joga mais partidas do que precisa — um time pode classificar em três jogos ou ser eliminado em três.
+  </div>
+
+  <p>Ao final, exatamente 8 times chegam a três vitórias e avançam. Os outros 8 acumulam três derrotas e vão para casa.</p>
+
+  <h2>Por que os jogos ficam mais difíceis conforme você vence</h2>
+  <p>Essa é a consequência mais interessante do formato. Ao vencer, você é empurrado para o grupo dos vencedores — e passa a enfrentar apenas times que também estão ganhando. Um time que abre 2-0 não pega mais nenhum adversário fácil.</p>
+  <p>O inverso também vale: perder duas partidas te coloca contra outros times em crise, o que dá uma chance real de recuperação. O formato é duro, mas raramente injusto.</p>
+
+  <h2>Bo1 e Bo3: nem toda partida vale igual</h2>
+  <p>As partidas iniciais são em mapa único (Bo1), o que aumenta a chance de zebra e torna os primeiros dias imprevisíveis. Mas as partidas <strong>decisivas</strong> — aquelas que classificam ou eliminam — são disputadas em melhor de três.</p>
+  <p>A lógica é proteger o que importa: ninguém deveria ser eliminado de um mundial por causa de um único mapa ruim.</p>
+
+  <h2>O critério de desempate: Buchholz</h2>
+  <p>Como vários times terminam com a mesma campanha, é preciso um critério para ordená-los. O formato suíço usa o <strong>Buchholz</strong>, também herdado do xadrez: soma-se o desempenho dos adversários que aquele time enfrentou.</p>
+  <p>A ideia é que um 3-1 conquistado contra adversários difíceis vale mais que um 3-1 contra adversários fracos. Esse número define quem pega quem no chaveamento dos playoffs — e ser bem colocado significa enfrentar um adversário teoricamente mais fácil nas quartas.</p>
+
+  <h2>Depois do suíço: o mata-mata</h2>
+  <p>Os 8 classificados entram em chave eliminatória simples: quartas de final, semifinal e final. Quartas e semi em melhor de três; a grande final, mais recentemente, em <strong>melhor de cinco mapas</strong>.</p>
+  <p>Aqui não há segunda chance. Perdeu, acabou.</p>
+
+  <h2>Como cada mapa é decidido</h2>
+  <p>Desde o Counter-Strike 2, os mapas seguem o formato <strong>MR12</strong>: vence quem chegar a 13 rounds. Cada equipe joga 12 rounds de cada lado — ataque e defesa — trocando na metade.</p>
+  <p>Se der empate em 12 a 12, vai para a prorrogação: 6 rounds em que vence quem fizer <strong>4 primeiro</strong>, encerrando o mapa em 16. Se a prorrogação também empatar (15 a 15), joga-se outra, que termina em 19 — e assim por diante até sair um vencedor.</p>
+
+  <div class="cta">
+    <strong style="font-size:19px;">Dispute um Major nesse formato</strong>
+    <p style="color:var(--dim); margin:8px 0 0;">Monte sua lineup e enfrente a primeira fase no formato suíço, com pareamento por campanha e playoffs eliminatórios.</p>
+    <a href="/">Jogar agora</a>
+  </div>
+</main>
+
+<footer>
+  <a href="/">Jogar</a> · <a href="/majors.html">Campeões dos Majors</a> · <a href="/funcoes.html">Funções</a> · <a href="/sobre.html">Sobre</a> · <a href="/privacidade.html">Privacidade</a> · <a href="/termos.html">Termos de uso</a>
+</footer>
+
+</body>
+</html>
