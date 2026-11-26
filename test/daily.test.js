@@ -4,7 +4,7 @@ import { ROLES } from "../site/js/data.js";
 import { createStreams, pickRandomLineups, verifyDraft } from "../site/js/engine.js";
 import { handle, memoryStore, seedForDay, dayOf } from "../worker/handler.js";
 
-const env = { DAILY_SECRET: "test-secret" };
+const env = { DAILY_SECRET: "test-secret-0123456789" };
 const NOW = new Date("2026-08-10T15:00:00Z");
 const DAY = dayOf(NOW);
 const uuid = () => crypto.randomUUID();
@@ -44,7 +44,7 @@ test("verifyDraft rejeita: escolha fora da oferta, refreshes>3, tamanho errado",
 
 test("GET /daily devolve a seed do dia (estável no dia, muda com o segredo)", async () => {
   const get = (e) => handle(new Request("http://x/api/v1/daily"), e, memoryStore(), NOW).then((r) => r.json());
-  const a = await get(env), b = await get(env), c = await get({ DAILY_SECRET: "outro" });
+  const a = await get(env), b = await get(env), c = await get({ DAILY_SECRET: "outro-segredo-0123456789" });
   assert.equal(a.seed, b.seed); assert.notEqual(a.seed, c.seed); assert.equal(a.day, DAY);
 });
 
@@ -116,6 +116,14 @@ test("leaderboard ordenado (tier, vitórias, menor força); limit máx 50", asyn
     assert.ok(p.tier > c.tier || (p.tier === c.tier && (p.wins > c.wins || (p.wins === c.wins && p.forca <= c.forca))));
   }
   assert.equal(r.data[0].rank, 1);
+});
+
+test("sem DAILY_SECRET (ou curto) o desafio fica indisponível: falha fechada", async () => {
+  for (const bad of [{}, { DAILY_SECRET: "curto" }]) {
+    const r = await handle(new Request("http://x/api/v1/daily"), bad, memoryStore(), NOW);
+    assert.equal(r.status, 500);
+    assert.ok(!(await r.text()).includes("DAILY_SECRET"));
+  }
 });
 
 test("404/405 em problem+json; erro interno não vaza detalhe", async () => {

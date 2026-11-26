@@ -36,8 +36,15 @@ export function dayOf(now) {
 
 /* Seed do dia derivada de um segredo do servidor: ninguém consegue calcular
  * (e pré-jogar) os dias futuros só conhecendo o código público. */
+/* Falha FECHADA: sem segredo configurado o desafio fica indisponível (500), em vez de
+ * cair num valor padrão público que permitiria prever as seeds de qualquer dia. */
+function secretOf(env) {
+  if (typeof env?.DAILY_SECRET !== "string" || env.DAILY_SECRET.length < 16) throw new Error("DAILY_SECRET ausente ou curto demais");
+  return env.DAILY_SECRET;
+}
+
 export function seedForDay(day, env) {
-  return hashSeed(`${env.DAILY_SECRET ?? "dev-only-secret"}|${day}`);
+  return hashSeed(`${secretOf(env)}|${day}`);
 }
 
 async function sha256Hex(text) {
@@ -74,7 +81,7 @@ async function submitEntry(request, env, store, now) {
 
   // Anti-abuso: IP só em forma de hash com sal diário (não guardamos o IP).
   const ip = request.headers.get("cf-connecting-ip") ?? "0.0.0.0";
-  const ipHash = await sha256Hex(`${env.DAILY_SECRET ?? "dev-only-secret"}|${day}|${ip}`);
+  const ipHash = await sha256Hex(`${secretOf(env)}|${day}|${ip}`);
   if ((await store.countByIp(day, ipHash)) >= MAX_ENTRIES_PER_IP_PER_DAY) {
     throw new ApiError(429, "rate-limited", "Too many requests", "Limite diário de participações por rede atingido.", { retry_after: 3600 });
   }
