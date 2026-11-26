@@ -64,3 +64,10 @@ O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs fic
 - **Desfazer seguro:** o `Draft` (agora compartilhado entre navegador e servidor, em `site/js/engine.js`) é uma função de `(seed, ações)`. Desfazer = refazer tudo menos a última escolha; as ofertas voltam **idênticas** e o log do Desafio do dia continua válido para o servidor (`test/draft.test.js` prova, inclusive depois de desfazer e escolher outro jogador).
 - **Multiplayer:** nova mensagem `undo` (só na fase de draft e antes de fixar o estilo); a visão do jogador traz `canUndo`.
 - **Testes:** `e2e/flow.spec.js` (10 cenários, escritos antes e vermelhos) cobre barra fixa, validação no clique, estilo padrão, desfazer, motivo do jogador apagado, entrar com código único (WebSocket simulado pelo Playwright) e transições.
+
+### Fase C3 — rodadas com a campanha à vista (U-11) ✅
+- **Painel “Sua campanha”** em toda etapa: placar (2-1), sequência 🟩🟥 e uma frase do que falta (“classifica com mais 1 vitória · elimina com mais 2 derrotas”; nos playoffs, a fase ou onde caiu).
+- **Só o seu jogo aparece inteiro**; os outros ficam em “Ver os outros 7 jogos” (abertos por padrão quando você não joga mais).
+- **“Simular até o fim”** na barra fixa (some na final, onde o botão já leva ao resultado).
+- A campanha fica registrada em `state.journey` (etapa, adversário, placar, mapas), que alimenta o resultado na C4.
+- **Testes determinísticos:** `e2e/seeds.js` guarda sementes que levam a desfechos conhecidos (eliminado 0-3, 2-3, perdeu nos playoffs, campeão, perfeito) e `GamePage.useSeed()` as injeta; `test/seeds.test.js` avisa se o motor mudar e for preciso regenerá-las.

@@ -25,6 +25,7 @@ const state = {
   squad: {},          // role -> dados resolvidos pelo engine (derivado de draft.picks)
   mode: "free", daily: null,
   tournament: null, shareData: null, shareText: "",
+  journey: [],        // o que aconteceu com o jogador em cada etapa (painel de campanha e resultado)
 };
 
 function showScreen(id) {
@@ -139,19 +140,77 @@ document.querySelectorAll(".style-opt").forEach((opt) => {
 $("btn-start").addEventListener("click", () => {
   const squad = resolveSquad(state.draft.picks); // mesma validação que o servidor fará
   state.tournament = createTournament({ teamName: state.teamName, squad, style: state.style, seed: state.seed });
+  state.journey = [];
   showScreen("screen-sim");
   step();
+});
+
+/* Para quem já conhece o jogo: simula tudo que falta e vai direto ao resultado (a campanha continua registrada). */
+$("btn-skip").addEventListener("click", () => {
+  while (advanceTournament()) { /* avança até o fim */ }
+  renderResults();
 });
 
 
 /* --------------------------- Simulação --------------------------- */
 let matchId = 0;
 
-function statusUsuario() {
+/* ---- Campanha do jogador: o que aconteceu com ELE em cada etapa (alimenta o painel e o resultado) ---- */
+const STAGE_NAME = { qf: "Quartas de final", sf: "Semifinal", final: "Grande final" };
+
+function recordJourney(ev) {
+  if (!["swiss", "qf", "sf", "final"].includes(ev.type)) return;
+  const mine = ev.results.find((r) => r.a.isUser || r.b.isUser);
+  if (!mine) return;                                       // o jogador não jogou nesta etapa
+  const youA = mine.a.isUser, res = mine.res;
+  state.journey.push({
+    phase: ev.type, stage: ev.type === "swiss" ? `Rodada ${ev.round}` : STAGE_NAME[ev.type],
+    opponent: (youA ? mine.b : mine.a).nome, won: !!res.winner.isUser, bo: mine.bo,
+    score: youA ? `${res.winsA}×${res.winsB}` : `${res.winsB}×${res.winsA}`,
+    maps: res.maps.map((m) => (youA ? [m.map, m.a, m.b, m.ot] : [m.map, m.b, m.a, m.ot])),
+  });
+}
+
+/* Avança uma etapa do torneio e registra a campanha do jogador. */
+function advanceTournament() {
+  const ev = advance(state.tournament);
+  if (ev) recordJourney(ev);
+  return ev;
+}
+
+/* Uma frase sobre onde o jogador está agora (o que falta para classificar/eliminar, ou onde caiu). */
+function campaignStatus(t, you) {
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  if (t.champion === you) return "🏆 Campeão do Major!";
+  if (t.eliminated.includes(you)) return "❌ Eliminado na Primeira Fase";
+  if (you.outAt) return you.outAt === "Final" ? "🥈 Vice-campeão" : `❌ Eliminado ${you.outAt === "Quartas" ? "nas quartas de final" : "na semifinal"}`;
+  if (t.qualified.includes(you)) {
+    const next = { qf: "quartas de final", sf: "semifinal", final: "grande final" }[t.phase];
+    return next ? `✅ Classificado · nos playoffs: ${next}` : "✅ Classificado para os playoffs";
+  }
+  return `Classifica com mais ${n(3 - you.wins, "vitória", "vitórias")} · elimina com mais ${n(3 - you.losses, "derrota", "derrotas")}`;
+}
+
+function campaignHTML() {
   const t = state.tournament, you = t.teams.find((x) => x.isUser);
-  if (t.qualified.includes(you)) return `✅ ${you.nome} está classificado (${you.wins}-${you.losses})`;
-  if (t.eliminated.includes(you)) return `❌ ${you.nome} foi eliminado (${you.wins}-${you.losses})`;
-  return `${you.nome} · ${you.wins}-${you.losses}`;
+  const swiss = state.journey.filter((j) => j.phase === "swiss");
+  const track = swiss.map((j) => (j.won ? "🟩" : "🟥")).join("");
+  const spoken = swiss.map((j) => (j.won ? "vitória" : "derrota")).join(", ");
+  return `<section class="campaign" role="region" aria-label="Sua campanha">
+    <div class="campaign-row"><span class="campaign-title">Sua campanha</span><span class="campaign-record mono">${you.wins}-${you.losses}</span></div>
+    ${track ? `<div class="campaign-track" role="img" aria-label="Fase suíça: ${spoken}">${track}</div>` : ""}
+    <p class="campaign-status">${esc(campaignStatus(t, you))}</p>
+  </section>`;
+}
+
+/* A etapa: o jogo do jogador inteiro; os outros recolhidos (ou abertos, se ele nem jogou). */
+function roundHTML(results) {
+  const isMine = (r) => r.a.isUser || r.b.isUser;
+  const mine = results.filter(isMine), others = results.filter((r) => !isMine(r));
+  const row = ({ a, b, res }) => `<li><span class="${res.winner === a ? "w" : ""}">${esc(a.nome)}</span><b class="mono">${res.winsA}×${res.winsB}</b><span class="${res.winner === b ? "w" : ""}">${esc(b.nome)}</span></li>`;
+  const label = mine.length ? `Ver os outros ${others.length} ${others.length === 1 ? "jogo" : "jogos"}` : `Jogos da etapa (${others.length})`;
+  return renderRoundHTML(mine) +
+    (others.length ? `<details class="others"${mine.length ? "" : " open"}><summary>${label}</summary><ul>${others.map(row).join("")}</ul></details>` : "");
 }
 
 function renderRoundHTML(results) {
@@ -202,26 +261,27 @@ const STAGES = {
 
 
 function step() {
-  const t = state.tournament, cont = $("sim-content"), btn = $("btn-next");
-  const ev = advance(t);
+  const t = state.tournament, cont = $("sim-content"), btn = $("btn-next"), skip = $("btn-skip");
+  const ev = advanceTournament();
   btn.hidden = false;
   btn.onclick = step;
   if (!ev) return renderResults();
+  skip.hidden = ev.type === "final";                   // na final o botão principal já leva ao resultado
 
   if (ev.type === "swiss") {
-    // Sem overlay no suíço (5 rodadas): a campanha do jogador fica numa linha fixa no topo.
+    // Sem overlay no suíço (5 rodadas): o painel de campanha diz onde o jogador está.
     cont.innerHTML = `<div class="stage-label">Primeira Fase (formato suíço) · Rodada ${ev.round}</div>
-      <p class="you-status">${esc(statusUsuario())}</p>${renderRoundHTML(ev.results)}
+      ${campaignHTML()}${roundHTML(ev.results)}
       <p style="color:var(--dim); font-size:13px;">Classificados até agora: ${t.qualified.length}/8 · Eliminados: ${t.eliminated.length}/8</p>`;
     btn.textContent = t.active.length > 0 ? "Próxima rodada →" : "Ver seed dos playoffs →";
   } else if (ev.type === "seed") {
-    cont.innerHTML = `<div class="stage-label">Playoffs · Chaveamento (Bo3 até a final Bo5)</div>` +
+    cont.innerHTML = `<div class="stage-label">Playoffs · Chaveamento (Bo3 até a final Bo5)</div>${campaignHTML()}` +
       ev.seeds.map((x, i) => `<div class="bracket-match"><span>#${i + 1} seed</span><span class="${x.isUser ? "you" : ""}">${esc(x.nome)} (força ${x.forca})</span></div>`).join("");
     btn.textContent = "Começar quartas de final →";
     playPhase("Fim da Primeira Fase", "Playoffs definidos", "Os 8 classificados vão ao mata-mata");
   } else {
     const [label, next, k, title, sub] = STAGES[ev.type];
-    cont.innerHTML = `<div class="stage-label">${label}</div>${renderRoundHTML(ev.results)}`;
+    cont.innerHTML = `<div class="stage-label">${label}</div>${campaignHTML()}${roundHTML(ev.results)}`;
     btn.textContent = next;
     if (ev.type === "final") btn.onclick = renderResults;
     playPhase(k, title, sub, ev.type === "final");     // só o mata-mata tem transição
