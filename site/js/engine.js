@@ -216,8 +216,29 @@ export function verifyDraft(seed, draft) {
 }
 
 /* ------------------------------ Simulação ------------------------------ */
-const styleBias = (s) => ({ rush: 1, tatico: 0, aim: 0.5 }[s] ?? 0);
-const styleVariance = (s) => ({ rush: 0.09, tatico: 0.0, aim: 0.04 }[s] ?? 0.03);
+/* Números dos estilos — FONTE ÚNICA: a simulação e a tela de escolha leem daqui, então o que a
+ * interface promete ("+2% por round", "muito imprevisível") é exatamente o que o motor faz.
+ *   bias     × 2% = vantagem por round contra quem tem estilo "menos agressivo";
+ *   variance = amplitude extra do acaso nos rounds (mais zebras para os dois lados). */
+export const STYLE_INFO = {
+  rush:   { bias: 1,   variance: 0.09 },
+  tatico: { bias: 0,   variance: 0.0 },
+  aim:    { bias: 0.5, variance: 0.04 },
+};
+const styleBias = (s) => STYLE_INFO[s]?.bias ?? 0;
+const styleVariance = (s) => STYLE_INFO[s]?.variance ?? 0.03;
+
+/* Força do time frente às lineups históricas (de onde saem os adversários). Percentil = % de
+ * lineups MAIS FRACAS que o time; "média" = média das lineups históricas. */
+const LEAGUE = LINEUPS.map((l) => l.forca).sort((a, b) => a - b);
+const LEAGUE_AVG = Math.round(LEAGUE.reduce((s, f) => s + f, 0) / LEAGUE.length);
+export function teamStrength(forca) {
+  const percentil = Math.round((100 * LEAGUE.filter((f) => f < forca).length) / LEAGUE.length);
+  return { forca, media: LEAGUE_AVG, percentil, nivel: percentil >= 65 ? "acima" : percentil <= 35 ? "abaixo" : "media" };
+}
+
+/* Sugestão: time forte → Tático (menos zebra, a força decide); fraco → Rush (a variância ajuda a zebra); no meio → Aim. */
+export const styleAdvice = (nivel) => ({ acima: "tatico", abaixo: "rush", media: "aim" }[nivel]);
 
 function pWinRound(rand, forceA, forceB, styleA, styleB) {
   let base = 0.5 + (forceA - forceB) / 160;

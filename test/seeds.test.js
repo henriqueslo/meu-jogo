@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Draft, resolveSquad, createTournament, playToEnd, summarize } from "../site/js/engine.js";
+import { Draft, resolveSquad, createTournament, playToEnd, summarize, teamStrength } from "../site/js/engine.js";
 import { SEEDS } from "../e2e/seeds.js";
 
 function outcome(seed) {
@@ -36,4 +36,20 @@ test("retry: mesmo time (seed 2), novo torneio (seed 1) => desfecho diferente (e
   assert.ok(run(primeira).isChampion, "1º jogo: campeão");
   const s = run(segunda);
   assert.ok(!s.wasInPlayoffs && s.wins === 1 && s.losses === 3, "2º torneio: eliminado 1-3");
+});
+
+test("sementes de força: o time montado cai no nível prometido (acima / média / abaixo)", () => {
+  const nivel = (seed) => {
+    const d = new Draft(seed);
+    while (!d.done) {
+      let pick;
+      for (const id of d.offers) for (const p of d._byId(id).jogadores) if (!pick && !d.taken.roles.has(p.papel) && !d.taken.nicks.has(p.nick)) pick = [id, p.nick];
+      d.pick(...pick);
+    }
+    const sq = resolveSquad(d.picks);
+    return teamStrength(Math.round(Object.values(sq).reduce((s, p) => s + p.forca, 0) / 5)).nivel;
+  };
+  assert.equal(nivel(SEEDS.forca.acima), "acima");
+  assert.equal(nivel(SEEDS.forca.media), "media");
+  assert.equal(nivel(SEEDS.forca.abaixo), "abaixo");
 });

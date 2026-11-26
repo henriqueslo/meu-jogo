@@ -463,3 +463,22 @@ button.player-chip:disabled{cursor:not-allowed;}
 
 /* barra de ações do resultado: os botões secundários cabem em 2 linhas, sem ocupar meia tela */
 .action-bar > .secondary{font-size:13px; letter-spacing:.6px; padding:8px 10px; line-height:1.2;}
+
+/* ===== Fase C2: escolher o estilo com contexto ===== */
+.strength{background:var(--panel); border-left:3px solid var(--ct); padding:12px 14px 10px; margin:14px 0;}
+.strength-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
+.strength-title{color:var(--dim); font-size:13px; letter-spacing:2px; text-transform:uppercase; font-weight:600;}
+.strength-num{font-size:34px; font-weight:700; line-height:1;}
+.strength-bar{position:relative; height:8px; background:var(--panel2); margin:10px 0 8px;}
+.strength-bar .fill{display:block; height:100%; background:linear-gradient(90deg, var(--ct), var(--gold));}
+.strength-bar .avg{position:absolute; top:-4px; width:2px; height:16px; background:var(--text);}
+.strength-text{margin:0; color:var(--dim); font-size:14px; line-height:1.4;}
+.strength-text b{color:var(--text);}
+
+.style-opt{text-align:left; padding:12px 14px; display:flex; flex-direction:column; gap:4px;}
+.style-opt small{font-size:13px; line-height:1.4; color:var(--dim);}
+.style-opt .tag-sug{align-self:flex-start; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#171204; background:var(--gold); padding:1px 8px;}
+.style-meta{display:flex; align-items:center; gap:10px; margin-top:4px; font-size:13px; color:var(--dim);}
+.risk{font-size:14px; letter-spacing:2px; color:var(--t);}
+.style-advice{margin:2px 0 14px; color:var(--text); font-size:14px; line-height:1.45;}
+@media (max-width:559px){ .style-opts{flex-direction:column;} }

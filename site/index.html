@@ -93,12 +93,14 @@
   <section id="screen-team" class="screen">
     <h3 style="margin-bottom:4px;">Sua LineUp está pronta</h3>
     <div class="slots" id="team-final" style="margin-top:14px;"></div>
+    <div id="team-strength"></div>
     <p style="color:var(--dim); font-size:13px;">Escolha o estilo de jogo do seu time:</p>
     <div class="style-opts" id="style-opts" role="radiogroup" aria-label="Estilo de jogo">
       <div class="style-opt" data-style="rush" role="radio" aria-checked="false" tabindex="0"><b>Rush</b><small>agressivo, mais variância</small></div>
       <div class="style-opt" data-style="tatico" role="radio" aria-checked="false" tabindex="0"><b>Tático</b><small>consistente, menos zebra</small></div>
       <div class="style-opt" data-style="aim" role="radio" aria-checked="false" tabindex="0"><b>Aim puro</b><small>ganha os duelos individuais</small></div>
     </div>
+    <p id="style-advice" class="style-advice" role="status"></p>
     <button class="primary" id="btn-start" type="button">Disputar o Major →</button>
     <button class="secondary" id="btn-undo-team" type="button">↩ Desfazer última escolha</button>
   </section>

@@ -10,4 +10,6 @@ export const SEEDS = {
   // "Tentar de novo": o 1º jogo usa a seed 2 (draft + torneio, campeão); no retry a seed do TORNEIO passa a ser 1
   // com o MESMO time, e termina eliminado (1-3).
   retry: [2, 1],
+  // Força do time montado (primeiro jogador disponível a cada escolha): forte, média e fraca frente às lineups históricas.
+  forca: { acima: 1, media: 4, abaixo: 13 },
 };
