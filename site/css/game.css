@@ -404,3 +404,23 @@ button.player-chip:disabled{cursor:not-allowed;}
 
 /* U-12: dica de que o overlay pode ser pulado */
 .phase-skip{margin-top:18px; color:var(--dim); font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:.8;}
+
+/* ===== Modos online: cada um no seu bloco (duelo · campeonato · entrar com código) ===== */
+.mode-grid{display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px;}
+.mode-card{
+  background:var(--panel); clip-path:var(--chamfer-sm);
+  border-top:3px solid var(--line-strong);
+  padding:14px 14px 12px; display:flex; flex-direction:column; gap:8px;
+}
+.mode-card h3{margin:0; font-size:18px; letter-spacing:.8px; text-transform:uppercase; font-weight:700;}
+.mode-card p{margin:0; color:var(--dim); font-size:14px; line-height:1.4;}
+.mode-card > button{width:100%; margin:4px 0 0;}
+.mode-duel{border-top-color:var(--t);}
+.mode-cup{border-top-color:var(--gold);}
+.mode-join{border-top-color:var(--ct);}
+.mode-join .join-row{margin-top:2px;}
+@media (min-width:640px){
+  .mode-grid{grid-template-columns:1fr 1fr;}
+  .mode-join{grid-column:1 / -1;}            /* “Entrar com código” ocupa a linha de baixo, valendo para os dois */
+}
+.mode-duel > button, .mode-cup > button{margin-top:auto;}   /* botões alinhados pela base quando os textos têm alturas diferentes */
