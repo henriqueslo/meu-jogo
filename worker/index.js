@@ -7,6 +7,7 @@ import { handle } from "./handler.js";
 import { handleRooms } from "./rooms-api.js";
 import { d1Store } from "./d1store.js";
 import { observe } from "./metrics.js";
+import { runPurge } from "./retention.js";
 
 export { Room, CupRoom } from "./room-do.js";
 
@@ -18,5 +19,9 @@ export default {
     const res = (await handleRooms(request, env, store)) ?? (await handle(request, env, store));
     ctx.waitUntil(observe(request, res, store));
     return res;
+  },
+  // Cron diário (wrangler.toml [triggers]): aplica os prazos de retenção da Política de Privacidade.
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(runPurge(d1Store(env.DB)));
   },
 };

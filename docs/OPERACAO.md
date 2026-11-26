@@ -95,3 +95,33 @@ npx.cmd wrangler d1 execute minhalineup --remote --command "DELETE FROM metrics 
 Rajdhani (500/600/700) e JetBrains Mono (variável 500–700) ficam em `site/fonts/` (8 arquivos `woff2`, ~128 KB no total, só os subconjuntos `latin` e `latin-ext`), declaradas em `site/css/fonts.css`. Licença: SIL OFL 1.1 (`site/fonts/LICENSES.txt`, distribuída junto). O site **não faz nenhuma requisição a terceiros** para fontes: o IP do visitante não vai ao Google, e o CSP (`style-src`/`font-src`) não libera mais `fonts.googleapis.com` nem `fonts.gstatic.com`. `test/static.test.js` impede que alguém reintroduza CSS/JS/fonte externos sem perceber.
 
 Trocar ou acrescentar uma fonte: coloque o `woff2` em `site/fonts/`, declare o `@font-face` em `site/css/fonts.css` (com `font-display: swap`), atualize `LICENSES.txt` com a licença da nova fonte e rode `npm.cmd test`.
+
+---
+
+## Privacidade e retenção
+
+A Política de Privacidade (`site/privacidade.html`) descreve exatamente o que o site faz; `test/privacy.test.js` falha se o texto e o código divergirem (chaves do navegador, prazos, anúncios, fontes). **Mudou o que é coletado, guardado ou carregado? Atualize a política na mesma mudança.**
+
+### Retenção automática
+Um Cron Trigger diário (03:17 UTC, `wrangler.toml` → `[triggers]`) executa `worker/retention.js`:
+- ranking do dia: apagado após **90 dias**; hash do IP: zerado a partir do dia seguinte;
+- contadores agregados (`metrics`): 90 dias; limites de abuso (`rate_limits`): 2 horas;
+- salas de duelo/campeonato: somem sozinhas após 1 h sem atividade (alarme do Durable Object).
+
+Conferir que o job está rodando (aparece como `purge_done` nos logs, e o resultado fica visível nos dados):
+```bash
+npx.cmd wrangler d1 execute minhalineup --remote --command "SELECT COUNT(*) AS entradas, MIN(day) AS mais_antiga FROM daily_entries"
+```
+A `mais_antiga` nunca deve ter mais de ~90 dias.
+
+### Pedido de titular (acesso / remoção) — prazo: 15 dias
+1. Peça o **nome do time e o dia**. Localize:
+```bash
+npx.cmd wrangler d1 execute minhalineup --remote --command "SELECT day, player_id, team_name, created_at FROM daily_entries WHERE team_name = 'NOME EXATO' ORDER BY day DESC"
+```
+2. **Acesso:** devolva ao titular o que existe (nome do time, dia, elenco e resultado; não há outros dados).
+3. **Remoção:** apague pelo `player_id` e pelo dia (como em “Remover uma entrada ofensiva”).
+4. Salas ativas não têm registro persistente: somem em 1 hora.
+5. Responda por e-mail confirmando a ação e anote a data (não guarde o conteúdo do pedido além do necessário).
+
+Pendências para revisão jurídica: ver `docs/PRIVACIDADE-CHECKLIST.md`.

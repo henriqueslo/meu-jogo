@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- AdSense: troque os zeros pelo SEU ID de publicador (ca-pub-...) -->
 <meta name="google-adsense-account" content="ca-pub-5654800185992965">
 <title>Política de Privacidade — Minha LineUp</title>
-<meta name="description" content="Política de privacidade do Minha LineUp: quais dados são coletados, uso de cookies e publicidade.">
+<meta name="description" content="Política de privacidade do Minha LineUp: quais dados são tratados, por quanto tempo, onde ficam e como exercer seus direitos.">
 <link rel="stylesheet" href="/css/fonts.css">
 <link rel="stylesheet" href="/pagina.css">
 </head>
@@ -18,61 +17,88 @@
 
 <main>
   <h1 class="page-title">Política de Privacidade</h1>
-  <p class="updated">Última atualização: 27 de novembro de 2026</p>
+  <p class="updated">Última atualização: 26 de novembro de 2026</p>
 
   <div class="box">
-    <strong>Resumo:</strong> o Minha LineUp não pede cadastro, não coleta e-mail, não cria conta e não pede dados pessoais. O jogo livre roda inteiramente no seu dispositivo. Só se você participar do <strong>Desafio do dia</strong> (opcional) enviamos o nome de time e a lineup ao ranking, conforme explicado abaixo. Além disso, o Google coleta dados para exibir anúncios.
+    <strong>Resumo:</strong> não há cadastro, login nem e-mail. O <strong>jogo livre</strong> roda inteiramente no seu dispositivo e não envia nada a nós. Só se você usar os modos online (<strong>Desafio do dia, duelo e campeonato</strong>) enviamos o <strong>nome de time</strong> que você digitou, suas escolhas no jogo e um <strong>identificador anônimo aleatório</strong>. Isso é dado pessoal pseudonimizado, e esta página explica o que fazemos com ele, por quanto tempo e como você pode pedir a remoção. Atualmente o site <strong>não exibe anúncios</strong> e não usa ferramentas de análise de terceiros.
   </div>
 
   <h2>Quem somos</h2>
-  <p>O Minha LineUp é um jogo de navegador gratuito no qual você monta uma equipe fictícia com jogadores históricos de Counter-Strike e simula a disputa de um campeonato. O site é operado de forma independente e <strong>não possui vínculo com a Valve Corporation, com organizadores de campeonatos ou com qualquer organização de esports</strong>. Nomes de jogadores e equipes são citados a título informativo e histórico.</p>
+  <p>O Minha LineUp é um jogo de navegador gratuito no qual você monta uma equipe fictícia com jogadores históricos de Counter-Strike e simula a disputa de um campeonato. O site é operado de forma independente por uma pessoa física, que é a controladora dos dados descritos aqui (contato na seção <a href="#contato">Contato</a>). O site <strong>não possui vínculo com a Valve Corporation, com organizadores de campeonatos ou com qualquer organização de esports</strong>. Nomes de jogadores e equipes são citados a título informativo e histórico.</p>
 
-  <h2>Dados que NÃO coletamos</h2>
+  <h2>O que tratamos, onde e por quanto tempo</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Dado</th><th>Quando</th><th>Onde fica</th><th>Por quanto tempo</th></tr></thead>
+    <tbody>
+      <tr><td>Nome de time, jogadores escolhidos, estilo, resultado e identificador anônimo</td><td>Você participa do Desafio do dia</td><td>Servidor (banco de dados da Cloudflare)</td><td><strong>90 dias</strong>, depois é apagado automaticamente</td></tr>
+      <tr><td>Hash irreversível do seu IP (com sal diário)</td><td>Desafio do dia, para limitar abuso</td><td>Servidor</td><td>Só no próprio dia; <strong>zerado a partir do dia seguinte</strong></td></tr>
+      <tr><td>Hash irreversível do seu IP</td><td>Criar sala ou consultar uma sala, para limitar abuso</td><td>Servidor</td><td>2 horas</td></tr>
+      <tr><td>Nome de time, escolhas e estilo</td><td>Você cria ou entra em um duelo ou campeonato</td><td>Memória e armazenamento temporário da sala (Cloudflare)</td><td>Apagado após <strong>1 hora</strong> sem atividade na sala</td></tr>
+      <tr><td>Contadores agregados de uso (ex.: “salas criadas hoje”)</td><td>Uso dos modos online</td><td>Servidor</td><td>90 dias; <strong>não contêm dados pessoais</strong></td></tr>
+      <tr><td>Registros técnicos de funcionamento (ex.: “um jogador entrou”), sem IP, sem nome e sem identificador</td><td>Uso dos modos online</td><td>Registros da Cloudflare</td><td>Poucos dias, conforme a Cloudflare</td></tr>
+      <tr><td>Dados técnicos de acesso (como IP e navegador)</td><td>Qualquer visita ao site</td><td>Cloudflare (hospedagem e rede de distribuição)</td><td>Conforme a política da Cloudflare</td></tr>
+    </tbody>
+  </table></div>
+  <p>Não pedimos nem guardamos nome real, e-mail, telefone, CPF, localização ou dados de pagamento. <strong>Não use dados pessoais no nome do time</strong>: ele pode ser visto por outras pessoas (veja abaixo).</p>
+
+  <h2>Jogo livre</h2>
+  <p>No jogo livre, o nome de time, as escolhas e os resultados existem apenas no seu navegador, durante a partida. Nada disso é enviado ao nosso servidor.</p>
+
+  <h2>Desafio do dia (opcional)</h2>
+  <p>Se você escolher participar, enviamos ao servidor o <strong>nome de time</strong> (que aparece <strong>publicamente</strong> no ranking do dia), os jogadores escolhidos, o estilo de jogo e um <strong>identificador anônimo aleatório</strong> gerado no seu navegador, usado para impedir participação duplicada no mesmo dia. O servidor refaz a simulação e calcula o resultado; você não envia o resultado. Não guardamos o seu endereço IP: usamos apenas um <em>hash</em> irreversível, com sal diário, para limitar abuso, e esse hash é zerado a partir do dia seguinte.</p>
+
+  <h2>Duelo 1×1 e campeonato (opcionais)</h2>
+  <p>Ao criar ou entrar em uma sala, enviamos o <strong>nome de time</strong>, suas escolhas de jogadores e o estilo de jogo. <strong>O nome do seu time, seu elenco e o resultado ficam visíveis para as outras pessoas da mesma sala</strong>. A sala e seus dados são apagados automaticamente após 1 hora sem atividade. Para permitir que você volte à sala se a conexão cair, a página for recarregada ou a aba for fechada, guardamos no seu navegador um código aleatório de reconexão, o código da sala e o nome do time, por até 55 minutos (veja a próxima seção).</p>
+
+  <h2>O que guardamos no seu navegador</h2>
+  <p>O site <strong>não define cookies próprios</strong>. Ele usa o armazenamento local do navegador (<em>localStorage</em> e <em>sessionStorage</em>) apenas para os modos online:</p>
   <ul>
-    <li>Não solicitamos nome real, e-mail, telefone, CPF ou qualquer dado de identificação.</li>
-    <li>Não há sistema de cadastro, login ou conta de usuário.</li>
-    <li>No jogo livre, o nome de time que você digita é usado apenas no seu próprio dispositivo e não é enviado a nenhum servidor. No Desafio do dia, ele é enviado ao ranking (veja abaixo).</li>
-    <li>Não utilizamos cookies próprios. O armazenamento local (<em>localStorage</em>) só é usado no Desafio do dia, conforme abaixo.</li>
+    <li><code>ml_player_id</code> (localStorage): identificador anônimo aleatório do Desafio do dia. Fica até você limpar os dados do site.</li>
+    <li><code>ml_played</code> (localStorage): o dia em que você já participou do Desafio, para não oferecer de novo.</li>
+    <li><code>ml_active</code> (localStorage): a sala em que você está (tipo, código, nome do time e código de reconexão). Expira em 55 minutos e é apagada quando você sai da sala ou clica em <strong>Descartar</strong>.</li>
+    <li><code>ml_in_room</code> (sessionStorage): indica que você está numa sala, para voltar sozinho ao recarregar a página. Some ao fechar a aba.</li>
+    <li><code>ml_rooms_&lt;código&gt;</code> e <code>ml_cups_&lt;código&gt;</code> (sessionStorage): código de reconexão da sala. Some ao fechar a aba.</li>
   </ul>
+  <p>Você pode apagar tudo isso a qualquer momento nas configurações do navegador (“limpar dados do site”). O jogo livre continua funcionando normalmente sem nenhum deles.</p>
 
-  <h2>Desafio do dia (ranking) — opcional</h2>
-  <p>Se você escolher participar, enviamos ao nosso servidor: o <strong>nome de time</strong> que você digitou (que aparecerá publicamente no ranking do dia), os jogadores escolhidos, o estilo de jogo e um <strong>identificador anônimo aleatório</strong> gerado no seu navegador (guardado em <em>localStorage</em> para impedir participação duplicada). Não guardamos seu endereço IP: usamos apenas um <em>hash</em> irreversível, com sal diário, para limitar abusos. O ranking é mantido por tempo limitado e você pode pedir a remoção de uma entrada pela página <a href="/sobre.html">Sobre</a>. Não use seu nome real nem dados pessoais no nome do time.</p>
-
-  <h2>Duelo 1×1 (opcional)</h2>
-  <p>Ao criar ou entrar numa sala de duelo, enviamos ao servidor o <strong>nome de time</strong> digitado, as suas escolhas de jogadores e o estilo de jogo, e o seu rival na sala vê o nome do seu time. Para permitir que você volte à sala se a conexão cair, a página for recarregada ou a aba for fechada, guardamos no seu navegador (<em>sessionStorage</em> e <em>localStorage</em>) um código aleatório de reconexão, o código da sala e o nome do time, por até 55 minutos. Você pode apagar isso a qualquer momento com os botões <strong>Sair</strong> ou <strong>Descartar</strong>. A sala e esses dados são apagados automaticamente após 1 hora sem atividade. Limitamos a criação de salas por rede usando apenas um <em>hash</em> irreversível do endereço IP. Não use dados pessoais no nome do time.</p>
-
-  <h2>Campeonato multiplayer (opcional)</h2>
-  <p>Ao criar ou entrar numa sala de campeonato, enviamos ao servidor o <strong>nome de time</strong> digitado, suas escolhas de jogadores e o estilo de jogo. O nome do seu time, o elenco e os resultados ficam visíveis para os demais participantes da sala. Para permitir que você volte à sala se a conexão cair, a página for recarregada ou a aba for fechada, guardamos no seu navegador (<em>sessionStorage</em> e <em>localStorage</em>) um código aleatório de reconexão, o código da sala e o nome do time, por até 55 minutos. Você pode apagar isso a qualquer momento com os botões <strong>Sair</strong> ou <strong>Descartar</strong>. A sala e esses dados são apagados automaticamente após 1 hora sem atividade. Limitamos a criação de salas por rede usando apenas um <em>hash</em> irreversível do endereço IP. Não use dados pessoais no nome do time.</p>
-
-  <h2>Publicidade e cookies do Google</h2>
-  <p>Este site exibe anúncios fornecidos pelo <strong>Google AdSense</strong>. Para isso:</p>
+  <h2>Publicidade</h2>
+  <p>Atualmente este site <strong>não exibe anúncios</strong> e não carrega nenhum código de publicidade. Poderemos ativar o <strong>Google AdSense</strong> no futuro, para custear a manutenção. Se isso acontecer:</p>
   <ul>
-    <li>O Google, como fornecedor terceirizado, utiliza cookies para exibir anúncios com base em visitas anteriores do usuário a este e a outros sites.</li>
-    <li>O uso de cookies de publicidade permite ao Google e a seus parceiros exibirem anúncios com base nas visitas dos usuários.</li>
-    <li>Nesse processo, o Google pode coletar informações como endereço IP, tipo de dispositivo, navegador e páginas visitadas.</li>
+    <li>os anúncios aparecerão <strong>apenas nas páginas informativas</strong>, nunca no jogo, no Desafio do dia, no duelo ou no campeonato;</li>
+    <li>você verá um <strong>aviso de consentimento</strong> (fornecido pelo Google) antes de qualquer anúncio personalizado, e poderá rever a escolha pelo link <strong>Preferências de anúncios</strong> no rodapé;</li>
+    <li>se o seu navegador enviar o sinal <strong>Global Privacy Control</strong>, não carregaremos anúncios;</li>
+    <li>o Google, como fornecedor independente, poderá usar cookies e coletar dados como endereço IP, tipo de dispositivo, navegador e páginas visitadas. Você pode controlar a publicidade personalizada nas <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Configurações de anúncios do Google</a> ou em <a href="https://www.aboutads.info/choices" target="_blank" rel="noopener">aboutads.info/choices</a>, e saber mais em <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Como o Google usa informações de sites ou apps que utilizam nossos serviços</a>;</li>
+    <li>atualizaremos esta política <strong>antes</strong> de ativar os anúncios.</li>
   </ul>
-  <p>Os usuários podem desativar a publicidade personalizada nas <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Configurações de anúncios do Google</a>, ou recusar o uso de cookies de terceiros para publicidade personalizada em <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener">www.aboutads.info/choices</a>.</p>
-  <p>Para saber como o Google trata os dados coletados em sites parceiros, consulte a página <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Como o Google usa informações de sites ou apps que utilizam nossos serviços</a>.</p>
 
   <h2>Outros serviços de terceiros</h2>
-  <p>Utilizamos o <strong>Google Fonts</strong> para carregar as fontes tipográficas do site. Ao carregá-las, o navegador se conecta a servidores do Google, que podem registrar o endereço IP da requisição.</p>
-  <p>O site é hospedado na <strong>Cloudflare</strong>, que pode registrar dados técnicos de acesso (como endereço IP) para fins de segurança, prevenção de abuso e funcionamento da rede de distribuição de conteúdo.</p>
+  <p>As fontes tipográficas são servidas pelo próprio site: nenhuma requisição de fonte vai ao Google. O site não usa Google Analytics nem outras ferramentas de análise de terceiros. A hospedagem e a rede de distribuição são da <strong>Cloudflare</strong>, que pode registrar dados técnicos de acesso (como endereço IP) para segurança, prevenção de abuso e funcionamento do serviço, e que pode usar cookies técnicos de segurança. A Cloudflare opera servidores em vários países; o tratamento pode, portanto, envolver <strong>transferência internacional de dados</strong>, nos termos da LGPD.</p>
 
   <h2>Compartilhamento de resultados</h2>
-  <p>Ao usar o botão de compartilhar, o jogo gera uma imagem e um texto <strong>no seu próprio dispositivo</strong> e os entrega ao menu de compartilhamento do sistema operacional. A escolha de para onde enviar é inteiramente sua. Nenhuma cópia desse conteúdo é enviada para nós.</p>
+  <p>Ao usar o botão de compartilhar, o jogo gera uma imagem e um texto no seu próprio dispositivo e os entrega ao menu de compartilhamento do sistema operacional. A escolha de para onde enviar é inteiramente sua. Nenhuma cópia desse conteúdo é enviada para nós.</p>
+
+  <h2>Para que usamos e em que base legal</h2>
+  <ul>
+    <li><strong>Prestar o serviço que você pediu</strong> (ranking, salas, resultado) — execução do serviço (LGPD, art. 7º, V);</li>
+    <li><strong>Segurança, prevenção de abuso e estatísticas agregadas</strong> (limites de uso, contadores sem dados pessoais) — legítimo interesse (art. 7º, IX);</li>
+    <li><strong>Anúncios personalizados</strong>, se um dia forem ativados — apenas com o seu consentimento (art. 7º, I), que você pode retirar quando quiser.</li>
+  </ul>
+  <p>Não vendemos dados, não os usamos para perfilar você e não os compartilhamos com terceiros além dos prestadores de infraestrutura citados acima.</p>
+
+  <h2>Segurança</h2>
+  <p>A conexão com o site é criptografada (HTTPS). O servidor valida tudo que recebe, aplica limites de uso, usa consultas parametrizadas no banco de dados e não registra IP, nome de time ou identificadores nos seus registros técnicos. Nomes de time passam por um filtro de moderação (letras latinas e números; sem palavrões, links ou contatos). Nenhum sistema é totalmente imune a falhas; em caso de incidente que possa causar risco relevante a você, comunicaremos conforme a lei.</p>
 
   <h2>Seus direitos (LGPD)</h2>
-  <p>A Lei Geral de Proteção de Dados (Lei nº 13.709/2018) assegura direitos como confirmação de tratamento, acesso, correção e eliminação de dados pessoais. Como não coletamos nem armazenamos dados pessoais, não mantemos qualquer registro associado a você.</p>
-  <p>Para dados coletados pelo Google por meio dos anúncios, os controles e direitos devem ser exercidos diretamente junto ao Google, pelos links indicados acima.</p>
+  <p>A Lei Geral de Proteção de Dados (Lei nº 13.709/2018) assegura, entre outros, os direitos de confirmação de tratamento, acesso, correção, anonimização ou eliminação, informação sobre compartilhamento e revogação de consentimento. Como o nosso registro é <strong>pseudonimizado</strong> (não sabemos quem você é), para localizar e remover uma entrada precisamos que você informe o <strong>nome de time e o dia</strong> em que participou. Responderemos em até <strong>15 dias</strong>. Você também pode reclamar à <a href="https://www.gov.br/anpd" target="_blank" rel="noopener">Autoridade Nacional de Proteção de Dados (ANPD)</a>. Para dados tratados pelo Google ou pela Cloudflare, os direitos devem ser exercidos diretamente junto a eles.</p>
 
-  <h2>Menores de idade</h2>
-  <p>O site não é direcionado a crianças e não coleta intencionalmente dados de menores de 13 anos.</p>
+  <h2>Crianças e adolescentes</h2>
+  <p>O site não é direcionado a crianças (menores de 12 anos) e não coleta intencionalmente dados delas. Adolescentes devem usar os modos online com a orientação dos responsáveis, e <strong>ninguém deve usar o nome real ou dados pessoais como nome de time</strong>. Se você é responsável por uma criança e acredita que ela enviou dados, escreva para o contato abaixo e removeremos.</p>
 
   <h2>Alterações nesta política</h2>
-  <p>Esta política pode ser atualizada a qualquer momento. A data da última atualização é sempre indicada no topo da página.</p>
+  <p>Esta política pode ser atualizada. A data da última atualização é sempre indicada no topo da página, e mudanças relevantes (como ativar anúncios) serão feitas antes de entrarem em vigor.</p>
 
-  <h2>Contato</h2>
-  <p>Dúvidas sobre esta política podem ser enviadas para: <strong>henriquelino31@gmail.com</strong></p>
+  <h2 id="contato">Contato</h2>
+  <p>Dúvidas, pedidos de acesso ou remoção de dados: <strong>henriquelino31@gmail.com</strong></p>
 </main>
 
 <footer>

@@ -59,3 +59,11 @@ footer{
 }
 footer a{color:var(--dim); text-decoration:none; border-bottom:1px solid var(--line);}
 footer a:hover{color:var(--ct); border-bottom-color:var(--ct);}
+
+/* tabela de dados (Política de Privacidade) */
+.tbl{overflow-x:auto; margin:0 0 14px; -webkit-overflow-scrolling:touch;}
+table{border-collapse:collapse; width:100%; font-size:14px; line-height:1.45;}
+th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top;}
+th{background:var(--panel); color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:1px; font-weight:600;}
+td{color:var(--dim);} td strong{color:var(--text);}
+code{font-family:'JetBrains Mono',Consolas,monospace; font-size:.88em; background:var(--panel2); padding:1px 5px; border-radius:3px;}
