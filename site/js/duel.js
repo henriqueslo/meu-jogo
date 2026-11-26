@@ -1,7 +1,7 @@
 /* Cliente do Duelo 1v1 (Fase 2). A tela é só um espelho do estado enviado pelo servidor:
  * o cliente manda INTENÇÕES (refresh/pick/style/rematch) e renderiza o que o servidor devolve. */
 import { ROLES } from "./data.js";
-import { esc, slotHTML, offersHTML, lineupById } from "./render.js";
+import { esc, slotHTML, offersHTML, lineupById, draftSlotsHTML } from "./render.js";
 import { connect, createRoom as createRoomOf, normalizeCode, validCode } from "./net.js";
 export { normalizeCode, validCode };
 
@@ -64,11 +64,11 @@ function oppLine(v) {
 
 function draftHTML(v) {
   const y = v.you, filled = Object.keys(y.squad).length;
-  const slots = ROLES.map((r) => `<div class="slot${y.squad[r] ? " filled" : ""}">${slotHTML(r, y.squad[r])}</div>`).join("");
+  const slots = draftSlotsHTML(y.squad);
   let action;
   if (!y.draftDone) {
     const n = y.refreshesLeft;
-    action = `<div class="progress">Vaga ${filled + 1} de 5</div>
+    action = `<div class="progress">Escolha ${filled + 1} de 5</div>
       <button class="rollbtn primary" id="duel-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
       <div id="duel-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>`;
   } else if (!y.style) {
@@ -77,7 +77,7 @@ function draftHTML(v) {
   } else {
     action = `<p style="color:var(--dim);">Estilo <b>${esc(STYLE_LABEL[y.style])}</b> escolhido. Aguardando o rival terminar…</p>`;
   }
-  return `<div class="slots">${slots}</div>${oppLine(v)}${action}`;
+  return `<div class="slots draft-slots">${slots}</div>${oppLine(v)}${action}`;
 }
 
 function resultHTML(v) {

@@ -77,20 +77,20 @@
       var(--panel2);
     box-shadow:inset 0 1px 0 rgba(110,168,220,.35);
   }
-  .slot .role{font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:1.2px; font-weight:600;}
+  .slot .role{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.6px; font-weight:600;}
   .slot .nick{font-size:14px; font-weight:700; letter-spacing:.3px;}
   .flag{
     /* fonte de emoji explícita: melhora o desenho da bandeira em Linux/Android */
     font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
-    font-size:.95em; margin-right:5px; letter-spacing:0;
+    font-size:1em; margin-right:5px; letter-spacing:0;
     font-weight:400; vertical-align:baseline;
   }
   .flag:empty{display:none; margin:0;}
-  .slot .team{font-size:9px; color:var(--dim); letter-spacing:.3px;}
+  .slot .team{font-size:12px; color:var(--dim); letter-spacing:.3px;}
 
   /* ============ BOTÕES: chanfrados, uppercase ============ */
   .rollbtn, .primary, .secondary{
-    display:inline-block; padding:11px 20px; border:none;
+    display:inline-flex; align-items:center; justify-content:center; text-align:center; min-height:48px; padding:11px 20px; border:none;
     clip-path:var(--chamfer-sm);
     font-family:inherit; font-weight:700; font-size:14px;
     letter-spacing:1.2px; text-transform:uppercase;
@@ -108,7 +108,7 @@
   }
 
   input[type="text"]{
-    font-family:inherit; font-weight:700; letter-spacing:.5px;
+    font-family:inherit; font-weight:700; letter-spacing:.5px; min-height:48px;
     clip-path:var(--chamfer-sm);
   }
   input[type="text"]:focus{border-color:var(--ct) !important; outline:none;}
@@ -121,7 +121,7 @@
     padding:12px 14px; margin-bottom:10px;
   }
   .lineup-card .lname{font-weight:700; font-size:16px; letter-spacing:.4px;}
-  .lineup-card .lmeta{color:var(--dim); font-size:11.5px; margin-bottom:9px; letter-spacing:.3px;}
+  .lineup-card .lmeta{color:var(--dim); font-size:13px; margin-bottom:9px; letter-spacing:.3px;}
   .players{display:flex; flex-wrap:wrap; gap:6px;}
   .player-chip{
     background:var(--panel2);
@@ -136,16 +136,16 @@
   }
   .player-chip.disabled{opacity:.28; cursor:not-allowed; text-decoration:line-through;}
   .player-chip b{display:block; font-size:14px; letter-spacing:.3px;}
-  .player-chip small{color:var(--dim); text-transform:uppercase; font-size:9.5px; letter-spacing:.8px;}
+  .player-chip small{color:var(--dim); text-transform:uppercase; font-size:12px; letter-spacing:.4px;}
   .rating{
     font-family:'JetBrains Mono',monospace; font-weight:700;
-    color:var(--ct); font-size:11px; letter-spacing:0;
+    color:var(--ct); font-size:13px; letter-spacing:0;
   }
   .player-chip:hover .rating{color:var(--t);}
 
   /* ============ BADGES: acabamentos de sticker de Major ============ */
   .badge{
-    display:inline-block; font-size:9.5px; padding:3px 9px;
+    display:inline-block; font-size:12px; padding:3px 9px;
     clip-path:var(--chamfer-sm);
     font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
     vertical-align:2px;
@@ -179,7 +179,7 @@
     background:var(--panel2);
   }
   .style-opt b{display:block; font-size:14px; text-transform:uppercase; letter-spacing:.8px;}
-  .style-opt small{color:var(--dim); font-size:10px;}
+  .style-opt small{color:var(--dim); font-size:12px;}
 
   /* ============ CARD DE PARTIDA: dualidade T × CT ============ */
   .card{
@@ -197,7 +197,7 @@
   .row .score:first-child{color:var(--t);}
   .row .score:last-child{color:var(--ct);}
   .score.loser{color:var(--dim) !important; opacity:.7;}
-  .vs{color:var(--dim); font-size:11px; margin:0 8px; text-transform:uppercase; letter-spacing:1px;}
+  .vs{color:var(--dim); font-size:12px; margin:0 8px; text-transform:uppercase; letter-spacing:1px;}
   .maprow{
     display:flex; justify-content:space-between; font-size:12px; color:var(--dim);
     padding:4px 0; border-top:1px solid var(--line);
@@ -206,11 +206,11 @@
   .winner{font-weight:700;}
   .loser{color:var(--dim);}
   .you{color:var(--gold) !important;}
-  .you::before{content:"★ "; font-size:11px;}
+  .you::before{content:"★ "; font-size:12px;}
 
   /* ============ RÓTULOS DE FASE ============ */
   .stage-label{
-    text-transform:uppercase; font-size:11.5px; letter-spacing:2.5px; color:var(--dim);
+    text-transform:uppercase; font-size:12.5px; letter-spacing:2.5px; color:var(--dim);
     font-weight:600;
     margin:22px 0 10px; padding-bottom:7px;
     border-bottom:1px solid var(--line);
@@ -245,7 +245,7 @@
   .achievement p{color:var(--dim); margin:0; font-size:13.5px;}
 
   .log{max-height:340px; overflow-y:auto;}
-  footer{text-align:center; color:var(--dim); font-size:11px; letter-spacing:.5px; padding:30px 16px;}
+  footer{text-align:center; color:var(--dim); font-size:12px; letter-spacing:.5px; padding:30px 16px;}
   footer a{color:var(--dim); text-decoration:none; border-bottom:1px solid var(--line);}
   footer a:hover{color:var(--ct); border-bottom-color:var(--ct);}
   .progress{
@@ -299,7 +299,7 @@
   .card.mine .mine-tag{
     position:absolute; top:12px; right:0;
     background:var(--gold); color:#171204;
-    font-size:9.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+    font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
     padding:3px 12px 3px 10px;
     clip-path:polygon(6px 0, 100% 0, 100% 100%, 0 100%);
   }
@@ -361,3 +361,26 @@
 button.player-chip{font:inherit; color:inherit; border:0; appearance:none; -webkit-appearance:none;}
 button.player-chip:disabled{cursor:not-allowed;}
 .share-box{white-space:pre-wrap;}
+
+/* ===== Fase A de UX (docs/UX-AUDIT.md): sem rolagem lateral, alvos ≥ 44px, texto ≥ 12px ===== */
+/* `display` de classes anulava o atributo [hidden] (ex.: botões que deveriam sumir apareciam) */
+[hidden]{display:none !important;}
+
+/* linha do código de sala: o campo ocupa a linha inteira; os botões dividem a de baixo (antes estourava 80px no celular) */
+.join-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+.join-row input{flex:1 1 100%; min-width:0;}
+.join-row button{flex:1 1 0; margin:0;}
+
+/* celular: as 5 vagas viram uma lista legível (papel · jogador · time) em vez de 5 colunas espremidas */
+@media (max-width:520px){
+  .slots{grid-template-columns:1fr; gap:6px;}
+  .slot{display:grid; grid-template-columns:84px 1fr auto; align-items:center; gap:10px; text-align:left; padding:8px 12px; min-height:48px;}
+  .slot .team{text-align:right;}
+}
+
+/* draft: elenco em linhas (só os já escalados) + uma linha com os papéis que faltam */
+.draft-slots{grid-template-columns:1fr; gap:6px;}
+.draft-slots .slot{display:grid; grid-template-columns:84px 1fr auto; align-items:center; gap:10px; text-align:left; padding:8px 12px; min-height:48px;}
+.draft-slots .slot .team{text-align:right;}
+.slots-missing{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 12px; border:1px dashed var(--line); color:var(--dim); font-size:13px;}
+.role-pill{padding:2px 10px; border:1px solid var(--line-strong); text-transform:uppercase; letter-spacing:.6px; font-size:12px; font-weight:600; color:var(--text);}

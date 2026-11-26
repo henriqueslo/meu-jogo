@@ -1,6 +1,6 @@
 /* Helpers de HTML compartilhados (jogo livre, desafio e duelo).
  * REGRA: todo texto dinâmico passa por esc(); nomes de outros jogadores são dado não confiável. */
-import { LINEUPS } from "./data.js";
+import { LINEUPS, ROLES } from "./data.js";
 
 const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" };
 export const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ESC[c]);
@@ -14,6 +14,13 @@ export function slotHTML(role, s, withRating = true) {
   return s
     ? `<div class="role">${esc(role)}</div><div class="nick"><span class="flag">${flagEmoji(s.pais)}</span>${esc(s.nick)}</div><div class="team">${esc(s.team)}${withRating ? ` · <span class="rating">${Number(s.forca)}</span>` : ""}</div>`
     : `<div class="role">${esc(role)}</div><div class="nick" style="color:var(--dim)">vazio</div>`;
+}
+
+/* Elenco do draft: só quem já foi escalado vira linha; o que falta vira UMA linha compacta de papéis. */
+export function draftSlotsHTML(squad) {
+  const missing = ROLES.filter((r) => !squad[r]);
+  return ROLES.filter((r) => squad[r]).map((r) => `<div class="slot filled">${slotHTML(r, squad[r])}</div>`).join("") +
+    (missing.length ? `<div class="slots-missing" role="status">Faltam: ${missing.map((r) => `<span class="role-pill">${esc(r)}</span>`).join("")}</div>` : "");
 }
 
 export const lineupById = (id) => LINEUPS.find((l) => l.id === id);

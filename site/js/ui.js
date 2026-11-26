@@ -7,7 +7,7 @@ import {
 } from "./engine.js";
 import { shareResult } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
-import { esc, flagEmoji, slotHTML } from "./render.js";
+import { esc, flagEmoji, slotHTML, draftSlotsHTML } from "./render.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
 import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
 import { openCup, createCup } from "./cup.js";
@@ -35,10 +35,10 @@ function showScreen(id) {
 /* ------------------------------- Draft ------------------------------- */
 function renderSlots() {
   const cont = $("slots");
-  cont.innerHTML = ROLES.map((r) => `<div class="slot${state.squad[r] ? " filled" : ""}">${slotHTML(r, state.squad[r])}</div>`).join("");
+  cont.innerHTML = draftSlotsHTML(state.squad);
   const filled = ROLES.filter((r) => state.squad[r]).length;
-  $("draft-progress").textContent = filled < 5 ? `Vaga ${filled + 1} de 5` : "LineUp completa!";
-  $("btn-roll").style.display = filled < 5 ? "inline-block" : "none";
+  $("draft-progress").textContent = filled < 5 ? `Escolha ${filled + 1} de 5` : "LineUp completa!";
+  $("btn-roll").style.display = filled < 5 ? "" : "none";
 }
 
 function showLineups(offers) {
@@ -183,7 +183,7 @@ function renderRoundHTML(results) {
         <div class="score ${res.winner === b ? "winner" : "loser"}">${res.winsB}</div>
       </div>
       ${res.maps.map((m) => `<div class="maprow"><span>${esc(m.map)}${m.ot ? ` <span style="color:var(--t);">· ${m.ot > 1 ? m.ot + "x " : ""}PRORROGAÇÃO</span>` : ""}</span><span>${m.a} - ${m.b}</span></div>`).join("")}
-      <div style="text-align:center; font-size:11px; color:var(--dim); margin-top:6px;">▾ clique pra ver o K/D da partida</div>
+      <div style="text-align:center; font-size:12px; color:var(--dim); margin-top:6px;">▾ clique pra ver o K/D da partida</div>
       <div id="${mid}-details" data-details style="display:none; margin-top:8px; border-top:1px solid var(--line); padding-top:8px;">${matchDetailsHTML(a, b, res)}</div>
     </div>`;
   }).join("");
@@ -192,7 +192,7 @@ function renderRoundHTML(results) {
 function matchDetailsHTML(a, b, res) {
   const all = [...res.matchStats.A.map((s) => ({ ...s, teamNome: a.nome })), ...res.matchStats.B.map((s) => ({ ...s, teamNome: b.nome }))]
     .sort((x, y) => y.impact - x.impact);
-  return `<div style="font-size:11px; color:var(--dim); margin-bottom:6px;">Ranking de K/D da partida (estatísticas simuladas)</div>` +
+  return `<div style="font-size:12px; color:var(--dim); margin-bottom:6px;">Ranking de K/D da partida (estatísticas simuladas)</div>` +
     all.map((p, i) => `<div class="row" style="font-size:12px; padding:3px 0;">
       <span>${i + 1}. <span class="flag">${flagEmoji(p.pais)}</span><b>${esc(p.nick)}</b> <span style="color:var(--dim);">(${esc(p.teamNome)})</span></span>
       <span class="mono">${p.kills}/${p.deaths}</span></div>`).join("");
@@ -290,9 +290,9 @@ function renderResults() {
   if (mvp) {
     const kd = mvp.deaths > 0 ? (mvp.kills / mvp.deaths).toFixed(2) : mvp.kills.toFixed(2);
     html += `<div class="stage-label">MVP do campeonato</div><div class="card row">
-      <div><span class="flag">${flagEmoji(mvp.pais)}</span><b>${esc(mvp.nick)}</b> ${mvp.isUser ? '<span style="color:var(--t); font-size:11px;">(seu time)</span>' : ""}
+      <div><span class="flag">${flagEmoji(mvp.pais)}</span><b>${esc(mvp.nick)}</b> ${mvp.isUser ? '<span style="color:var(--t); font-size:12px;">(seu time)</span>' : ""}
         <div style="color:var(--dim); font-size:12px;">${esc(mvp.teamNome)} · ${esc(mvp.papel)}</div></div>
-      <div class="mono" style="text-align:right;">${mvp.kills}/${mvp.deaths}<div style="color:var(--dim); font-size:11px;">K/D ${kd} · ${mvp.maps} mapas</div></div></div>`;
+      <div class="mono" style="text-align:right;">${mvp.kills}/${mvp.deaths}<div style="color:var(--dim); font-size:12px;">K/D ${kd} · ${mvp.maps} mapas</div></div></div>`;
   }
 
   state.shareText = buildShareText(s);
