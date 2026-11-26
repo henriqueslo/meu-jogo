@@ -1,5 +1,16 @@
+# Worker + arquivos estáticos + API do desafio do dia (D1).
+# O segredo DAILY_SECRET NÃO fica aqui: wrangler secret put DAILY_SECRET
+# Banco: wrangler d1 execute minhalineup --remote --file=worker/schema.sql
 name = "meu-jogo"
+main = "worker/index.js"
 compatibility_date = "2026-07-01"
 
 [assets]
 directory = "./site"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "minhalineup"
+database_id = "30ce705f-7cd4-4673-8958-dcc4778067d1"
