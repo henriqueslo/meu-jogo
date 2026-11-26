@@ -6,6 +6,7 @@ import {
   sanitizeTeamName, createTournament, advance, tournamentMvp, summarize,
 } from "./engine.js";
 import { shareResult } from "./share.js";
+import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
 
 const SITE_URL = "https://minhalineup.com";
 const $ = (id) => document.getElementById(id);
@@ -24,6 +25,7 @@ const state = {
   picks: {},          // role -> {lineupId, nick}  (o que seria enviado ao servidor)
   squad: {},          // role -> dados resolvidos pelo engine
   refreshesLeft: MAX_REFRESHES,
+  mode: "free", daily: null, draftLog: [],
   tournament: null, shareData: null, shareText: "",
 };
 
@@ -87,6 +89,8 @@ $("lineup-offers").addEventListener("click", (e) => {
   state.picks[role] = { lineupId: chip.dataset.lineup, nick: chip.dataset.nick };
   try { state.squad = resolveSquad(state.picks, { partial: true }); }
   catch { delete state.picks[role]; return; }
+  // log do draft: é o que o servidor re-executa para validar o desafio do dia
+  state.draftLog.push({ refreshes: MAX_REFRESHES - state.refreshesLeft, lineupId: chip.dataset.lineup, nick: chip.dataset.nick });
   state.refreshesLeft = MAX_REFRESHES;
   renderSlots();
   if (ROLES.every((r) => state.squad[r])) {
@@ -100,10 +104,11 @@ const nameInput = $("team-name-input");
 function validateName() {
   const ok = sanitizeTeamName(nameInput.value).length >= 2;
   $("btn-begin").disabled = !ok;
+  $("btn-daily").disabled = !ok || !state.daily || playedToday(state.daily.day);
   return ok;
 }
 
-function beginGame() {
+function beginGame(mode = "free") {
   const name = sanitizeTeamName(nameInput.value);
   if (name.length < 2) {
     $("name-error").textContent = "Dê um nome ao seu time para começar (mínimo 2 caracteres; letras, números, espaço . _ -).";
@@ -112,17 +117,20 @@ function beginGame() {
   }
   $("name-error").textContent = "";
   state.teamName = name;
-  state.seed = newSeed();
+  state.mode = mode === "daily" && state.daily ? "daily" : "free";
+  state.seed = state.mode === "daily" ? state.daily.seed : newSeed();
   state.streams = createStreams(state.seed);
+  state.draftLog = [];
   state.picks = {}; state.squad = {}; state.refreshesLeft = MAX_REFRESHES;
   showScreen("screen-draft");
   renderSlots();
   rollLineups();
 }
 
-$("btn-begin").addEventListener("click", beginGame);
+$("btn-begin").addEventListener("click", () => beginGame("free"));
+$("btn-daily").addEventListener("click", () => beginGame("daily"));
 nameInput.addEventListener("input", () => { $("name-error").textContent = ""; validateName(); });
-nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && validateName()) beginGame(); });
+nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && validateName()) beginGame("free"); });
 validateName();
 
 /* ------------------------- Time / estilo ------------------------- */
@@ -303,6 +311,7 @@ function renderResults() {
   $("results-content").innerHTML = html;
   $("share-box").textContent = state.shareText;
   $("btn-share").addEventListener("click", (e) => shareResult(e.currentTarget, state.shareData, state.shareText));
+  if (state.mode === "daily") dailySection();
 }
 
 $("btn-restart").addEventListener("click", () => {
@@ -312,3 +321,43 @@ $("btn-restart").addEventListener("click", () => {
   showScreen("screen-start");
   validateName();
 });
+
+/* ------------------------ Desafio do dia (Fase 1) ------------------------ */
+/* O botão só aparece se a API responder; sem backend o jogo livre segue normal. */
+async function initDaily() {
+  state.daily = await fetchDaily();
+  if (!state.daily) return;
+  $("btn-daily").hidden = false;
+  validateName();
+  const rows = await fetchBoard(state.daily.day, 5);
+  if (rows && rows.length) {
+    $("daily-board-start").innerHTML = `<div class="stage-label">Ranking de hoje</div>${boardHTML(rows, esc)}`;
+    $("daily-board-start").hidden = false;
+  }
+}
+
+function dailySection() {
+  const box = document.createElement("div");
+  box.innerHTML = `<div class="stage-label">Desafio do dia · ${esc(state.daily.day)}</div>
+    <p id="daily-msg" style="color:var(--dim); font-size:13px;">Envie sua lineup ao ranking. O servidor refaz o draft e a simulação — o resultado vale para todos.</p>
+    <button class="primary" id="btn-submit-daily" type="button">🏁 Enviar ao ranking</button>
+    <div id="daily-board"></div>`;
+  $("results-content").appendChild(box);
+  $("btn-submit-daily").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const r = await submitEntry({ teamName: state.teamName, style: state.style, draft: state.draftLog });
+    const msg = $("daily-msg");
+    if (r.ok) {
+      markPlayed(state.daily.day);
+      msg.textContent = `✅ Enviado! Você está em #${r.rank} hoje.`;
+      btn.remove();
+    } else {
+      msg.textContent = r.status === 409 ? "Você já participou do desafio de hoje." : `Não foi possível enviar: ${r.detail}`;
+      if (r.status === 409) { markPlayed(state.daily.day); btn.remove(); } else btn.disabled = false;
+    }
+    $("daily-board").innerHTML = boardHTML(await fetchBoard(state.daily.day, 10), esc);
+  });
+}
+
+initDaily();
