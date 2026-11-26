@@ -119,6 +119,31 @@ export function pickRandomLineups(draftRand, taken = { roles: new Set(), nicks: 
   return picks;
 }
 
+/* Reproduz o draft de um jogador a partir da seed e do log de escolhas.
+ * draft = [{ refreshes, lineupId, nick } x5], na ordem em que foram feitas.
+ * Garante que cada escolha estava REALMENTE na tela (mesma leva que o cliente viu),
+ * que o limite de atualizações foi respeitado e que o jogador era escalável.
+ * Retorna picks no formato de resolveSquad(). Lança Error se algo não bater. */
+export function verifyDraft(seed, draft) {
+  if (!Array.isArray(draft) || draft.length !== ROLES.length) throw new Error("draft deve ter 5 escolhas");
+  const { draftRand } = createStreams(seed);
+  const taken = { roles: new Set(), nicks: new Set() };
+  const picks = {};
+  for (const step of draft) {
+    const n = step?.refreshes;
+    if (!Number.isInteger(n) || n < 0 || n > MAX_REFRESHES) throw new Error("atualizações inválidas");
+    let offers;
+    for (let i = 0; i <= n; i++) offers = pickRandomLineups(draftRand, taken); // 1ª leva + n atualizações
+    const lu = offers.find((l) => l.id === step.lineupId);
+    const pl = lu && lu.jogadores.find((p) => p.nick === step.nick);
+    if (!pl) throw new Error("escolha não estava entre as ofertas");
+    if (taken.roles.has(pl.papel) || taken.nicks.has(pl.nick)) throw new Error("jogador não escalável");
+    taken.roles.add(pl.papel); taken.nicks.add(pl.nick);
+    picks[pl.papel] = { lineupId: lu.id, nick: pl.nick };
+  }
+  return picks;
+}
+
 /* ------------------------------ Simulação ------------------------------ */
 const styleBias = (s) => ({ rush: 1, tatico: 0, aim: 0.5 }[s] ?? 0);
 const styleVariance = (s) => ({ rush: 0.09, tatico: 0.0, aim: 0.04 }[s] ?? 0.03);

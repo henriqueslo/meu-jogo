@@ -10,6 +10,8 @@ site/js/ui.js      só DOM (escape obrigatório)
 site/js/share.js   card de compartilhamento
 ```
 
+> **Status:** Fase 1 (desafio do dia) implementada nesta branch — ver `docs/API.md`. Fases 2 e 3 pendentes.
+
 ## Modos sugeridos (do mais barato ao mais rico)
 
 1. **Desafio diário com ranking (assíncrono)** — todos recebem a mesma seed do dia. Cliente envia `{teamName, picks:{role:{lineupId,nick}}, style, refreshesUsed}`; o Worker valida com `resolveSquad`, roda `createTournament`+`playToEnd` com a seed do dia e grava `summarize()` no **D1**. O cliente nunca envia resultado. Rate limit por IP/dia. *Melhor primeiro passo: sem WebSocket, sem salas.*
