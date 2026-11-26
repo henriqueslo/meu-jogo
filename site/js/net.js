@@ -61,7 +61,7 @@ export function connect({ kind, code, name, onState, onNotice, onStatus }) {
       else if (m.t === "state") { remember(); onState(m); }
       else if (m.t === "error") {
         onNotice(m.detail || "Erro.");
-        if (m.code === "room-full" || m.code === "cup-started" || m.code === "invalid-name" || m.code === "name-taken") forget();   // não adianta tentar voltar
+        if (m.code === "room-full" || m.code === "cup-started" || m.code === "invalid-name" || m.code === "name-taken" || m.code === "name-blocked") forget();   // não adianta tentar voltar
       }
     });
     sock.addEventListener("close", async (e) => {

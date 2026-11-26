@@ -13,6 +13,7 @@ import {
   MAX_REFRESHES, STYLES, createStreams, pickRandomLineups, resolveSquad,
   sanitizeTeamName, duelMatch, hashSeed,
 } from "../site/js/engine.js";
+import { moderateName, NAME_BLOCKED_MESSAGE } from "../site/js/moderation.js";
 
 export const MAX_PLAYERS = 2;
 export const BEST_OF = 3;
@@ -93,6 +94,7 @@ export class Duel {
     if (this.players.length >= MAX_PLAYERS) throw new DuelError("room-full", "Sala cheia.");
     const clean = sanitizeTeamName(name);
     if (clean.length < 2) throw new DuelError("invalid-name", "Nome do time precisa de 2–24 caracteres válidos.");
+    if (!moderateName(clean).ok) throw new DuelError("name-blocked", NAME_BLOCKED_MESSAGE);
     const player = { name: clean, token: hex(16), style: null, rematch: false, actions: [], draft: new Draft(this._draftSeed()) };
     this.players.push(player);
     return { slot: this.players.length - 1, token: player.token };

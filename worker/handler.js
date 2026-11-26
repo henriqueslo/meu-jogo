@@ -11,6 +11,7 @@ import {
   hashSeed, verifyDraft, resolveSquad, createTournament, playToEnd, summarize,
   sanitizeTeamName, STYLES, MAX_REFRESHES,
 } from "../site/js/engine.js";
+import { moderateName, NAME_BLOCKED_MESSAGE } from "../site/js/moderation.js";
 
 const MAX_BODY = 4096;
 const MAX_ENTRIES_PER_IP_PER_DAY = 5;
@@ -73,6 +74,7 @@ async function submitEntry(request, env, store, now) {
   if (typeof playerId !== "string" || !UUID.test(playerId)) throw new ApiError(422, "validation-error", "Validation error", "player_id deve ser um UUID.", { errors: [{ field: "player_id" }] });
   const teamName = sanitizeTeamName(body?.team_name);
   if (teamName.length < 2) throw new ApiError(422, "validation-error", "Validation error", "team_name precisa de 2–24 caracteres válidos.", { errors: [{ field: "team_name" }] });
+  if (!moderateName(teamName).ok) throw new ApiError(422, "validation-error", "Validation error", NAME_BLOCKED_MESSAGE, { errors: [{ field: "team_name" }] });
   if (!STYLES.includes(body?.style)) throw new ApiError(422, "validation-error", "Validation error", "style inválido.", { errors: [{ field: "style" }] });
 
   let squad;

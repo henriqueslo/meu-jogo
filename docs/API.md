@@ -109,3 +109,12 @@ Cliente (`site/js/session.js`, `net.js`):
 - Tudo lido do storage é validado (formato estrito) e exibido como texto puro; registros inválidos, expirados ou de salas inexistentes são apagados em silêncio.
 - Sair da sala, sala encerrada (TTL 1 h), sala cheia/campeonato já iniciado ou nome recusado também apagam o registro.
 - Abrir a mesma sala em outra aba derruba a conexão antiga (código 4000), sem duplicar o jogador.
+
+---
+
+# Moderação de nomes
+
+Nomes passam por `sanitizeTeamName` (alfabeto latino) e `moderateName` (palavrões/ódio, links, contatos, nomes reservados). Quando bloqueado:
+- `POST /api/v1/daily/entries` → **422** `validation-error` com `errors:[{field:"team_name"}]`;
+- WebSocket (duelo/campeonato) → `error` com `code: "name-blocked"` (a sala não é afetada; o registro de reentrada é apagado).
+O detalhe do motivo (qual termo) não é devolvido, para não ensinar a burlar a lista. Ver `docs/OPERACAO.md`.

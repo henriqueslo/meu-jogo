@@ -8,6 +8,7 @@ import {
 import { shareResult } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
 import { esc, flagEmoji, slotHTML } from "./render.js";
+import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
 import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
 import { openCup, createCup } from "./cup.js";
 import { adoptActive, inRoomFlag, roomExists } from "./net.js";
@@ -93,14 +94,18 @@ $("lineup-offers").addEventListener("click", (e) => {
 /* ------------------------------ Início ------------------------------ */
 const nameInput = $("team-name-input");
 function validateName() {
-  const ok = sanitizeTeamName(nameInput.value).length >= 2;
-  $("btn-begin").disabled = !ok;
+  const clean = sanitizeTeamName(nameInput.value);
+  const base = clean.length >= 2;                         // jogo livre: o nome nunca sai do dispositivo
+  const blocked = base && !moderateName(clean).ok;        // modos online: o servidor repete esta checagem
+  const ok = base && !blocked;
+  if (blocked) $("name-error").textContent = NAME_BLOCKED_MESSAGE + " (O jogo livre aceita qualquer nome.)";
+  $("btn-begin").disabled = !base;
   $("btn-daily").disabled = !ok || !state.daily || playedToday(state.daily.day);
   $("btn-duel-create").disabled = !ok || !state.daily;
   $("btn-duel-join").disabled = !ok || !validCode($("duel-code-input").value);
   $("btn-cup-create").disabled = !ok || !state.daily;
   $("btn-cup-join").disabled = !ok || !validCode($("duel-code-input").value);
-  return ok;
+  return base;
 }
 
 function beginGame(mode = "free") {
