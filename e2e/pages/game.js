@@ -17,6 +17,22 @@ export class GamePage {
     await this.page.route("**/api/v1/daily/leaderboard**", (r) => r.fulfill({ json: { day: "2026-11-26", data: [] } }));
   }
 
+  /* Fixa a seed do jogo livre (o jogo a sorteia com crypto.getRandomValues num Uint32Array de 1 posição):
+   * com a seed fixa, o draft e o torneio são idênticos a cada execução. Ver e2e/seeds.js. */
+  async useSeed(seed) {
+    await this.page.addInitScript((s) => {
+      const orig = crypto.getRandomValues.bind(crypto);
+      crypto.getRandomValues = (a) => (a instanceof Uint32Array && a.length === 1 ? ((a[0] = s), a) : orig(a));
+    }, seed);
+  }
+
+  /* Do início até a primeira tela de rodada, com a seed dada. */
+  async playWithSeed(seed) {
+    await this.useSeed(seed);
+    await this.open(); await this.startFreePlay(); await this.draftAll();
+    await this.page.getByRole("button", { name: /Disputar o Major/ }).click();
+  }
+
   async open() { await this.page.goto("/"); }
 
   async typeName(name = "Meu Time") { await this.nameInput.fill(name); }
