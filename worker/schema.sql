@@ -26,3 +26,11 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   created_at TEXT    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_rate_created ON rate_limits (created_at);
+
+-- Fase "monitoramento": contadores diários (sem dados pessoais). Ver docs/OPERACAO.md.
+CREATE TABLE IF NOT EXISTS metrics (
+  day  TEXT    NOT NULL,
+  name TEXT    NOT NULL,
+  n    INTEGER NOT NULL,
+  PRIMARY KEY (day, name)
+);

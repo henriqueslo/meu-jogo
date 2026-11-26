@@ -118,3 +118,9 @@ Nomes passam por `sanitizeTeamName` (alfabeto latino) e `moderateName` (palavrõ
 - `POST /api/v1/daily/entries` → **422** `validation-error` com `errors:[{field:"team_name"}]`;
 - WebSocket (duelo/campeonato) → `error` com `code: "name-blocked"` (a sala não é afetada; o registro de reentrada é apagado).
 O detalhe do motivo (qual termo) não é devolvido, para não ensinar a burlar a lista. Ver `docs/OPERACAO.md`.
+
+---
+
+# Saúde
+
+`GET /api/v1/health` → **200** `{ ok: true, db: true, time }` ou **503** `{ ok: false, db: false, time }` (D1 fora). Cache de 30 s no caso de sucesso, `no-store` na falha. Não expõe versão, segredos nem contagens.

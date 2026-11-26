@@ -5,6 +5,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Duel, DuelError } from "./duel.js";
 import { Cup } from "./cup.js";
 import { makeBucket, MAX_MESSAGE_BYTES } from "./rooms.js";
+import { log } from "./log.js";
 
 const TTL_MS = 60 * 60 * 1000;      // sala some após 1 h sem atividade
 const MAX_SOCKETS = 16;             // até 8 jogadores + folga para reconexões
@@ -17,6 +18,7 @@ class GameRoom extends DurableObject {
     super(ctx, env);
     this.game = null;
     this.buckets = new WeakMap();
+    this.flagged = new WeakSet();       // sockets já registrados no log (1 linha por conexão, não por mensagem)
     ctx.blockConcurrencyWhile(async () => {
       const saved = await ctx.storage.get("duel");
       if (saved) this.game = this.Logic.fromJSON(saved);
@@ -54,10 +56,13 @@ class GameRoom extends DurableObject {
   }
 
   async webSocketMessage(ws, data) {
-    if (typeof data !== "string" || data.length > MAX_MESSAGE_BYTES) return ws.close(CLOSE.TOO_BIG, "mensagem inválida");
+    if (typeof data !== "string" || data.length > MAX_MESSAGE_BYTES) {
+      this.#flag(ws, "ws_too_big");
+      return ws.close(CLOSE.TOO_BIG, "mensagem inválida");
+    }
     let bucket = this.buckets.get(ws);
     if (!bucket) this.buckets.set(ws, (bucket = makeBucket()));
-    if (!bucket.take()) return ws.close(CLOSE.RATE, "rate limit");
+    if (!bucket.take()) { this.#flag(ws, "ws_rate_limited"); return ws.close(CLOSE.RATE, "rate limit"); }
 
     let msg;
     try { msg = JSON.parse(data); } catch { return this.#send(ws, { t: "error", code: "bad-json", detail: "JSON inválido." }); }
@@ -72,16 +77,19 @@ class GameRoom extends DurableObject {
           if (other !== ws && other.deserializeAttachment()?.slot === slot) other.close(CLOSE.REPLACED, "substituída");
         }
         ws.serializeAttachment({ slot });
+        log("player_joined", { kind: this.Logic.name, slot, reconnected: tk === token });
         await this.#save();
         this.#send(ws, { t: "welcome", v: 1, slot, token: tk, code: this.game.code });
       } else {
         if (msg?.t === "hello") throw new DuelError("bad-message", "Já identificado.");
+        const before = this.game.phase;
         this.game.apply(att.slot, msg, { connected: this.#connected() });
+        if (before !== "done" && this.game.phase === "done") log("game_done", { kind: this.Logic.name });
         await this.#save();
       }
     } catch (e) {
       if (e instanceof DuelError) this.#send(ws, { t: "error", code: e.code, detail: e.message });
-      else { console.error("room error", e); this.#send(ws, { t: "error", code: "internal", detail: "Erro interno." }); }
+      else { log("error", { where: "room", kind: this.Logic.name, message: String(e?.message ?? e) }, "error"); this.#send(ws, { t: "error", code: "internal", detail: "Erro interno." }); }
       return;
     }
     this.#broadcast();
@@ -99,6 +107,14 @@ class GameRoom extends DurableObject {
   async #save() {
     await this.ctx.storage.put("duel", this.game.toJSON());
     await this.ctx.storage.setAlarm(Date.now() + TTL_MS);
+  }
+
+  /* Abuso: registra UMA vez por conexão. Depois de fechada, a fila de mensagens já enviadas
+   * ainda chega aqui; sem isso um flood viraria um flood de linhas de log. */
+  #flag(ws, event) {
+    if (this.flagged.has(ws)) return;
+    this.flagged.add(ws);
+    log(event, { kind: this.Logic.name }, "warn");
   }
 
   #send(ws, obj) { try { ws.send(JSON.stringify(obj)); } catch { /* socket já caiu */ } }
