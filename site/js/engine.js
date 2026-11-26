@@ -266,6 +266,30 @@ export function createTournament({ teamName, squad, style, seed }) {
   return t;
 }
 
+/* Campeonato multiplayer (Fase 3): 2–8 times humanos + IA até completar 16.
+ * humans = [{ teamName, squad (de resolveSquad), style }]; o índice vira `slot` do time. */
+export const CUP_MAX_HUMANS = 8;
+export function createCup({ humans, seed }) {
+  if (!Array.isArray(humans) || humans.length < 1 || humans.length > CUP_MAX_HUMANS) throw new Error("nº de humanos inválido");
+  const { simRand } = createStreams(seed);
+  const t = { seed: seed >>> 0, rand: simRand, aiCounter: 0, playerStats: {}, phase: "swiss", roundNum: 1 };
+  const hs = humans.map((h, i) => ({ ...buildUserTeam(h), id: "human-" + i, isUser: false, isHuman: true, slot: i }));
+  const pool = shuffle(LINEUPS, t.rand).slice(0, 16 - hs.length).map((l) => makeAiTeam(t, l));
+  t.teams = [...hs, ...pool];
+  t.active = [...t.teams];
+  t.qualified = [];
+  t.eliminated = [];
+  return t;
+}
+
+/* Situação de cada time (para tabelas): active | qualified | eliminated | out:<fase> | champion */
+export function teamStatus(t, team) {
+  if (t.champion === team) return "champion";
+  if (t.eliminated.includes(team)) return "eliminated";
+  if (t.qualified.includes(team)) return team.outAt ? "out:" + team.outAt : "qualified";
+  return "active";
+}
+
 const boForRecord = (w, l) => ((w + l <= 1) || (w === 1 && l === 1) ? 1 : 3);
 
 function runSwissRound(t) {
@@ -300,14 +324,17 @@ function seedPlayoffs(t) {
   return [q[0], q[7], q[3], q[4], q[2], q[5], q[1], q[6]]; // 1v8, 4v5, 3v6, 2v7
 }
 
-function runPlayoffRound(t, pairs, bo) {
+function runPlayoffRound(t, pairs, bo, stage) {
   const results = [], winners = [];
   for (let i = 0; i < pairs.length; i += 2) {
     const a = pairs[i], b = pairs[i + 1];
     const res = simulateMatch(t.rand, a, b, bo);
     recordMatchStats(t, a, b, res);
-    const user = a.isUser ? a : b.isUser ? b : null;
-    if (user) user.mapsLostPlayoffs += res.maps.filter((m) => m.winner === (user === a ? "B" : "A")).length;
+    // mapas perdidos nos playoffs: vale para o usuário (single) e para todos os humanos (campeonato)
+    for (const [team, lostWhen] of [[a, "B"], [b, "A"]]) {
+      if (team.isUser || team.isHuman) team.mapsLostPlayoffs += res.maps.filter((m) => m.winner === lostWhen).length;
+    }
+    res.loser.outAt = stage;                                   // onde o time caiu (usado pelo resumo do campeonato)
     results.push({ a, b, res, bo });
     winners.push(res.winner);
   }
@@ -327,17 +354,17 @@ export function advance(t) {
       t.phase = "qf";
       return { type: "seed", seeds: t.playoffSeeds };
     case "qf": {
-      const { results, winners } = runPlayoffRound(t, t.playoffSeeds, 3);
+      const { results, winners } = runPlayoffRound(t, t.playoffSeeds, 3, "Quartas");
       t.semis = winners; t.phase = "sf";
       return { type: "qf", results };
     }
     case "sf": {
-      const { results, winners } = runPlayoffRound(t, t.semis, 3);
+      const { results, winners } = runPlayoffRound(t, t.semis, 3, "Semifinal");
       t.finalPair = winners; t.phase = "final";
       return { type: "sf", results };
     }
     case "final": {
-      const { results } = runPlayoffRound(t, t.finalPair, 5);
+      const { results } = runPlayoffRound(t, t.finalPair, 5, "Final");
       t.champion = results[0].res.winner;
       t.phase = "done";
       return { type: "final", results };

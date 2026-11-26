@@ -6,19 +6,21 @@ import { ApiError, json, problem, secretOf, sha256Hex } from "./handler.js";
 import { newCode, isCode, normalizeCode, originAllowed } from "./rooms.js";
 
 export const MAX_ROOMS_PER_HOUR = 10;
+/* Dois tipos de sala: duelo (ROOM) e campeonato (CUP). Limites de criação são independentes. */
+const KINDS = { rooms: { ns: "ROOM", key: "room" }, cups: { ns: "CUP", key: "cup" } };
 
 const randomSeed = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
 
-export async function createRoom(request, env, store, now = new Date()) {
+export async function createRoom(request, env, store, now = new Date(), kind = KINDS.rooms) {
   const ip = request.headers.get("cf-connecting-ip") ?? "0.0.0.0";
   const hour = now.toISOString().slice(0, 13);                       // janela de 1 h
-  const key = "room:" + (await sha256Hex(`${secretOf(env)}|${hour}|${ip}`));
+  const key = kind.key + ":" + (await sha256Hex(`${secretOf(env)}|${hour}|${ip}`));
   if ((await store.hit(key, now.toISOString())) > MAX_ROOMS_PER_HOUR) {
     throw new ApiError(429, "rate-limited", "Too many requests", "Limite de salas por hora atingido.", { retry_after: 3600 });
   }
   for (let i = 0; i < 4; i++) {                                      // colisão de código é raríssima; tenta de novo
     const code = newCode();
-    const res = await env.ROOM.get(env.ROOM.idFromName(code)).fetch("https://room/init", {
+    const res = await env[kind.ns].get(env[kind.ns].idFromName(code)).fetch("https://room/init", {
       method: "POST", body: JSON.stringify({ code, seed: randomSeed() }),
     });
     if (res.status === 201) return json({ code }, 201);
@@ -27,12 +29,12 @@ export async function createRoom(request, env, store, now = new Date()) {
   throw new Error("não foi possível criar a sala");
 }
 
-export async function roomSocket(request, env, rawCode) {
+export async function roomSocket(request, env, rawCode, kind = KINDS.rooms) {
   const code = normalizeCode(rawCode);
   if (!isCode(code)) throw new ApiError(404, "not-found", "Not found", "Sala inexistente.");
   if (request.headers.get("upgrade") !== "websocket") throw new ApiError(426, "upgrade-required", "Upgrade required", "Use WebSocket.");
   if (!originAllowed(request)) throw new ApiError(403, "forbidden-origin", "Forbidden origin", "Origem não permitida.");
-  return env.ROOM.get(env.ROOM.idFromName(code)).fetch(request);
+  return env[kind.ns].get(env[kind.ns].idFromName(code)).fetch(request);
 }
 
 /* Retorna Response se a rota for de salas, senão null. */
@@ -40,12 +42,13 @@ export async function handleRooms(request, env, store, now = new Date()) {
   const { pathname } = new URL(request.url);
   const path = pathname.replace(/\/+$/, "");
   try {
-    if (path === "/api/v1/rooms") {
+    const c = path.match(/^\/api\/v1\/(rooms|cups)$/);
+    if (c) {
       if (request.method !== "POST") throw new ApiError(405, "method-not-allowed", "Method not allowed", "Use POST.");
-      return await createRoom(request, env, store, now);
+      return await createRoom(request, env, store, now, KINDS[c[1]]);
     }
-    const m = path.match(/^\/api\/v1\/rooms\/([^/]+)\/ws$/);
-    if (m && request.method === "GET") return await roomSocket(request, env, m[1]);
+    const m = path.match(/^\/api\/v1\/(rooms|cups)\/([^/]+)\/ws$/);
+    if (m && request.method === "GET") return await roomSocket(request, env, m[2], KINDS[m[1]]);
     return null;
   } catch (e) {
     if (e instanceof ApiError) return problem(e, path);

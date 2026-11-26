@@ -32,10 +32,12 @@
     <div id="duel-box" hidden>
       <div class="stage-label">Duelo 1 × 1</div>
       <button class="secondary" id="btn-duel-create" disabled style="width:100%; margin:6px 0 0;">⚔️ Criar duelo (gera um código)</button>
+      <button class="secondary" id="btn-cup-create" disabled style="width:100%; margin:6px 0 0;">🏆 Criar campeonato (2 a 8 jogadores)</button>
       <div style="display:flex; gap:8px; margin-top:6px;">
         <input type="text" id="duel-code-input" maxlength="6" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Código da sala"
           style="flex:1; padding:11px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px; text-transform:uppercase; letter-spacing:4px;">
-        <button class="secondary" id="btn-duel-join" disabled style="margin:0;">Entrar</button>
+        <button class="secondary" id="btn-duel-join" disabled style="margin:0;">Duelo</button>
+        <button class="secondary" id="btn-cup-join" disabled style="margin:0;">Campeonato</button>
       </div>
     </div>
 
@@ -54,6 +56,7 @@
 
   <!-- DUELO (Fase 2) -->
   <section id="screen-duel" class="screen"><div id="duel-content"></div></section>
+  <section id="screen-cup" class="screen"><div id="cup-content"></div></section>
 
   <!-- DRAFT SCREEN -->
   <section id="screen-draft" class="screen">
