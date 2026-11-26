@@ -58,13 +58,14 @@ export function createStreams(seed) {
 }
 
 /* ------------------------------ Validação ------------------------------ */
-/* Allowlist (letras/números de qualquer idioma, espaço, . _ -). Vale como
- * validação de entrada; a SAÍDA em HTML continua precisando de escape (ui.js). */
+/* Allowlist (letras LATINAS com acento, dígitos ASCII, espaço, . _ -). Vale como validação de
+ * entrada; a SAÍDA em HTML continua precisando de escape (ui.js). Só alfabeto latino de propósito:
+ * a moderação (moderation.js) não consegue cobrir cirílico/CJK/homóglifos, então eles nem entram. */
 export function sanitizeTeamName(raw) {
   if (typeof raw !== "string") return ""; // JSON vindo da rede pode ser objeto/número/null
   return raw
     .normalize("NFKC")
-    .replace(/[^\p{L}\p{N} ._-]/gu, "")
+    .replace(/[^\p{Script=Latin}0-9 ._-]/gu, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, TEAM_NAME_MAX);
