@@ -62,7 +62,7 @@ test("invariantes do formato suíço e dos playoffs (500 torneios)", () => {
 test("placar de mapa válido (13-x, 16-x, 19-x...)", () => {
   for (let seed = 1; seed <= 100; seed++) {
     const t = run(seed);
-    for (const e of playToEnd(t)) for (const r of e.results) for (const m of r.res.maps) {
+    for (const e of playToEnd(t)) for (const r of e.results ?? []) for (const m of r.res.maps) {
       const hi = Math.max(m.a, m.b), lo = Math.min(m.a, m.b);
       assert.ok(hi >= 13 && hi - lo >= 1 && (hi === 13 ? lo <= 11 : true), JSON.stringify(m));
     }

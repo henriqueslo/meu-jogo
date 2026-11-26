@@ -61,7 +61,8 @@ export function createStreams(seed) {
 /* Allowlist (letras/números de qualquer idioma, espaço, . _ -). Vale como
  * validação de entrada; a SAÍDA em HTML continua precisando de escape (ui.js). */
 export function sanitizeTeamName(raw) {
-  return String(raw ?? "")
+  if (typeof raw !== "string") return ""; // JSON vindo da rede pode ser objeto/número/null
+  return raw
     .normalize("NFKC")
     .replace(/[^\p{L}\p{N} ._-]/gu, "")
     .replace(/\s+/g, " ")
