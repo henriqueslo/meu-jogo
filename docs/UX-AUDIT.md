@@ -56,6 +56,8 @@ npm.cmd install                          # uma vez (instala @playwright/test)
 npx.cmd playwright install chromium      # uma vez (baixa o navegador de teste)
 npm.cmd run test:e2e                     # roda os testes de interface
 ```
+Sem baixar nada: se já tem o Edge ou o Chrome, use `$env:PW_CHANNEL="msedge"` (ou `"chrome"`) antes de `npm.cmd run test:e2e`.
+
 O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs ficam em `e2e/` (não em `test/`, que o `node --test` executa). O CI roda `npm test` e `npm run test:e2e` em jobs separados. Duelo e campeonato (WebSocket) ainda não têm spec: foram verificados à mão e entram numa fase futura.
 
 ### Como a Fase B foi construída

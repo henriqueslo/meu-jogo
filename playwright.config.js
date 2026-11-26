@@ -14,6 +14,8 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     reducedMotion: "reduce",          // sem overlay de fase: testes rápidos e estáveis
+    // PW_CHANNEL=msedge (ou chrome) usa o navegador JÁ instalado no computador, sem baixar nada.
+    ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
   },
   webServer: {
     command: "node e2e/serve.js",
