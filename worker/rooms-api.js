@@ -29,6 +29,22 @@ export async function createRoom(request, env, store, now = new Date(), kind = K
   throw new Error("não foi possível criar a sala");
 }
 
+/* Existe? (usado para validar a sala guardada antes de oferecer "voltar"). Não revela mais que a fase. */
+export const MAX_INFO_PER_HOUR = 60;
+export async function roomInfo(request, env, store, rawCode, kind = KINDS.rooms, now = new Date()) {
+  const code = normalizeCode(rawCode);
+  if (!isCode(code)) throw new ApiError(404, "not-found", "Not found", "Sala inexistente.");
+  // limite por rede: impede varrer códigos para descobrir salas existentes
+  const ip = request.headers.get("cf-connecting-ip") ?? "0.0.0.0";
+  const key = "info:" + (await sha256Hex(`${secretOf(env)}|${now.toISOString().slice(0, 13)}|${ip}`));
+  if ((await store.hit(key, now.toISOString())) > MAX_INFO_PER_HOUR) {
+    throw new ApiError(429, "rate-limited", "Too many requests", "Muitas consultas. Tente mais tarde.", { retry_after: 3600 });
+  }
+  const res = await env[kind.ns].get(env[kind.ns].idFromName(code)).fetch("https://room/info");
+  if (res.status === 404) throw new ApiError(404, "not-found", "Not found", "Sala inexistente.");
+  return json({ exists: true, ...(await res.json()) });
+}
+
 export async function roomSocket(request, env, rawCode, kind = KINDS.rooms) {
   const code = normalizeCode(rawCode);
   if (!isCode(code)) throw new ApiError(404, "not-found", "Not found", "Sala inexistente.");
@@ -49,6 +65,8 @@ export async function handleRooms(request, env, store, now = new Date()) {
     }
     const m = path.match(/^\/api\/v1\/(rooms|cups)\/([^/]+)\/ws$/);
     if (m && request.method === "GET") return await roomSocket(request, env, m[2], KINDS[m[1]]);
+    const i = path.match(/^\/api\/v1\/(rooms|cups)\/([^/]+)$/);
+    if (i && request.method === "GET") return await roomInfo(request, env, store, i[2], KINDS[i[1]], now);
     return null;
   } catch (e) {
     if (e instanceof ApiError) return problem(e, path);

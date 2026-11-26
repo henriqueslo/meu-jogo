@@ -10,6 +10,8 @@ import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML
 import { esc, flagEmoji, slotHTML } from "./render.js";
 import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
 import { openCup, createCup } from "./cup.js";
+import { adoptActive, inRoomFlag, roomExists } from "./net.js";
+import { loadActive, clearActive, kindLabel } from "./session.js";
 
 const SITE_URL = "https://minhalineup.com";
 const $ = (id) => document.getElementById(id);
@@ -387,3 +389,24 @@ $("btn-cup-join").addEventListener("click", () => {
   const name = sanitizeTeamName(nameInput.value), code = normalizeCode($("duel-code-input").value);
   if (name.length >= 2 && validCode(code)) openCup({ code, name, exit: backToStart });
 });
+
+/* ------------------------------- Reentrada ------------------------------- */
+/* Sala guardada de uma sessão anterior: F5 volta sozinho; aba fechada mostra o botão "voltar". */
+function resumeRoom(a) {
+  adoptActive(a);
+  (a.kind === "cups" ? openCup : openDuel)({ code: a.code, name: a.name, exit: backToStart });
+}
+
+async function initResume() {
+  let store; try { store = localStorage; } catch { return; }
+  const a = loadActive(store);
+  if (!a) return;
+  const exists = await roomExists(a.kind, a.code);
+  if (exists === false) { clearActive(store); return; }               // sala já foi apagada no servidor
+  if (inRoomFlag() === `${a.kind}:${a.code}`) { resumeRoom(a); return; }   // recarregou a página dentro da sala
+  $("resume-text").textContent = `Você tem um ${kindLabel(a.kind)} em andamento: sala ${a.code}, como “${a.name}”.`;
+  $("resume-box").hidden = false;
+  $("btn-resume").onclick = () => { $("resume-box").hidden = true; resumeRoom(a); };
+  $("btn-resume-drop").onclick = () => { clearActive(store); $("resume-box").hidden = true; };
+}
+initResume();

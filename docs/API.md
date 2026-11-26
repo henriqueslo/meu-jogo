@@ -96,3 +96,16 @@ Durable Object `CupRoom` (SQLite). Persistido: seed + ações do draft + estilos
 
 ## Colocar no ar (Fase 3)
 `npx wrangler deploy` (aplica a migration `v2` do `CupRoom`). Não há mudança de banco.
+
+---
+
+# Reentrada (voltar à sala)
+
+`GET /api/v1/rooms/{code}` e `GET /api/v1/cups/{code}` → **200** `{ exists: true, phase }` ou **404** (`not-found`). Só diz se a sala existe; não expõe jogadores. Limite: 60 consultas/hora por rede (429), para impedir varredura de códigos.
+
+Cliente (`site/js/session.js`, `net.js`):
+- **F5:** o token e a flag `ml_in_room` ficam em `sessionStorage` → a página volta sozinha para a sala.
+- **Aba fechada / navegador reiniciado:** a "sala ativa" `{kind, code, name, token, ts}` fica em `localStorage` por **55 min** (renovada a cada atividade); a tela inicial mostra “Voltar à sala / Descartar” depois de confirmar com a API que a sala ainda existe.
+- Tudo lido do storage é validado (formato estrito) e exibido como texto puro; registros inválidos, expirados ou de salas inexistentes são apagados em silêncio.
+- Sair da sala, sala encerrada (TTL 1 h), sala cheia/campeonato já iniciado ou nome recusado também apagam o registro.
+- Abrir a mesma sala em outra aba derruba a conexão antiga (código 4000), sem duplicar o jogador.
