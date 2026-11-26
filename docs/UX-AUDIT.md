@@ -71,3 +71,10 @@ O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs fic
 - **“Simular até o fim”** na barra fixa (some na final, onde o botão já leva ao resultado).
 - A campanha fica registrada em `state.journey` (etapa, adversário, placar, mapas), que alimenta o resultado na C4.
 - **Testes determinísticos:** `e2e/seeds.js` guarda sementes que levam a desfechos conhecidos (eliminado 0-3, 2-3, perdeu nos playoffs, campeão, perfeito) e `GamePage.useSeed()` as injeta; `test/seeds.test.js` avisa se o motor mudar e for preciso regenerá-las.
+
+### Fase C4 — resultado com a história do torneio (U-13, U-14) ✅
+- **Herói à altura do desfecho:** “Major perfeito”, “Campeão”, “Vice-campeão — perdeu a final para X”, “Caiu nas quartas/semifinal para X”, e no suíço **quanto faltou** (“ficou a 1 vitória dos playoffs”) com uma sugestão construtiva.
+- **Sua jornada:** uma linha por jogo (etapa, adversário, placar, V/D), vinda de `state.journey` (C3).
+- **Ações na barra fixa:** *Compartilhar* é a principal; **“Tentar de novo com este time”** (mesmo elenco, nova seed, volta à tela do time para trocar o estilo; **só no jogo livre**) e **“Montar outro time”** (novo draft).
+- **“E agora?”** (só com os modos online disponíveis e nome aceito): *Desafiar um amigo* (cria o duelo direto) e *Desafio do dia*.
+- **Testes:** `e2e/result.spec.js` (15 cenários, escritos antes) + `SEEDS.retry` (mesmo time, torneio diferente) guardado por teste de unidade.

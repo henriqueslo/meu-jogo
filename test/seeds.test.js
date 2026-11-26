@@ -22,3 +22,18 @@ test("sementes dos testes de interface ainda levam aos desfechos prometidos", ()
   s = outcome(SEEDS.campeao);             assert.ok(s.isChampion && !s.perfeito && s.wins === 3 && s.losses === 0, "campeao");
   s = outcome(SEEDS.perfeito);            assert.ok(s.perfeito, "perfeito");
 });
+
+test("retry: mesmo time (seed 2), novo torneio (seed 1) => desfecho diferente (eliminado)", () => {
+  const [primeira, segunda] = SEEDS.retry;
+  const d = new Draft(primeira);
+  while (!d.done) {
+    let pick;
+    for (const id of d.offers) for (const p of d._byId(id).jogadores) if (!pick && !d.taken.roles.has(p.papel) && !d.taken.nicks.has(p.nick)) pick = [id, p.nick];
+    d.pick(...pick);
+  }
+  const squad = resolveSquad(d.picks);
+  const run = (seed) => { const t = createTournament({ teamName: "Teste", squad, style: "tatico", seed }); playToEnd(t); return summarize(t); };
+  assert.ok(run(primeira).isChampion, "1º jogo: campeão");
+  const s = run(segunda);
+  assert.ok(!s.wasInPlayoffs && s.wins === 1 && s.losses === 3, "2º torneio: eliminado 1-3");
+});

@@ -8,7 +8,8 @@ export class GamePage {
     this.offers = page.locator("#lineup-offers button:not([disabled])");  // jogadores escolhíveis do draft
     this.undo = page.getByRole("button", { name: /Desfazer última escolha/ });
     this.share = page.getByRole("button", { name: /Compartilhar/ });
-    this.playAgain = page.getByRole("button", { name: /Jogar de novo/ });
+    this.playAgain = page.getByRole("button", { name: /Montar outro time/ });
+    this.retry = page.getByRole("button", { name: /Tentar de novo com este time/ });
   }
 
   /* Simula o backend online (o botão de modos só aparece se /api/v1/daily responder). */
@@ -19,10 +20,11 @@ export class GamePage {
 
   /* Fixa a seed do jogo livre (o jogo a sorteia com crypto.getRandomValues num Uint32Array de 1 posição):
    * com a seed fixa, o draft e o torneio são idênticos a cada execução. Ver e2e/seeds.js. */
-  async useSeed(seed) {
-    await this.page.addInitScript((s) => {
+  async useSeed(seed) {                      // seed única, ou uma LISTA: 1ª partida, 2ª partida (retry)…
+    await this.page.addInitScript((seeds) => {
+      const list = [].concat(seeds); let i = 0;
       const orig = crypto.getRandomValues.bind(crypto);
-      crypto.getRandomValues = (a) => (a instanceof Uint32Array && a.length === 1 ? ((a[0] = s), a) : orig(a));
+      crypto.getRandomValues = (a) => (a instanceof Uint32Array && a.length === 1 ? ((a[0] = list[Math.min(i++, list.length - 1)]), a) : orig(a));
     }, seed);
   }
 
