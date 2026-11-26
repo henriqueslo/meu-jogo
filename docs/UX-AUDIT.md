@@ -41,9 +41,19 @@ Data: 26/11/2026 · Método: fluxo completo percorrido no navegador (celular 375
 | U-18 | Modos online | Falha de rede e sala inexistente sem tratamento visual claro. | Estados de erro e vazio desenhados |
 
 ## Roteiro (UX → beleza)
-1. **Fase A — consertar** (U-01…U-04): sem estouro, alvos 48 px, tipografia legível. 1 PR pequeno e de baixo risco.
+1. ✅ **Fase A — consertar** (U-01…U-04, e U-09 em parte): **feita.** Sem rolagem lateral de 320 a 414 px, alvos de 48 px, texto mínimo de 12 px; elenco em linhas legíveis e o draft mostra só o que falta (“Faltam: AWP · IGL…”) em vez de 5 vagas vazias.
 2. **Fase B — fluxo** (U-02, U-05, U-07, U-08, U-09, U-12): barra de ação fixa, dicas, entrar com código único, desfazer.
 3. **Fase C — jornada** (U-06, U-10, U-11, U-13, U-14): início enxuto, resumo de rodada, resultado com história e funil.
 4. **Fase D — beleza** (U-15…U-18 e o visual): grade no desktop, movimento, cartões, tema.
 
 Cada fase termina com testes de fluxo no navegador (Playwright): sem rolagem lateral em 375 px, alvos ≥ 44 px, fonte ≥ 12 px, ação principal visível sem rolar.
+
+## Testes de interface (Playwright)
+`e2e/layout.spec.js` percorre o jogo em celulares de **320, 375 e 414 px** e, em **cada tela**, exige: sem rolagem lateral, todo botão/campo ≥ 44×44 px e nenhum texto < 12 px. Ele foi escrito **antes** da correção e falhou reproduzindo a auditoria (ex.: rolagem de 135 px em 320 px); agora passa.
+
+```bash
+npm.cmd install                          # uma vez (instala @playwright/test)
+npx.cmd playwright install chromium      # uma vez (baixa o navegador de teste)
+npm.cmd run test:e2e                     # roda os testes de interface
+```
+O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs ficam em `e2e/` (não em `test/`, que o `node --test` executa). O CI roda `npm test` e `npm run test:e2e` em jobs separados. Duelo e campeonato (WebSocket) ainda não têm spec: foram verificados à mão e entram numa fase futura.

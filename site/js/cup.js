@@ -2,7 +2,7 @@
  * (start, refresh, pick, style, force, advance) e renderiza o que volta. Texto de outros jogadores
  * (nomes de time) é dado não confiável: sempre via esc(). */
 import { ROLES } from "./data.js";
-import { esc, slotHTML, offersHTML, lineupById } from "./render.js";
+import { esc, slotHTML, offersHTML, lineupById, draftSlotsHTML } from "./render.js";
 import { connect, createRoom as createRoomOf, normalizeCode, validCode } from "./net.js";
 
 const $ = (id) => document.getElementById(id);
@@ -63,11 +63,11 @@ function lobbyHTML(v) {
 
 function draftHTML(v) {
   const y = v.you, filled = Object.keys(y.squad).length;
-  const slots = ROLES.map((r) => `<div class="slot${y.squad[r] ? " filled" : ""}">${slotHTML(r, y.squad[r])}</div>`).join("");
+  const slots = draftSlotsHTML(y.squad);
   let action;
   if (!y.draftDone) {
     const n = y.refreshesLeft;
-    action = `<div class="progress">Vaga ${filled + 1} de 5</div>
+    action = `<div class="progress">Escolha ${filled + 1} de 5</div>
       <button class="rollbtn primary" id="cup-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
       <div id="cup-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>`;
   } else if (!y.style) {
@@ -80,7 +80,7 @@ function draftHTML(v) {
   const force = y.canControl && waiting
     ? `<button class="secondary" id="cup-force" type="button">⏩ Completar automaticamente quem faltar</button>
        <p style="color:var(--dim); font-size:12px;">${y.host ? "Você é o dono." : "O dono está offline: você pode seguir sem ele."} Jogadores incompletos recebem elenco automático e estilo Tático.</p>` : "";
-  return `<div class="slots">${slots}</div><div class="stage-label">Jogadores</div>${playersHTML(v, true)}${action}${force}`;
+  return `<div class="slots draft-slots">${slots}</div><div class="stage-label">Jogadores</div>${playersHTML(v, true)}${action}${force}`;
 }
 
 const rec = (t) => `${t.wins}-${t.losses}`;
