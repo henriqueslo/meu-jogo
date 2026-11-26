@@ -87,3 +87,11 @@ Limpeza (guarde 90 dias):
 ```bash
 npx.cmd wrangler d1 execute minhalineup --remote --command "DELETE FROM metrics WHERE day < date('now','-90 day')"
 ```
+
+---
+
+## Fontes (auto-hospedadas)
+
+Rajdhani (500/600/700) e JetBrains Mono (variável 500–700) ficam em `site/fonts/` (8 arquivos `woff2`, ~128 KB no total, só os subconjuntos `latin` e `latin-ext`), declaradas em `site/css/fonts.css`. Licença: SIL OFL 1.1 (`site/fonts/LICENSES.txt`, distribuída junto). O site **não faz nenhuma requisição a terceiros** para fontes: o IP do visitante não vai ao Google, e o CSP (`style-src`/`font-src`) não libera mais `fonts.googleapis.com` nem `fonts.gstatic.com`. `test/static.test.js` impede que alguém reintroduza CSS/JS/fonte externos sem perceber.
+
+Trocar ou acrescentar uma fonte: coloque o `woff2` em `site/fonts/`, declare o `@font-face` em `site/css/fonts.css` (com `font-display: swap`), atualize `LICENSES.txt` com a licença da nova fonte e rode `npm.cmd test`.
