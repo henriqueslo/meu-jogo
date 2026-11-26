@@ -384,3 +384,23 @@ button.player-chip:disabled{cursor:not-allowed;}
 .draft-slots .slot .team{text-align:right;}
 .slots-missing{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 12px; border:1px dashed var(--line); color:var(--dim); font-size:13px;}
 .role-pill{padding:2px 10px; border:1px solid var(--line-strong); text-transform:uppercase; letter-spacing:.6px; font-size:12px; font-weight:600; color:var(--text);}
+
+/* ===== Fase B de UX (docs/UX-AUDIT.md): fluxo ===== */
+/* U-02: a ação principal de cada etapa fica SEMPRE à vista (barra fixa no rodapé da tela) */
+.action-bar{
+  position:sticky; bottom:0; z-index:20;
+  display:flex; flex-wrap:wrap; gap:8px;
+  margin:16px -16px 0; padding:14px 16px calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg, rgba(13,17,20,0) 0, rgba(13,17,20,.94) 24%, var(--bg) 100%);
+  border-top:1px solid var(--line);
+}
+.action-bar > button{flex:1 1 140px; margin:0;}
+.action-bar > .primary{flex-basis:100%;}
+#btn-undo, #btn-undo-team{margin:8px 0 0;}
+
+/* U-09: legenda dos jogadores apagados; U-11 (início): campanha do jogador sempre visível */
+.offers-legend{color:var(--dim); font-size:13px; margin:2px 0 14px;}
+.you-status{margin:0 0 10px; padding:8px 12px; background:var(--panel); border-left:3px solid var(--gold); font-size:14px; font-weight:600;}
+
+/* U-12: dica de que o overlay pode ser pulado */
+.phase-skip{margin-top:18px; color:var(--dim); font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:.8;}

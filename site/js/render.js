@@ -28,14 +28,19 @@ export const lineupById = (id) => LINEUPS.find((l) => l.id === id);
 /* Cards de lineup oferecidos. `squad` = role -> {nick,...}; jogadores sem vaga ou já usados ficam desabilitados. */
 export function offersHTML(lineups, squad) {
   const nicks = new Set(Object.values(squad).map((s) => s.nick));
-  return lineups.map((lu) => `
+  let anyBlocked = false;
+  const cards = lineups.map((lu) => `
     <div class="lineup-card">
       <div class="lname">${esc(lu.time)} <span class="badge ${esc(lu.raridade)}">${esc(lu.raridade)}</span></div>
       <div class="lmeta">${esc(lu.evento)} · média <span class="rating">${lu.forca}</span></div>
       <div class="players">${lu.jogadores.map((p) => {
-        const taken = !!squad[p.papel] || nicks.has(p.nick);
-        return `<button type="button" class="player-chip${taken ? " disabled" : ""}" ${taken ? "disabled" : ""} data-lineup="${esc(lu.id)}" data-nick="${esc(p.nick)}" data-role="${esc(p.papel)}">
+        const roleTaken = !!squad[p.papel], taken = roleTaken || nicks.has(p.nick);
+        // jogador apagado precisa dizer POR QUÊ (tooltip + legenda abaixo; o toque não tem hover)
+        const why = roleTaken ? `Papel ${p.papel} já preenchido` : nicks.has(p.nick) ? "Jogador já escalado" : "";
+        if (taken) anyBlocked = true;
+        return `<button type="button" class="player-chip${taken ? " disabled" : ""}" ${taken ? `disabled title="${esc(why)}"` : ""} data-lineup="${esc(lu.id)}" data-nick="${esc(p.nick)}" data-role="${esc(p.papel)}">
           <b><span class="flag">${flagEmoji(p.pais)}</span>${esc(p.nick)}</b><small>${esc(p.papel)} · <span class="rating">${p.forca}</span></small></button>`;
       }).join("")}</div>
     </div>`).join("");
+  return cards + (anyBlocked ? `<p class="offers-legend">Jogadores apagados: papel já preenchido ou jogador já escalado.</p>` : "");
 }

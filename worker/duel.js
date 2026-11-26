@@ -12,6 +12,7 @@ import { LINEUPS, ROLES } from "../site/js/data.js";
 import {
   MAX_REFRESHES, STYLES, createStreams, pickRandomLineups, resolveSquad,
   sanitizeTeamName, duelMatch, hashSeed,
+  GameError, Draft,
 } from "../site/js/engine.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "../site/js/moderation.js";
 
@@ -19,50 +20,9 @@ export const MAX_PLAYERS = 2;
 export const BEST_OF = 3;
 const BY_ID = new Map(LINEUPS.map((l) => [l.id, l]));
 
-export class DuelError extends Error {
-  constructor(code, detail) { super(detail); this.code = code; }
-}
-
-export class Draft {
-  constructor(seed) {
-    this.streams = createStreams(seed);
-    this.taken = { roles: new Set(), nicks: new Set() };
-    this.picks = {};
-    this.refreshesLeft = MAX_REFRESHES;
-    this.actions = [];
-    this.offers = this._roll();
-  }
-  _byId(id) { return BY_ID.get(id); }
-  _roll() { return pickRandomLineups(this.streams.draftRand, this.taken).map((l) => l.id); }
-  get done() { return Object.keys(this.picks).length === ROLES.length; }
-
-  refresh() {
-    if (this.done) throw new DuelError("draft-complete", "Seu elenco já está completo.");
-    if (this.refreshesLeft <= 0) throw new DuelError("no-refresh", "Sem atualizações nesta vaga.");
-    this.refreshesLeft--;
-    this.offers = this._roll();
-    this.actions.push({ t: "refresh" });
-  }
-
-  pick(lineupId, nick) {
-    if (this.done) throw new DuelError("draft-complete", "Seu elenco já está completo.");
-    if (!this.offers.includes(lineupId)) throw new DuelError("not-offered", "Essa lineup não está entre as ofertas.");
-    const pl = BY_ID.get(lineupId).jogadores.find((p) => p.nick === nick);
-    if (!pl) throw new DuelError("not-offered", "Jogador inexistente nessa lineup.");
-    if (this.taken.roles.has(pl.papel) || this.taken.nicks.has(pl.nick)) throw new DuelError("not-eligible", "Papel ocupado ou jogador repetido.");
-    this.taken.roles.add(pl.papel); this.taken.nicks.add(pl.nick);
-    this.picks[pl.papel] = { lineupId, nick: pl.nick };
-    this.refreshesLeft = MAX_REFRESHES;
-    this.actions.push({ t: "pick", lineupId, nick: pl.nick });
-    this.offers = this.done ? [] : this._roll();
-  }
-
-  static replay(seed, actions) {
-    const d = new Draft(seed);
-    for (const a of actions) a.t === "refresh" ? d.refresh() : d.pick(a.lineupId, a.nick);
-    return d;
-  }
-}
+// Erros e Draft vêm do motor compartilhado (o navegador usa a mesma classe). DuelError = GameError.
+export { GameError as DuelError, Draft };
+const DuelError = GameError;
 
 export const hex = (n) => [...globalThis.crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
 export const str = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
@@ -111,6 +71,10 @@ export class Duel {
         this._needDraft();
         if (!str(msg.lineupId, 64) || !str(msg.nick, 40)) throw new DuelError("bad-message", "pick inválido.");
         p.draft.pick(msg.lineupId, msg.nick); return;
+      case "undo":                                       // desfazer a última escolha (só antes de fixar o estilo)
+        this._needDraft();
+        if (p.style) throw new DuelError("style-locked", "Estilo já escolhido; não dá mais para desfazer.");
+        p.draft.undo(); return;
       case "style":
         this._needDraft();
         if (!p.draft.done) throw new DuelError("draft-incomplete", "Complete o elenco antes do estilo.");
@@ -148,7 +112,7 @@ export class Duel {
     const squad = me ? Object.fromEntries(Object.entries(resolveSquad(me.draft.picks, { partial: true })).map(([r, s]) => [r, { nick: s.nick, pais: s.pais, forca: s.forca, team: s.team, lineupId: s.lineupId }])) : {};
     return {
       v: 1, phase: this.phase, code: this.code, round: this.round, best_of: BEST_OF,
-      you: me ? { slot, name: me.name, offers: this.phase === "draft" ? me.draft.offers : [], refreshesLeft: me.draft.refreshesLeft, squad, draftDone: me.draft.done, style: me.style, rematch: !!me.rematch } : null,
+      you: me ? { slot, name: me.name, offers: this.phase === "draft" ? me.draft.offers : [], refreshesLeft: me.draft.refreshesLeft, squad, draftDone: me.draft.done, canUndo: me.draft.canUndo && !me.style, style: me.style, rematch: !!me.rematch } : null,
       opp: opp ? { name: opp.name, connected: !!connected[1 - slot], picks: Object.keys(opp.draft.picks).length, styleChosen: !!opp.style, rematch: !!opp.rematch } : null,
       result: this.result,
     };

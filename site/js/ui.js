@@ -2,159 +2,147 @@
  * REGRA DE OURO: todo texto dinâmico em HTML passa por esc(). */
 import { ROLES } from "./data.js";
 import {
-  MAX_REFRESHES, newSeed, createStreams, pickRandomLineups, resolveSquad,
+  newSeed, Draft, actionsToLog, resolveSquad,
   sanitizeTeamName, createTournament, advance, tournamentMvp, summarize,
 } from "./engine.js";
 import { shareResult } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
-import { esc, flagEmoji, slotHTML, draftSlotsHTML } from "./render.js";
+import { esc, flagEmoji, slotHTML, draftSlotsHTML, offersHTML, lineupById } from "./render.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
 import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
 import { openCup, createCup } from "./cup.js";
-import { adoptActive, inRoomFlag, roomExists } from "./net.js";
+import { adoptActive, inRoomFlag, roomExists, resolveRoomKind } from "./net.js";
 import { loadActive, clearActive, kindLabel } from "./session.js";
 
 const SITE_URL = "https://minhalineup.com";
+const DEFAULT_STYLE = "tatico";           // já vem selecionado: o jogador só decide se quiser mudar
 const $ = (id) => document.getElementById(id);
 
 /* ------------------------------- Estado ------------------------------- */
 const state = {
-  teamName: "", style: null, streams: null, seed: 0,
-  picks: {},          // role -> {lineupId, nick}  (o que seria enviado ao servidor)
-  squad: {},          // role -> dados resolvidos pelo engine
-  refreshesLeft: MAX_REFRESHES,
-  mode: "free", daily: null, draftLog: [],
+  teamName: "", style: DEFAULT_STYLE, seed: 0,
+  draft: null,        // Draft (engine): fonte única de ofertas, escolhas, atualizações e desfazer
+  squad: {},          // role -> dados resolvidos pelo engine (derivado de draft.picks)
+  mode: "free", daily: null,
   tournament: null, shareData: null, shareText: "",
 };
 
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   $(id).classList.add("active");
+  window.scrollTo({ top: 0 });
 }
 
 /* ------------------------------- Draft ------------------------------- */
-function renderSlots() {
-  const cont = $("slots");
-  cont.innerHTML = draftSlotsHTML(state.squad);
-  const filled = ROLES.filter((r) => state.squad[r]).length;
+function syncDraft() {
+  state.squad = resolveSquad(state.draft.picks, { partial: true });
+  $("slots").innerHTML = draftSlotsHTML(state.squad);
+  const filled = Object.keys(state.squad).length;
   $("draft-progress").textContent = filled < 5 ? `Escolha ${filled + 1} de 5` : "LineUp completa!";
   $("btn-roll").style.display = filled < 5 ? "" : "none";
+  $("btn-undo").hidden = !state.draft.canUndo;
 }
 
-function showLineups(offers) {
-  $("lineup-offers").innerHTML = offers.map((lu) => `
-    <div class="lineup-card">
-      <div class="lname">${esc(lu.time)} <span class="badge ${esc(lu.raridade)}">${esc(lu.raridade)}</span></div>
-      <div class="lmeta">${esc(lu.evento)} · média <span class="rating">${lu.forca}</span></div>
-      <div class="players">${lu.jogadores.map((p) => {
-        const taken = !!state.squad[p.papel] || usedNicks().has(p.nick);
-        return `<button type="button" class="player-chip${taken ? " disabled" : ""}" ${taken ? "disabled" : ""} data-lineup="${esc(lu.id)}" data-nick="${esc(p.nick)}" data-role="${esc(p.papel)}">
-          <b><span class="flag">${flagEmoji(p.pais)}</span>${esc(p.nick)}</b><small>${esc(p.papel)} · <span class="rating">${p.forca}</span></small></button>`;
-      }).join("")}</div>
-    </div>`).join("");
-}
-
-const usedNicks = () => new Set(Object.values(state.squad).map((s) => s.nick));
-const takenNow = () => ({ roles: new Set(Object.keys(state.squad)), nicks: usedNicks() });
-function rollLineups() { showLineups(pickRandomLineups(state.streams.draftRand, takenNow())); updateRefreshUI(); }
-
-function updateRefreshUI() {
-  const btn = $("btn-roll"), hint = $("refresh-hint"), n = state.refreshesLeft;
+function showOffers() {
+  $("lineup-offers").innerHTML = offersHTML(state.draft.offers.map(lineupById), state.squad);
+  const btn = $("btn-roll"), hint = $("refresh-hint"), n = state.draft.refreshesLeft;
   btn.disabled = n <= 0;
   btn.textContent = n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`;
   hint.textContent = n <= 0 ? "Você usou as 3 atualizações desta vaga. Escolha um dos jogadores acima pra seguir." : "";
 }
 
 $("btn-roll").addEventListener("click", () => {
-  if (state.refreshesLeft <= 0) return;
-  state.refreshesLeft--;
-  rollLineups();
+  if (state.draft.refreshesLeft <= 0) return;
+  state.draft.refresh();
+  showOffers();
 });
 
 /* Delegação: um único listener para todos os chips (sem handlers inline). */
 $("lineup-offers").addEventListener("click", (e) => {
   const chip = e.target.closest(".player-chip");
   if (!chip || chip.disabled) return;
-  const role = chip.dataset.role;
-  if (state.picks[role]) return;
-  // Guarda só IDs; o rating é resolvido pelo engine (nunca vem do DOM).
-  state.picks[role] = { lineupId: chip.dataset.lineup, nick: chip.dataset.nick };
-  try { state.squad = resolveSquad(state.picks, { partial: true }); }
-  catch { delete state.picks[role]; return; }
-  // log do draft: é o que o servidor re-executa para validar o desafio do dia
-  state.draftLog.push({ refreshes: MAX_REFRESHES - state.refreshesLeft, lineupId: chip.dataset.lineup, nick: chip.dataset.nick });
-  state.refreshesLeft = MAX_REFRESHES;
-  renderSlots();
-  if (ROLES.every((r) => state.squad[r])) {
-    $("lineup-offers").innerHTML = "";
-    goToTeamScreen();
-  } else rollLineups();
+  // Só IDs vão para o Draft; o rating é resolvido pelo engine (nunca vem do DOM).
+  try { state.draft.pick(chip.dataset.lineup, chip.dataset.nick); } catch { return; }
+  syncDraft();
+  if (state.draft.done) { $("lineup-offers").innerHTML = ""; goToTeamScreen(); } else showOffers();
 });
+
+/* Desfazer: o Draft reproduz tudo menos a última escolha — voltam as MESMAS ofertas de antes. */
+function undoPick() {
+  if (!state.draft.canUndo) return;
+  state.draft.undo();
+  showScreen("screen-draft");
+  syncDraft(); showOffers();
+}
+$("btn-undo").addEventListener("click", undoPick);
+$("btn-undo-team").addEventListener("click", undoPick);
 
 /* ------------------------------ Início ------------------------------ */
 const nameInput = $("team-name-input");
-function validateName() {
+
+/* Os botões nunca ficam "mortos": clicar sem nome explica e leva o foco ao campo. */
+function showNameError(msg) { $("name-error").textContent = msg; nameInput.focus(); }
+
+function requireName({ online }) {
   const clean = sanitizeTeamName(nameInput.value);
-  const base = clean.length >= 2;                         // jogo livre: o nome nunca sai do dispositivo
-  const blocked = base && !moderateName(clean).ok;        // modos online: o servidor repete esta checagem
-  const ok = base && !blocked;
-  if (blocked) $("name-error").textContent = NAME_BLOCKED_MESSAGE + " (O jogo livre aceita qualquer nome.)";
-  $("btn-begin").disabled = !base;
-  $("btn-daily").disabled = !ok || !state.daily || playedToday(state.daily.day);
-  $("btn-duel-create").disabled = !ok || !state.daily;
-  $("btn-duel-join").disabled = !ok || !validCode($("duel-code-input").value);
-  $("btn-cup-create").disabled = !ok || !state.daily;
-  $("btn-cup-join").disabled = !ok || !validCode($("duel-code-input").value);
-  return base;
+  if (clean.length < 2) { showNameError("Dê um nome ao seu time para começar (2 a 24 caracteres: letras, números, espaço . _ -)."); return null; }
+  if (online && !moderateName(clean).ok) { showNameError(NAME_BLOCKED_MESSAGE + " (O jogo livre aceita qualquer nome.)"); return null; }
+  return clean;
+}
+
+/* Só o que depende do estado: o Desafio do dia concluído hoje. */
+function refreshStartControls() {
+  const played = !!state.daily && playedToday(state.daily.day);
+  $("btn-daily").disabled = played;
+  $("btn-daily").textContent = played ? "📅 Desafio de hoje concluído · volta amanhã" : "📅 Desafio do dia · todos jogam o mesmo baralho";
 }
 
 function beginGame(mode = "free") {
-  const name = sanitizeTeamName(nameInput.value);
-  if (name.length < 2) {
-    $("name-error").textContent = "Dê um nome ao seu time para começar (mínimo 2 caracteres; letras, números, espaço . _ -).";
-    nameInput.focus();
-    return;
-  }
+  const name = requireName({ online: mode === "daily" });
+  if (!name) return;
   $("name-error").textContent = "";
   state.teamName = name;
   state.mode = mode === "daily" && state.daily ? "daily" : "free";
   state.seed = state.mode === "daily" ? state.daily.seed : newSeed();
-  state.streams = createStreams(state.seed);
-  state.draftLog = [];
-  state.picks = {}; state.squad = {}; state.refreshesLeft = MAX_REFRESHES;
+  state.draft = new Draft(state.seed);
+  state.style = DEFAULT_STYLE;
   showScreen("screen-draft");
-  renderSlots();
-  rollLineups();
+  syncDraft(); showOffers();
 }
 
 $("btn-begin").addEventListener("click", () => beginGame("free"));
 $("btn-daily").addEventListener("click", () => beginGame("daily"));
-nameInput.addEventListener("input", () => { $("name-error").textContent = ""; validateName(); });
-nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && validateName()) beginGame("free"); });
-validateName();
+nameInput.addEventListener("input", () => { $("name-error").textContent = ""; });
+nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") beginGame("free"); });
 
 /* ------------------------- Time / estilo ------------------------- */
+function selectStyle(style) {
+  state.style = style;
+  document.querySelectorAll(".style-opt").forEach((o) => {
+    const on = o.dataset.style === style;
+    o.classList.toggle("sel", on);
+    o.setAttribute("aria-checked", on ? "true" : "false");
+  });
+}
+
 function goToTeamScreen() {
   showScreen("screen-team");
+  selectStyle(state.style);                       // padrão (Tático) já marcado; botão de disputar sempre ativo
   $("team-final").innerHTML = ROLES.map((r) => `<div class="slot filled">${slotHTML(r, state.squad[r])}</div>`).join("");
 }
 
 document.querySelectorAll(".style-opt").forEach((opt) => {
-  opt.addEventListener("click", () => {
-    document.querySelectorAll(".style-opt").forEach((o) => { o.classList.remove("sel"); o.setAttribute("aria-checked", "false"); });
-    opt.classList.add("sel"); opt.setAttribute("aria-checked", "true");
-    state.style = opt.dataset.style;
-    $("btn-start").disabled = false;
-  });
+  opt.addEventListener("click", () => selectStyle(opt.dataset.style));
   opt.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); opt.click(); } });
 });
 
 $("btn-start").addEventListener("click", () => {
-  const squad = resolveSquad(state.picks); // mesma validação que o servidor fará
+  const squad = resolveSquad(state.draft.picks); // mesma validação que o servidor fará
   state.tournament = createTournament({ teamName: state.teamName, squad, style: state.style, seed: state.seed });
   showScreen("screen-sim");
   step();
 });
+
 
 /* --------------------------- Simulação --------------------------- */
 let matchId = 0;
@@ -212,18 +200,20 @@ const STAGES = {
   final: ["Grande Final · Bo5", "Ver resultado final →", "É a decisão", "Grande Final", "Bo5 · vale o título do Major"],
 };
 
+
 function step() {
   const t = state.tournament, cont = $("sim-content"), btn = $("btn-next");
   const ev = advance(t);
-  btn.style.display = "inline-block";
+  btn.hidden = false;
   btn.onclick = step;
   if (!ev) return renderResults();
 
   if (ev.type === "swiss") {
-    cont.innerHTML = `<div class="stage-label">Primeira Fase (formato suíço) · Rodada ${ev.round}</div>${renderRoundHTML(ev.results)}
-      <p style="color:var(--dim); font-size:12px;">Classificados até agora: ${t.qualified.length}/8 · Eliminados: ${t.eliminated.length}/8</p>`;
+    // Sem overlay no suíço (5 rodadas): a campanha do jogador fica numa linha fixa no topo.
+    cont.innerHTML = `<div class="stage-label">Primeira Fase (formato suíço) · Rodada ${ev.round}</div>
+      <p class="you-status">${esc(statusUsuario())}</p>${renderRoundHTML(ev.results)}
+      <p style="color:var(--dim); font-size:13px;">Classificados até agora: ${t.qualified.length}/8 · Eliminados: ${t.eliminated.length}/8</p>`;
     btn.textContent = t.active.length > 0 ? "Próxima rodada →" : "Ver seed dos playoffs →";
-    playPhase("Primeira Fase · formato suíço", "Rodada " + ev.round, statusUsuario());
   } else if (ev.type === "seed") {
     cont.innerHTML = `<div class="stage-label">Playoffs · Chaveamento (Bo3 até a final Bo5)</div>` +
       ev.seeds.map((x, i) => `<div class="bracket-match"><span>#${i + 1} seed</span><span class="${x.isUser ? "you" : ""}">${esc(x.nome)} (força ${x.forca})</span></div>`).join("");
@@ -234,8 +224,9 @@ function step() {
     cont.innerHTML = `<div class="stage-label">${label}</div>${renderRoundHTML(ev.results)}`;
     btn.textContent = next;
     if (ev.type === "final") btn.onclick = renderResults;
-    playPhase(k, title, sub, ev.type === "final");
+    playPhase(k, title, sub, ev.type === "final");     // só o mata-mata tem transição
   }
+  window.scrollTo({ top: 0 });                         // nova etapa começa no topo; a barra de ação continua à vista
 }
 
 /* --------------------- Transição de fase (overlay) --------------------- */
@@ -259,7 +250,7 @@ function playPhase(kicker, title, sub, gold) {
     ov.onclick = null;
   };
   ov.onclick = fechar;
-  phaseTimer = setTimeout(fechar, 1300);
+  phaseTimer = setTimeout(fechar, 900);
 }
 
 /* ------------------------------ Resultado ------------------------------ */
@@ -306,20 +297,19 @@ function renderResults() {
     lineup: ROLES.map((r) => ({ papel: r, nick: state.squad[r].nick })),
   };
   // textContent no lugar de "strip": exibe o texto fielmente, sem interpretar HTML.
-  html += `<div class="stage-label">Compartilhar</div><div class="share-box" id="share-box"></div>
-    <button class="primary" id="btn-share" type="button">📤 Compartilhar</button>`;
+  html += `<div class="stage-label">Texto para compartilhar</div><div class="share-box" id="share-box"></div>`;
   $("results-content").innerHTML = html;
   $("share-box").textContent = state.shareText;
-  $("btn-share").addEventListener("click", (e) => shareResult(e.currentTarget, state.shareData, state.shareText));
+  // As ações do fim do jogo ficam na barra fixa (sempre à vista), não no fim de uma tela comprida.
+  $("btn-share").onclick = (e) => shareResult(e.currentTarget, state.shareData, state.shareText);
+  $("btn-submit-daily")?.remove();
   if (state.mode === "daily") dailySection();
 }
 
 $("btn-restart").addEventListener("click", () => {
-  state.style = null; state.tournament = null;
-  document.querySelectorAll(".style-opt").forEach((o) => o.classList.remove("sel"));
-  $("btn-start").disabled = true;
+  state.tournament = null; state.draft = null; state.style = DEFAULT_STYLE;
   showScreen("screen-start");
-  validateName();
+  refreshStartControls();
 });
 
 /* ------------------------ Desafio do dia (Fase 1) ------------------------ */
@@ -329,11 +319,11 @@ async function initDaily() {
   if (!state.daily) return;
   $("btn-daily").hidden = false;
   $("duel-box").hidden = false;
+  refreshStartControls();
   const q = new URLSearchParams(location.search).get("duelo");
   if (q && validCode(q)) $("duel-code-input").value = normalizeCode(q);
   const qc = new URLSearchParams(location.search).get("campeonato");
   if (qc && validCode(qc)) $("duel-code-input").value = normalizeCode(qc);
-  validateName();
   const rows = await fetchBoard(state.daily.day, 5);
   if (rows && rows.length) {
     $("daily-board-start").innerHTML = `<div class="stage-label">Ranking de hoje</div>${boardHTML(rows, esc)}`;
@@ -345,13 +335,14 @@ function dailySection() {
   const box = document.createElement("div");
   box.innerHTML = `<div class="stage-label">Desafio do dia · ${esc(state.daily.day)}</div>
     <p id="daily-msg" style="color:var(--dim); font-size:13px;">Envie sua lineup ao ranking. O servidor refaz o draft e a simulação — o resultado vale para todos.</p>
-    <button class="primary" id="btn-submit-daily" type="button">🏁 Enviar ao ranking</button>
     <div id="daily-board"></div>`;
   $("results-content").appendChild(box);
-  $("btn-submit-daily").addEventListener("click", async (e) => {
-    const btn = e.currentTarget;
+  const btn = document.createElement("button");
+  btn.className = "primary"; btn.id = "btn-submit-daily"; btn.type = "button"; btn.textContent = "🏁 Enviar ao ranking";
+  $("result-actions").prepend(btn);                        // ação principal do desafio: na barra fixa
+  btn.addEventListener("click", async () => {
     btn.disabled = true;
-    const r = await submitEntry({ teamName: state.teamName, style: state.style, draft: state.draftLog });
+    const r = await submitEntry({ teamName: state.teamName, style: state.style, draft: actionsToLog(state.draft.actions) });
     const msg = $("daily-msg");
     if (r.ok) {
       markPlayed(state.daily.day);
@@ -367,32 +358,52 @@ function dailySection() {
 
 initDaily();
 
-/* ----------------------------- Duelo (Fase 2) ----------------------------- */
-const backToStart = () => { showScreen("screen-start"); validateName(); };
-$("duel-code-input").addEventListener("input", (e) => { e.target.value = normalizeCode(e.target.value).replace(/[^A-Z0-9]/g, ""); validateName(); });
-$("btn-duel-create").addEventListener("click", async () => {
-  const name = sanitizeTeamName(nameInput.value), btn = $("btn-duel-create");
-  btn.disabled = true;
-  const r = await createRoom();
-  if (!r.ok) { $("name-error").textContent = r.detail; validateName(); return; }
-  openDuel({ code: r.code, name, exit: backToStart });
-});
-$("btn-duel-join").addEventListener("click", () => {
-  const name = sanitizeTeamName(nameInput.value), code = normalizeCode($("duel-code-input").value);
-  if (name.length >= 2 && validCode(code)) openDuel({ code, name, exit: backToStart });
+/* ------------------------- Salas: duelo e campeonato ------------------------- */
+const backToStart = () => { showScreen("screen-start"); refreshStartControls(); };
+$("duel-code-input").addEventListener("input", (e) => {
+  e.target.value = normalizeCode(e.target.value).replace(/[^A-Z0-9]/g, "");
+  $("join-error").textContent = "";
 });
 
-/* --------------------------- Campeonato (Fase 3) --------------------------- */
+$("btn-duel-create").addEventListener("click", async () => {
+  const name = requireName({ online: true });
+  if (!name) return;
+  const btn = $("btn-duel-create"); btn.disabled = true;
+  const r = await createRoom();
+  btn.disabled = false;
+  if (!r.ok) { $("name-error").textContent = r.detail; return; }
+  openDuel({ code: r.code, name, exit: backToStart });
+});
+
 $("btn-cup-create").addEventListener("click", async () => {
-  const name = sanitizeTeamName(nameInput.value);
-  $("btn-cup-create").disabled = true;
+  const name = requireName({ online: true });
+  if (!name) return;
+  const btn = $("btn-cup-create"); btn.disabled = true;
   const r = await createCup();
-  if (!r.ok) { $("name-error").textContent = r.detail; validateName(); return; }
+  btn.disabled = false;
+  if (!r.ok) { $("name-error").textContent = r.detail; return; }
   openCup({ code: r.code, name, exit: backToStart });
 });
-$("btn-cup-join").addEventListener("click", () => {
-  const name = sanitizeTeamName(nameInput.value), code = normalizeCode($("duel-code-input").value);
-  if (name.length >= 2 && validCode(code)) openCup({ code, name, exit: backToStart });
+
+/* Entrar com um código só: o servidor diz se a sala é de duelo ou de campeonato. */
+$("btn-join").addEventListener("click", async () => {
+  const name = requireName({ online: true });
+  if (!name) return;
+  const err = $("join-error"), input = $("duel-code-input"), code = normalizeCode(input.value);
+  err.textContent = "";
+  if (!validCode(code)) {
+    err.textContent = "O código tem 6 letras e números (sem I, L, O, 0 e 1). Confira com quem convidou você.";
+    input.focus();
+    return;
+  }
+  const btn = $("btn-join"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Procurando…";
+  const kind = await resolveRoomKind(code);
+  btn.disabled = false; btn.textContent = label;
+  if (kind === "rooms") openDuel({ code, name, exit: backToStart });
+  else if (kind === "cups") openCup({ code, name, exit: backToStart });
+  else if (kind === null) err.textContent = "Não encontramos essa sala. Confira o código ou peça um novo (as salas somem após 1 hora sem atividade).";
+  else err.textContent = "Não deu para consultar agora. Verifique sua conexão e tente de novo.";
 });
 
 /* ------------------------------- Reentrada ------------------------------- */

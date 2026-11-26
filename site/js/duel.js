@@ -77,7 +77,7 @@ function draftHTML(v) {
   } else {
     action = `<p style="color:var(--dim);">Estilo <b>${esc(STYLE_LABEL[y.style])}</b> escolhido. Aguardando o rival terminar…</p>`;
   }
-  return `<div class="slots draft-slots">${slots}</div>${oppLine(v)}${action}`;
+  return `<div class="slots draft-slots">${slots}</div>${y.canUndo ? `<button class="secondary" id="duel-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : ""}${oppLine(v)}${action}`;
 }
 
 function resultHTML(v) {
@@ -95,6 +95,7 @@ function resultHTML(v) {
 
 function bind() {
   $("duel-leave")?.addEventListener("click", leaveDuel);
+  $("duel-undo")?.addEventListener("click", () => send({ t: "undo" }));
   $("duel-refresh")?.addEventListener("click", () => send({ t: "refresh" }));
   $("duel-rematch")?.addEventListener("click", () => send({ t: "rematch" }));
   $("duel-offers")?.addEventListener("click", (e) => {

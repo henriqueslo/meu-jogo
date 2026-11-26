@@ -120,6 +120,76 @@ export function pickRandomLineups(draftRand, taken = { roles: new Set(), nicks: 
   return picks;
 }
 
+/* Erro de regra do jogo (código estável + mensagem). O servidor reexporta como DuelError. */
+export class GameError extends Error {
+  constructor(code, detail) { super(detail); this.code = code; }
+}
+
+/* Draft de UM jogador, como máquina de estados pura e REPRODUZÍVEL: o estado inteiro é função de
+ * (seed, actions). Por isso desfazer é trivial e seguro: descarta a última escolha e refaz o
+ * resto — o gerador volta exatamente ao ponto certo, e o log continua válido para o servidor.
+ * Usada pelo navegador (jogo livre/desafio) e pelo servidor (duelo/campeonato). */
+export class Draft {
+  constructor(seed) {
+    this.seed = seed >>> 0;
+    this.streams = createStreams(this.seed);
+    this.taken = { roles: new Set(), nicks: new Set() };
+    this.picks = {};
+    this.refreshesLeft = MAX_REFRESHES;
+    this.actions = [];
+    this.offers = this._roll();
+  }
+  _byId(id) { return LINEUP_BY_ID.get(id); }
+  _roll() { return pickRandomLineups(this.streams.draftRand, this.taken).map((l) => l.id); }
+  get done() { return Object.keys(this.picks).length === ROLES.length; }
+  get canUndo() { return this.actions.some((a) => a.t === "pick"); }
+
+  refresh() {
+    if (this.done) throw new GameError("draft-complete", "Seu elenco já está completo.");
+    if (this.refreshesLeft <= 0) throw new GameError("no-refresh", "Sem atualizações nesta vaga.");
+    this.refreshesLeft--;
+    this.offers = this._roll();
+    this.actions.push({ t: "refresh" });
+  }
+
+  pick(lineupId, nick) {
+    if (this.done) throw new GameError("draft-complete", "Seu elenco já está completo.");
+    if (!this.offers.includes(lineupId)) throw new GameError("not-offered", "Essa lineup não está entre as ofertas.");
+    const pl = this._byId(lineupId).jogadores.find((p) => p.nick === nick);
+    if (!pl) throw new GameError("not-offered", "Jogador inexistente nessa lineup.");
+    if (this.taken.roles.has(pl.papel) || this.taken.nicks.has(pl.nick)) throw new GameError("not-eligible", "Papel ocupado ou jogador repetido.");
+    this.taken.roles.add(pl.papel); this.taken.nicks.add(pl.nick);
+    this.picks[pl.papel] = { lineupId, nick: pl.nick };
+    this.refreshesLeft = MAX_REFRESHES;
+    this.actions.push({ t: "pick", lineupId, nick: pl.nick });
+    this.offers = this.done ? [] : this._roll();
+  }
+
+  /* Desfaz a última escolha (e as atualizações feitas depois dela): volta às MESMAS ofertas de antes. */
+  undo() {
+    const i = this.actions.map((a) => a.t).lastIndexOf("pick");
+    if (i < 0) throw new GameError("nothing-to-undo", "Não há escolha para desfazer.");
+    Object.assign(this, Draft.replay(this.seed, this.actions.slice(0, i)));
+  }
+
+  static replay(seed, actions) {
+    const d = new Draft(seed);
+    for (const a of actions) a.t === "refresh" ? d.refresh() : d.pick(a.lineupId, a.nick);
+    return d;
+  }
+}
+
+/* actions de um Draft -> log do Desafio do dia: [{ refreshes, lineupId, nick }] (o que verifyDraft confere). */
+export function actionsToLog(actions) {
+  const log = [];
+  let refreshes = 0;
+  for (const a of actions) {
+    if (a.t === "refresh") refreshes++;
+    else { log.push({ refreshes, lineupId: a.lineupId, nick: a.nick }); refreshes = 0; }
+  }
+  return log;
+}
+
 /* Reproduz o draft de um jogador a partir da seed e do log de escolhas.
  * draft = [{ refreshes, lineupId, nick } x5], na ordem em que foram feitas.
  * Garante que cada escolha estava REALMENTE na tela (mesma leva que o cliente viu),

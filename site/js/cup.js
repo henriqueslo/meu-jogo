@@ -80,7 +80,7 @@ function draftHTML(v) {
   const force = y.canControl && waiting
     ? `<button class="secondary" id="cup-force" type="button">⏩ Completar automaticamente quem faltar</button>
        <p style="color:var(--dim); font-size:12px;">${y.host ? "Você é o dono." : "O dono está offline: você pode seguir sem ele."} Jogadores incompletos recebem elenco automático e estilo Tático.</p>` : "";
-  return `<div class="slots draft-slots">${slots}</div><div class="stage-label">Jogadores</div>${playersHTML(v, true)}${action}${force}`;
+  return `<div class="slots draft-slots">${slots}</div>${y.canUndo ? `<button class="secondary" id="cup-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : ""}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}${action}${force}`;
 }
 
 const rec = (t) => `${t.wins}-${t.losses}`;
@@ -137,6 +137,7 @@ function doneHTML(v) {
 function bind() {
   $("cup-leave")?.addEventListener("click", leave);
   $("cup-start")?.addEventListener("click", () => send({ t: "start" }));
+  $("cup-undo")?.addEventListener("click", () => send({ t: "undo" }));
   $("cup-refresh")?.addEventListener("click", () => send({ t: "refresh" }));
   $("cup-force")?.addEventListener("click", () => send({ t: "force" }));
   $("cup-advance")?.addEventListener("click", (e) => { e.currentTarget.disabled = true; send({ t: "advance" }); });
