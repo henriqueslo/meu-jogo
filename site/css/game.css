@@ -439,3 +439,27 @@ button.player-chip:disabled{cursor:not-allowed;}
 .others li{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; color:var(--dim);}
 .others li > span:last-child{text-align:right;}
 .others li .w{color:var(--text); font-weight:700;}
+
+/* ===== Fase C4: resultado com história ===== */
+.result-hero{background:var(--panel); border-top:3px solid var(--line-strong); padding:20px 16px 16px; text-align:center; margin:0 0 4px; clip-path:var(--chamfer);}
+.result-hero h2{margin:0 0 6px; font-size:26px; letter-spacing:1px; text-transform:uppercase;}
+.result-hero p{margin:0; color:var(--dim); font-size:15px; line-height:1.45;}
+.result-hero.gold{border-top-color:var(--gold); background:linear-gradient(180deg, rgba(217,180,74,.14), var(--panel) 70%);}
+.result-hero.gold h2{color:var(--gold);}
+.result-hero.silver{border-top-color:#b9c4cc;}
+.journey{list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:6px;}
+.journey li{display:grid; grid-template-columns:96px 1fr auto 28px; align-items:center; gap:8px; background:var(--panel); padding:10px 12px; border-left:3px solid var(--line-strong); font-size:14px;}
+.journey li.win{border-left-color:var(--good);} .journey li.loss{border-left-color:var(--danger);}
+.j-stage{color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.6px;}
+.j-opp{font-weight:700; overflow-wrap:anywhere;}
+.j-score{font-weight:700;}
+.j-res{display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; font-weight:700; font-size:13px; color:#0b1410;}
+.journey li.win .j-res{background:var(--good);} .journey li.loss .j-res{background:var(--danger); color:#fff;}
+.next-steps{background:var(--panel); border-top:3px solid var(--ct); padding:14px; margin:14px 0; clip-path:var(--chamfer-sm);}
+.next-steps h3{margin:0 0 4px; font-size:18px; text-transform:uppercase; letter-spacing:.8px;}
+.next-steps p{margin:0 0 10px; color:var(--dim); font-size:14px;}
+.next-actions{display:flex; flex-wrap:wrap; gap:8px;}
+.next-actions button{flex:1 1 150px; margin:0;}
+
+/* barra de ações do resultado: os botões secundários cabem em 2 linhas, sem ocupar meia tela */
+.action-bar > .secondary{font-size:13px; letter-spacing:.6px; padding:8px 10px; line-height:1.2;}

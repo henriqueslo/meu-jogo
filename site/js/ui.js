@@ -324,17 +324,48 @@ function buildShareText(s) {
   return `${abertura}\n${desafio}\n\nPrimeira Fase: ${swiss} (${s.wins}-${s.losses})\nLineUp: ${ROLES.map((r) => state.squad[r].nick).join(", ")}\n\n🎮 Monte o seu: ${SITE_URL}`;
 }
 
+/* ------------------------- Resultado: a história do torneio ------------------------- */
+/* O herói diz o que aconteceu COM QUEM e o que faltou: é o momento de maior emoção do jogo. */
+function heroFor(s, you) {
+  const lost = [...state.journey].reverse().find((j) => !j.won);            // último jogo perdido
+  const who = lost ? `${lost.opponent} (${lost.score})` : "";
+  if (s.perfeito) return { cls: "gold", title: "💎 MAJOR PERFEITO", sub: `Campeão sem perder um único mapa. Fase suíça ${s.wins}-${s.losses}.` };
+  if (s.isChampion) return { cls: "gold", title: "🏆 CAMPEÃO DO MAJOR", sub: `Fase suíça ${s.wins}-${s.losses}${s.cleanPlayoffs ? " e invicto nos playoffs" : ""}. O troféu é seu.` };
+  if (you.outAt === "Final") return { cls: "silver", title: "🥈 Vice-campeão", sub: `Perdeu a grande final para ${who}. Faltou um jogo para o título.` };
+  if (you.outAt) return { cls: "", title: `Caiu ${you.outAt === "Quartas" ? "nas quartas de final" : "na semifinal"}`, sub: `Perdeu para ${who}. Chegar aos playoffs já é um bom time: tente outro estilo para ir além.` };
+  const falta = s.wins === 2 ? "Ficou a 1 vitória dos playoffs." : s.wins === 1 ? "Faltaram 2 vitórias para os playoffs." : "Nenhuma vitória na fase suíça desta vez. Tente outro estilo ou outro time.";
+  return { cls: "", title: "Eliminado na Primeira Fase", sub: `${s.wins}-${s.losses} no suíço. ${falta}${s.wins > 0 ? " Que tal tentar outro estilo?" : ""}` };
+}
+
+/* A jornada: um jogo por linha, em ordem (alimentada por recordJourney, na C3). */
+function journeyHTML() {
+  if (!state.journey.length) return "";
+  return `<div class="stage-label">Sua jornada</div><ol class="journey" aria-label="Sua jornada">${state.journey.map((j) =>
+    `<li class="${j.won ? "win" : "loss"}"><span class="j-stage">${esc(j.stage)}</span><span class="j-opp">${esc(j.opponent)}</span><b class="j-score mono">${esc(j.score)}</b><span class="j-res" aria-label="${j.won ? "Vitória" : "Derrota"}">${j.won ? "V" : "D"}</span></li>`).join("")}</ol>`;
+}
+
+/* Convites no pico de engajamento — só quando os modos online existem e o nome é aceito nele. */
+function nextStepsHTML() {
+  if (!state.daily || !moderateName(state.teamName).ok) return "";
+  const daily = state.mode !== "daily" && !playedToday(state.daily.day);
+  return `<section class="next-steps" role="region" aria-label="E agora?">
+    <h3>E agora?</h3>
+    <p>Chame um amigo para um duelo${daily ? " ou entre no desafio de hoje, em que todos jogam o mesmo baralho" : ""}.</p>
+    <div class="next-actions">
+      <button class="secondary" id="btn-next-duel" type="button">⚔️ Desafiar um amigo</button>
+      ${daily ? '<button class="secondary" id="btn-next-daily" type="button">📅 Desafio do dia</button>' : ""}
+    </div></section>`;
+}
+
 function renderResults() {
   showScreen("screen-results");
   const t = state.tournament, s = summarize(t), you = t.teams.find((x) => x.isUser);
-  let html = "";
-  if (s.perfeito) html += `<div class="achievement"><h2>🏆 MAJOR PERFEITO</h2><p>3-0 na Primeira Fase + campeão invicto nos playoffs, sem perder um mapa sequer.</p></div>`;
-  else if (s.isChampion) html += `<div class="achievement"><h2>🏆 CAMPEÃO</h2><p>Seu time ergueu o troféu do Major! Recorde na Primeira Fase: ${s.wins}-${s.losses}${s.cleanPlayoffs ? " · invicto nos playoffs" : ""}.</p></div>`;
-  else if (s.wasInPlayoffs) html += `<div class="card" style="text-align:center;"><h3>Classificado para os playoffs</h3><p style="color:var(--dim);">Recorde na Primeira Fase: ${s.wins}-${s.losses}. Eliminado antes da final.</p></div>`;
-  else html += `<div class="card" style="text-align:center;"><h3>Eliminado na Primeira Fase</h3><p style="color:var(--dim);">Recorde final: ${s.wins}-${s.losses}.</p></div>`;
-
-  html += `<div class="stage-label">Sua LineUp</div><div class="slots">` +
+  const hero = heroFor(s, you);
+  let html = `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>`;
+  html += journeyHTML();
+  html += `<div class="stage-label">Sua lineup · força ${you.forca}</div><div class="slots">` +
     ROLES.map((r) => `<div class="slot filled">${slotHTML(r, state.squad[r], false)}</div>`).join("") + `</div>`;
+  html += nextStepsHTML();
   html += `<div class="stage-label">Campeão do Major</div><div class="card row"><b>${esc(t.champion.nome)}</b><span style="color:var(--dim);">força ${t.champion.forca}</span></div>`;
 
   const mvp = tournamentMvp(t);
@@ -360,11 +391,30 @@ function renderResults() {
   html += `<div class="stage-label">Texto para compartilhar</div><div class="share-box" id="share-box"></div>`;
   $("results-content").innerHTML = html;
   $("share-box").textContent = state.shareText;
-  // As ações do fim do jogo ficam na barra fixa (sempre à vista), não no fim de uma tela comprida.
+
+  // Ações na barra fixa: Compartilhar é a principal (no desafio, a principal é enviar ao ranking).
+  const daily = state.mode === "daily";
+  $("btn-share").className = daily ? "secondary" : "primary";
   $("btn-share").onclick = (e) => shareResult(e.currentTarget, state.shareData, state.shareText);
+  $("btn-retry").hidden = daily;                           // no desafio cada um joga uma vez
   $("btn-submit-daily")?.remove();
-  if (state.mode === "daily") dailySection();
+  if (daily) dailySection();
+
+  $("btn-next-duel")?.addEventListener("click", async (e) => {
+    e.currentTarget.disabled = true;
+    const r = await createAndOpenDuel(state.teamName);
+    if (!r.ok) { e.currentTarget.disabled = false; document.querySelector(".next-steps p").textContent = r.detail; }
+  });
+  $("btn-next-daily")?.addEventListener("click", () => { nameInput.value = state.teamName; beginGame("daily"); });
 }
+
+/* Tentar de novo com ESTE time: mesmo elenco, nova simulação (nova seed). Volta à tela do time, onde dá para trocar o estilo. */
+$("btn-retry").addEventListener("click", () => {
+  if (state.mode === "daily") return;
+  state.seed = newSeed();
+  state.journey = []; state.tournament = null;
+  goToTeamScreen();
+});
 
 $("btn-restart").addEventListener("click", () => {
   state.tournament = null; state.draft = null; state.style = DEFAULT_STYLE;
@@ -425,14 +475,20 @@ $("duel-code-input").addEventListener("input", (e) => {
   $("join-error").textContent = "";
 });
 
+/* Cria a sala e entra nela. Usado pelo botão da tela inicial e pelo convite do fim do jogo. */
+async function createAndOpenDuel(name) {
+  const r = await createRoom();
+  if (r.ok) openDuel({ code: r.code, name, exit: backToStart });
+  return r;
+}
+
 $("btn-duel-create").addEventListener("click", async () => {
   const name = requireName({ online: true });
   if (!name) return;
   const btn = $("btn-duel-create"); btn.disabled = true;
-  const r = await createRoom();
+  const r = await createAndOpenDuel(name);
   btn.disabled = false;
-  if (!r.ok) { $("name-error").textContent = r.detail; return; }
-  openDuel({ code: r.code, name, exit: backToStart });
+  if (!r.ok) $("name-error").textContent = r.detail;
 });
 
 $("btn-cup-create").addEventListener("click", async () => {

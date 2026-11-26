@@ -7,4 +7,7 @@ export const SEEDS = {
   playoffs_e_perdeu: 1,    // classifica (3-2) e cai nos playoffs
   campeao: 2,              // 3-0 e campeão (perdendo algum mapa)
   perfeito: 111,           // 3-0, campeão invicto
+  // "Tentar de novo": o 1º jogo usa a seed 2 (draft + torneio, campeão); no retry a seed do TORNEIO passa a ser 1
+  // com o MESMO time, e termina eliminado (1-3).
+  retry: [2, 1],
 };
