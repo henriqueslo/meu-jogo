@@ -359,6 +359,23 @@ export function tournamentMvp(t) {
   return arr.reduce((best, p) => (p.impact > best.impact ? p : best));
 }
 
+/* Duelo 1v1 (Fase 2): simula UMA série entre dois times de humanos.
+ * a/b = { teamName, squad (de resolveSquad), style }. Determinístico em (seed, a, b, bo). */
+export function duelMatch({ a, b, seed, bo = 3 }) {
+  if (![1, 3, 5].includes(bo)) throw new Error("bo inválido");
+  const mk = (id, p) => ({ ...buildUserTeam(p), id, isUser: false });
+  const teamA = mk("duel-a", a), teamB = mk("duel-b", b);
+  const t = { rand: createStreams(seed).simRand, playerStats: {} };
+  const res = simulateMatch(t.rand, teamA, teamB, bo);
+  recordMatchStats(t, teamA, teamB, res);
+  return {
+    winner: res.winner === teamA ? "A" : "B",
+    winsA: res.winsA, winsB: res.winsB, maps: res.maps,
+    forca: { A: teamA.forca, B: teamB.forca },
+    stats: res.matchStats,
+  };
+}
+
 /* Resumo canônico do resultado do usuário — o que um ranking/servidor guardaria. */
 export function summarize(t) {
   const you = t.teams.find((x) => x.isUser);

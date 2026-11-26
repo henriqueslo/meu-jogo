@@ -1,0 +1,34 @@
+/* Helpers de HTML compartilhados (jogo livre, desafio e duelo).
+ * REGRA: todo texto dinâmico passa por esc(); nomes de outros jogadores são dado não confiável. */
+import { LINEUPS } from "./data.js";
+
+const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" };
+export const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ESC[c]);
+
+export function flagEmoji(code) {
+  if (!code || code.length !== 2) return "";
+  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
+
+export function slotHTML(role, s, withRating = true) {
+  return s
+    ? `<div class="role">${esc(role)}</div><div class="nick"><span class="flag">${flagEmoji(s.pais)}</span>${esc(s.nick)}</div><div class="team">${esc(s.team)}${withRating ? ` · <span class="rating">${Number(s.forca)}</span>` : ""}</div>`
+    : `<div class="role">${esc(role)}</div><div class="nick" style="color:var(--dim)">vazio</div>`;
+}
+
+export const lineupById = (id) => LINEUPS.find((l) => l.id === id);
+
+/* Cards de lineup oferecidos. `squad` = role -> {nick,...}; jogadores sem vaga ou já usados ficam desabilitados. */
+export function offersHTML(lineups, squad) {
+  const nicks = new Set(Object.values(squad).map((s) => s.nick));
+  return lineups.map((lu) => `
+    <div class="lineup-card">
+      <div class="lname">${esc(lu.time)} <span class="badge ${esc(lu.raridade)}">${esc(lu.raridade)}</span></div>
+      <div class="lmeta">${esc(lu.evento)} · média <span class="rating">${lu.forca}</span></div>
+      <div class="players">${lu.jogadores.map((p) => {
+        const taken = !!squad[p.papel] || nicks.has(p.nick);
+        return `<button type="button" class="player-chip${taken ? " disabled" : ""}" ${taken ? "disabled" : ""} data-lineup="${esc(lu.id)}" data-nick="${esc(p.nick)}" data-role="${esc(p.papel)}">
+          <b><span class="flag">${flagEmoji(p.pais)}</span>${esc(p.nick)}</b><small>${esc(p.papel)} · <span class="rating">${p.forca}</span></small></button>`;
+      }).join("")}</div>
+    </div>`).join("");
+}

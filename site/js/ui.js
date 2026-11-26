@@ -7,17 +7,11 @@ import {
 } from "./engine.js";
 import { shareResult } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
+import { esc, flagEmoji, slotHTML } from "./render.js";
+import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
 
 const SITE_URL = "https://minhalineup.com";
 const $ = (id) => document.getElementById(id);
-
-const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" };
-const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ESC[c]);
-
-function flagEmoji(code) {
-  if (!code || code.length !== 2) return "";
-  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65));
-}
 
 /* ------------------------------- Estado ------------------------------- */
 const state = {
@@ -35,12 +29,6 @@ function showScreen(id) {
 }
 
 /* ------------------------------- Draft ------------------------------- */
-function slotHTML(r, s, withNick = true) {
-  return s
-    ? `<div class="role">${r}</div><div class="nick"><span class="flag">${flagEmoji(s.pais)}</span>${esc(s.nick)}</div><div class="team">${esc(s.team)}${withNick ? ` · <span class="rating">${s.forca}</span>` : ""}</div>`
-    : `<div class="role">${r}</div><div class="nick" style="color:var(--dim)">vazio</div>`;
-}
-
 function renderSlots() {
   const cont = $("slots");
   cont.innerHTML = ROLES.map((r) => `<div class="slot${state.squad[r] ? " filled" : ""}">${slotHTML(r, state.squad[r])}</div>`).join("");
@@ -105,6 +93,8 @@ function validateName() {
   const ok = sanitizeTeamName(nameInput.value).length >= 2;
   $("btn-begin").disabled = !ok;
   $("btn-daily").disabled = !ok || !state.daily || playedToday(state.daily.day);
+  $("btn-duel-create").disabled = !ok || !state.daily;
+  $("btn-duel-join").disabled = !ok || !validCode($("duel-code-input").value);
   return ok;
 }
 
@@ -328,6 +318,9 @@ async function initDaily() {
   state.daily = await fetchDaily();
   if (!state.daily) return;
   $("btn-daily").hidden = false;
+  $("duel-box").hidden = false;
+  const q = new URLSearchParams(location.search).get("duelo");
+  if (q && validCode(q)) $("duel-code-input").value = normalizeCode(q);
   validateName();
   const rows = await fetchBoard(state.daily.day, 5);
   if (rows && rows.length) {
@@ -361,3 +354,18 @@ function dailySection() {
 }
 
 initDaily();
+
+/* ----------------------------- Duelo (Fase 2) ----------------------------- */
+const backToStart = () => { showScreen("screen-start"); validateName(); };
+$("duel-code-input").addEventListener("input", (e) => { e.target.value = normalizeCode(e.target.value).replace(/[^A-Z0-9]/g, ""); validateName(); });
+$("btn-duel-create").addEventListener("click", async () => {
+  const name = sanitizeTeamName(nameInput.value), btn = $("btn-duel-create");
+  btn.disabled = true;
+  const r = await createRoom();
+  if (!r.ok) { $("name-error").textContent = r.detail; validateName(); return; }
+  openDuel({ code: r.code, name, exit: backToStart });
+});
+$("btn-duel-join").addEventListener("click", () => {
+  const name = sanitizeTeamName(nameInput.value), code = normalizeCode($("duel-code-input").value);
+  if (name.length >= 2 && validCode(code)) openDuel({ code, name, exit: backToStart });
+});

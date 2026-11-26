@@ -34,3 +34,36 @@ Sem contas; identidade = UUID aleatório do navegador. IP nunca é gravado (só 
 
 ## Colocar no ar
 Ver `wrangler.toml` (criar D1, aplicar `schema.sql`, definir o segredo `DAILY_SECRET`, `wrangler deploy`). Sem a API, o botão do desafio simplesmente não aparece.
+
+---
+
+# Duelo 1×1 por código de sala (Fase 2)
+
+## HTTP
+| Método | Caminho | Descrição |
+|---|---|---|
+| POST | `/api/v1/rooms` | Cria a sala → **201** `{ code }` (6 chars sem `I L O 0 1`). Limite: **10 salas/hora por rede** (429 + `Retry-After`). |
+| GET | `/api/v1/rooms/{code}/ws` | Upgrade WebSocket. Exige `Origin` = host do site (403 `forbidden-origin`), código válido (404) e `Upgrade: websocket` (426). Sala inexistente recusa o handshake. |
+
+## Protocolo WebSocket (JSON, `v:1`)
+Limites: mensagem ≤ 2 KB (fecha com 4009), rajada > ~12 msgs/3 msgs·s⁻¹ (fecha com 4008), 1ª mensagem tem de ser `hello` (senão 4003). Conexão duplicada do mesmo jogador derruba a antiga (4000).
+
+**Cliente → servidor** (só *intenções*; nunca ofertas, ratings ou resultado)
+| `t` | Campos | Efeito |
+|---|---|---|
+| `hello` | `name`, `token?` | Entra na sala (máx. 2) ou reconecta com o token → `welcome` + `state` |
+| `refresh` | — | Atualiza as ofertas da vaga (máx. 3 por vaga) |
+| `pick` | `lineupId`, `nick` | Escolhe um jogador que **está nas ofertas** e é escalável |
+| `style` | `style` | `rush` \| `tatico` \| `aim` (definitivo) |
+| `rematch` | — | Pede revanche; só começa quando os dois pedem (nova seed) |
+
+**Servidor → cliente**: `welcome {slot, token, code}` · `state {phase, you, opp, result}` (a cada mudança, só com o que aquele jogador pode ver — o elenco do rival só aparece no `result`) · `error {code, detail}` (`room-full`, `invalid-name`, `not-offered`, `not-eligible`, `no-refresh`, `draft-incomplete`, `style-locked`, `bad-phase`, `bad-message`, `bad-json`, `internal`).
+
+Fases: `waiting` → `draft` (mesma seed ⇒ mesmas ofertas iniciais para os dois) → `done` (servidor simula Bo3 com `duelMatch`) → `rematch` → `draft`.
+
+## Estado e ciclo de vida
+Uma sala = um Durable Object (SQLite). O estado é salvo como JSON (seed + ações de cada jogador; o draft é reconstruído por *replay*), então sobrevive à hibernação e a reinícios. Sala é apagada após 1 h sem atividade (alarm). O token de reconexão fica em `sessionStorage` da aba, nunca em URL.
+
+## Colocar no ar (Fase 2)
+1. `npx wrangler d1 execute minhalineup --remote --file=worker/schema.sql` (cria `rate_limits`)
+2. `npx wrangler deploy` — aplica a migration `v1` do Durable Object (`Room`).

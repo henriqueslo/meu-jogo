@@ -10,7 +10,7 @@ site/js/ui.js      só DOM (escape obrigatório)
 site/js/share.js   card de compartilhamento
 ```
 
-> **Status:** Fase 1 (desafio do dia) implementada nesta branch — ver `docs/API.md`. Fases 2 e 3 pendentes.
+> **Status:** Fase 1 (desafio do dia) e Fase 2 (duelo por código de sala) implementadas — ver `docs/API.md`. Fase 3 (mini-campeonato) pendente.
 
 ## Modos sugeridos (do mais barato ao mais rico)
 

@@ -18,3 +18,11 @@ CREATE TABLE IF NOT EXISTS daily_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_daily_rank ON daily_entries (day, tier DESC, wins DESC, forca ASC, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_daily_ip   ON daily_entries (day, ip_hash);
+
+-- Fase 2: contador de rate limit (salas criadas por hora e rede). Linhas > 2 h são apagadas a cada uso.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key        TEXT    PRIMARY KEY,
+  n          INTEGER NOT NULL,
+  created_at TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_created ON rate_limits (created_at);
