@@ -22,7 +22,7 @@ export class DuelError extends Error {
   constructor(code, detail) { super(detail); this.code = code; }
 }
 
-class Draft {
+export class Draft {
   constructor(seed) {
     this.streams = createStreams(seed);
     this.taken = { roles: new Set(), nicks: new Set() };
@@ -31,6 +31,7 @@ class Draft {
     this.actions = [];
     this.offers = this._roll();
   }
+  _byId(id) { return BY_ID.get(id); }
   _roll() { return pickRandomLineups(this.streams.draftRand, this.taken).map((l) => l.id); }
   get done() { return Object.keys(this.picks).length === ROLES.length; }
 
@@ -62,8 +63,8 @@ class Draft {
   }
 }
 
-const hex = (n) => [...globalThis.crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
-const str = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
+export const hex = (n) => [...globalThis.crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
+export const str = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
 
 export class Duel {
   constructor({ code, seed, round = 0, players = [], result = null }) {

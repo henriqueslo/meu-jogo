@@ -3,20 +3,23 @@
  * descarregado da memória sem derrubar as conexões, e o estado é restaurado do storage. */
 import { DurableObject } from "cloudflare:workers";
 import { Duel, DuelError } from "./duel.js";
+import { Cup } from "./cup.js";
 import { makeBucket, MAX_MESSAGE_BYTES } from "./rooms.js";
 
 const TTL_MS = 60 * 60 * 1000;      // sala some após 1 h sem atividade
-const MAX_SOCKETS = 6;              // 2 jogadores + folga para reconexões
+const MAX_SOCKETS = 16;             // até 8 jogadores + folga para reconexões
 const CLOSE = { REPLACED: 4000, BAD_HELLO: 4003, RATE: 4008, TOO_BIG: 4009, FULL: 4013 };
 
-export class Room extends DurableObject {
+/* Base genérica: um Durable Object hospeda UMA partida cuja lógica pura (Logic) segue o contrato
+ * join/apply/view/toJSON/fromJSON. Room = duelo 1x1; CupRoom = campeonato. */
+class GameRoom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.duel = null;
+    this.game = null;
     this.buckets = new WeakMap();
     ctx.blockConcurrencyWhile(async () => {
       const saved = await ctx.storage.get("duel");
-      if (saved) this.duel = Duel.fromJSON(saved);
+      if (saved) this.game = this.Logic.fromJSON(saved);
     });
   }
 
@@ -24,14 +27,14 @@ export class Room extends DurableObject {
     const url = new URL(request.url);
     // Chamada interna do Worker (a rota pública /rooms só existe via Worker).
     if (request.method === "POST" && url.pathname === "/init") {
-      if (this.duel) return new Response(null, { status: 409 });
+      if (this.game) return new Response(null, { status: 409 });
       const { code, seed } = await request.json();
-      this.duel = Duel.create(code, seed);
+      this.game = this.Logic.create(code, seed);
       await this.#save();
       return new Response(null, { status: 201 });
     }
     if (request.headers.get("upgrade") !== "websocket") return new Response("Expected WebSocket", { status: 426 });
-    if (!this.duel) return new Response("Sala inexistente", { status: 404 });
+    if (!this.game) return new Response("Sala inexistente", { status: 404 });
 
     // Sockets que nunca se identificaram (slot null) não podem ocupar a sala.
     let sockets = this.ctx.getWebSockets();
@@ -60,16 +63,16 @@ export class Room extends DurableObject {
       if (att.slot == null) {
         if (msg?.t !== "hello") return ws.close(CLOSE.BAD_HELLO, "envie hello primeiro");
         const token = typeof msg.token === "string" && msg.token.length === 32 ? msg.token : undefined;
-        const { slot, token: tk } = this.duel.join(typeof msg.name === "string" ? msg.name.slice(0, 64) : "", token);
+        const { slot, token: tk } = this.game.join(typeof msg.name === "string" ? msg.name.slice(0, 64) : "", token);
         for (const other of this.ctx.getWebSockets()) {          // mesma pessoa reconectando: derruba a conexão antiga
           if (other !== ws && other.deserializeAttachment()?.slot === slot) other.close(CLOSE.REPLACED, "substituída");
         }
         ws.serializeAttachment({ slot });
         await this.#save();
-        this.#send(ws, { t: "welcome", v: 1, slot, token: tk, code: this.duel.code });
+        this.#send(ws, { t: "welcome", v: 1, slot, token: tk, code: this.game.code });
       } else {
         if (msg?.t === "hello") throw new DuelError("bad-message", "Já identificado.");
-        this.duel.apply(att.slot, msg);
+        this.game.apply(att.slot, msg, { connected: this.#connected() });
         await this.#save();
       }
     } catch (e) {
@@ -86,21 +89,32 @@ export class Room extends DurableObject {
   async alarm() {            // TTL: apaga a sala
     for (const s of this.ctx.getWebSockets()) s.close(1000, "sala encerrada");
     await this.ctx.storage.deleteAll();
-    this.duel = null;
+    this.game = null;
   }
 
   async #save() {
-    await this.ctx.storage.put("duel", this.duel.toJSON());
+    await this.ctx.storage.put("duel", this.game.toJSON());
     await this.ctx.storage.setAlarm(Date.now() + TTL_MS);
   }
 
   #send(ws, obj) { try { ws.send(JSON.stringify(obj)); } catch { /* socket já caiu */ } }
 
+  #connected() {
+    const connected = [];
+    for (const s of this.ctx.getWebSockets()) {
+      const slot = s.deserializeAttachment()?.slot;
+      if (slot != null && s.readyState === 1) connected[slot] = true;
+    }
+    return connected;
+  }
+
   #broadcast() {
-    if (!this.duel) return;
+    if (!this.game) return;
     const live = this.ctx.getWebSockets().filter((s) => s.deserializeAttachment()?.slot != null && s.readyState === 1);
-    const connected = [false, false];
-    for (const s of live) connected[s.deserializeAttachment().slot] = true;
-    for (const s of live) this.#send(s, { t: "state", ...this.duel.view(s.deserializeAttachment().slot, connected) });
+    const connected = this.#connected();
+    for (const s of live) this.#send(s, { t: "state", ...this.game.view(s.deserializeAttachment().slot, connected) });
   }
 }
+
+export class Room extends GameRoom { get Logic() { return Duel; } }
+export class CupRoom extends GameRoom { get Logic() { return Cup; } }

@@ -68,3 +68,20 @@ test("sem DAILY_SECRET a criação de sala falha fechada (500 sem detalhes)", as
   const r = await post({ ROOM: fakeRoomNs() }, memoryStore());
   assert.equal(r.status, 500); assert.ok(!(await r.text()).includes("SECRET"));
 });
+
+test("campeonato: POST /cups usa o namespace CUP e tem limite próprio", async () => {
+  const env = { ...mkEnv(), CUP: fakeRoomNs() }, store = memoryStore();
+  const mk = () => handleRooms(new Request("http://x/api/v1/cups", { method: "POST", headers: { "cf-connecting-ip": "3.3.3.3" } }), env, store, NOW);
+  for (let i = 0; i < MAX_ROOMS_PER_HOUR; i++) assert.equal((await mk()).status, 201);
+  assert.equal((await mk()).status, 429);
+  assert.equal(env.CUP.rooms.size, MAX_ROOMS_PER_HOUR); assert.equal(env.ROOM.rooms.size, 0);
+  assert.equal((await post(env, store, "3.3.3.3")).status, 201);       // duelo na mesma rede não foi afetado
+});
+
+test("campeonato: WebSocket em /cups/:code/ws vai para o DO CUP (mesmas checagens)", async () => {
+  const env = { ...mkEnv(), CUP: fakeRoomNs() }, s = memoryStore();
+  const req = (h) => handleRooms(new Request("https://minhalineup.com/api/v1/cups/abc234/ws", { headers: h }), env, s, NOW);
+  assert.equal((await req({ upgrade: "websocket", origin: "https://evil.example" })).status, 403);
+  assert.equal((await req({ upgrade: "websocket", origin: "https://minhalineup.com" })).status, 200);
+  assert.deepEqual(env.CUP.forwarded, ["ABC234"]); assert.deepEqual(env.ROOM.forwarded, []);
+});

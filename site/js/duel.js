@@ -2,69 +2,31 @@
  * o cliente manda INTENÇÕES (refresh/pick/style/rematch) e renderiza o que o servidor devolve. */
 import { ROLES } from "./data.js";
 import { esc, slotHTML, offersHTML, lineupById } from "./render.js";
+import { connect, createRoom as createRoomOf, normalizeCode, validCode } from "./net.js";
+export { normalizeCode, validCode };
 
 const $ = (id) => document.getElementById(id);
 const STYLE_LABEL = { rush: "Rush", tatico: "Tático", aim: "Aim puro" };
-const CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/;
 
-let sock = null, view = null, myCode = "", myName = "", reconnectTimer = null, tries = 0, leaving = false;
+let conn = null, view = null, myCode = "", myName = "";
 let onExit = () => {};
 
-export const normalizeCode = (s) => String(s ?? "").trim().toUpperCase();
-export const validCode = (s) => CODE_RE.test(normalizeCode(s));
-
-/* Token de reconexão por sala: sessionStorage (some ao fechar a aba). Nunca vai em URL. */
-const tokenKey = (code) => `ml_duel_${code}`;
-const getToken = (code) => { try { return sessionStorage.getItem(tokenKey(code)) || undefined; } catch { return undefined; } };
-const setToken = (code, t) => { try { sessionStorage.setItem(tokenKey(code), t); } catch { /* sem storage: só perde a reconexão */ } };
-const clearToken = (code) => { try { sessionStorage.removeItem(tokenKey(code)); } catch { /* ok */ } };
-
-export async function createRoom() {
-  try {
-    const r = await fetch("/api/v1/rooms", { method: "POST", headers: { accept: "application/json" } });
-    const j = await r.json().catch(() => ({}));
-    return r.ok ? { ok: true, code: j.code } : { ok: false, detail: j.detail ?? "Não foi possível criar a sala." };
-  } catch { return { ok: false, detail: "Sem conexão com o servidor." }; }
-}
+export const createRoom = () => createRoomOf("rooms");
 
 export function openDuel({ code, name, exit }) {
-  myCode = normalizeCode(code); myName = name; onExit = exit; leaving = false; tries = 0; view = null;
+  myCode = normalizeCode(code); myName = name; onExit = exit; view = null;
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   $("screen-duel").classList.add("active");
   render();
-  connect();
+  conn = connect({ kind: "rooms", code: myCode, name, onState: (s) => { view = s; render(); }, onNotice: flash, onStatus: setStatus });
 }
 
-function connect() {
-  clearTimeout(reconnectTimer);
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  sock = new WebSocket(`${proto}//${location.host}/api/v1/rooms/${myCode}/ws`);
-  sock.addEventListener("open", () => { tries = 0; send({ t: "hello", name: myName, token: getToken(myCode) }); });
-  sock.addEventListener("message", (e) => {
-    let m; try { m = JSON.parse(e.data); } catch { return; }
-    if (m.t === "welcome") setToken(myCode, m.token);
-    else if (m.t === "state") { view = m; render(); }
-    else if (m.t === "error") flash(m.detail || "Erro.");
-  });
-  sock.addEventListener("close", (e) => {
-    if (leaving) return;
-    if (e.code === 4000) { flash("Esta sala foi aberta em outra aba."); return; }
-    if (e.code === 4013 || e.code === 4009 || e.code === 4008) { flash("Conexão encerrada pelo servidor."); return; }
-    // Reconexão com recuo exponencial (até ~15 s). O token devolve o mesmo lugar na sala.
-    if (tries >= 6) { flash("Não foi possível reconectar. Volte e entre de novo com o código."); return; }
-    reconnectTimer = setTimeout(connect, Math.min(15000, 500 * 2 ** tries++));
-    setStatus("Reconectando…");
-  });
-}
-
-const send = (obj) => { if (sock && sock.readyState === 1) sock.send(JSON.stringify(obj)); };
+const send = (obj) => conn && conn.send(obj);
 function setStatus(t) { const el = $("duel-status"); if (el) el.textContent = t; }
 function flash(t) { const el = $("duel-flash"); if (el) { el.textContent = t; } }
 
 export function leaveDuel() {
-  leaving = true; clearTimeout(reconnectTimer);
-  try { sock && sock.close(); } catch { /* ok */ }
-  clearToken(myCode); view = null; onExit();
+  conn && conn.leave(); conn = null; view = null; onExit();
 }
 
 /* ------------------------------ Render ------------------------------ */

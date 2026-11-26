@@ -9,6 +9,7 @@ import { shareResult } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
 import { esc, flagEmoji, slotHTML } from "./render.js";
 import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
+import { openCup, createCup } from "./cup.js";
 
 const SITE_URL = "https://minhalineup.com";
 const $ = (id) => document.getElementById(id);
@@ -95,6 +96,8 @@ function validateName() {
   $("btn-daily").disabled = !ok || !state.daily || playedToday(state.daily.day);
   $("btn-duel-create").disabled = !ok || !state.daily;
   $("btn-duel-join").disabled = !ok || !validCode($("duel-code-input").value);
+  $("btn-cup-create").disabled = !ok || !state.daily;
+  $("btn-cup-join").disabled = !ok || !validCode($("duel-code-input").value);
   return ok;
 }
 
@@ -321,6 +324,8 @@ async function initDaily() {
   $("duel-box").hidden = false;
   const q = new URLSearchParams(location.search).get("duelo");
   if (q && validCode(q)) $("duel-code-input").value = normalizeCode(q);
+  const qc = new URLSearchParams(location.search).get("campeonato");
+  if (qc && validCode(qc)) $("duel-code-input").value = normalizeCode(qc);
   validateName();
   const rows = await fetchBoard(state.daily.day, 5);
   if (rows && rows.length) {
@@ -368,4 +373,17 @@ $("btn-duel-create").addEventListener("click", async () => {
 $("btn-duel-join").addEventListener("click", () => {
   const name = sanitizeTeamName(nameInput.value), code = normalizeCode($("duel-code-input").value);
   if (name.length >= 2 && validCode(code)) openDuel({ code, name, exit: backToStart });
+});
+
+/* --------------------------- Campeonato (Fase 3) --------------------------- */
+$("btn-cup-create").addEventListener("click", async () => {
+  const name = sanitizeTeamName(nameInput.value);
+  $("btn-cup-create").disabled = true;
+  const r = await createCup();
+  if (!r.ok) { $("name-error").textContent = r.detail; validateName(); return; }
+  openCup({ code: r.code, name, exit: backToStart });
+});
+$("btn-cup-join").addEventListener("click", () => {
+  const name = sanitizeTeamName(nameInput.value), code = normalizeCode($("duel-code-input").value);
+  if (name.length >= 2 && validCode(code)) openCup({ code, name, exit: backToStart });
 });

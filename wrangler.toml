@@ -23,3 +23,12 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+# Fase 3: campeonato multiplayer (outro Durable Object)
+[[durable_objects.bindings]]
+name = "CUP"
+class_name = "CupRoom"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["CupRoom"]

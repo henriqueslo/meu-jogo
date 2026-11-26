@@ -67,3 +67,32 @@ Uma sala = um Durable Object (SQLite). O estado é salvo como JSON (seed + açõ
 ## Colocar no ar (Fase 2)
 1. `npx wrangler d1 execute minhalineup --remote --file=worker/schema.sql` (cria `rate_limits`)
 2. `npx wrangler deploy` — aplica a migration `v1` do Durable Object (`Room`).
+
+---
+
+# Campeonato multiplayer (Fase 3)
+
+2–8 jogadores humanos + lineups históricas (IA) até completar 16 times; suíço + playoffs como no jogo livre, simulados pelo servidor.
+
+## HTTP / WebSocket
+| Método | Caminho | Descrição |
+|---|---|---|
+| POST | `/api/v1/cups` | Cria a sala → **201** `{ code }`. Limite próprio: 10/hora por rede (independente do duelo). |
+| GET | `/api/v1/cups/{code}/ws` | Upgrade WebSocket (mesmas regras de origem, limites e `hello` do duelo). |
+
+## Mensagens (além de `hello`, `refresh`, `pick`, `style`, já descritas no duelo)
+| `t` (cliente → servidor) | Quem | Efeito |
+|---|---|---|
+| `start` | dono (slot 0), ≥ 2 jogadores, no lobby | inicia o draft; depois disso ninguém novo entra (`cup-started`) |
+| `force` | dono — ou qualquer jogador **se o dono estiver offline** | completa o elenco de quem não terminou (1º jogador escalável) e define estilo Tático |
+| `advance` | dono — ou qualquer jogador se o dono estiver offline | simula a próxima etapa (rodada suíça → chaveamento → quartas → semi → final) |
+
+Erros novos: `not-host`, `not-enough`, `name-taken`, `cup-started`.
+
+`state` traz `phase` (`lobby` → `draft` → `running` → `done`), `you` (inclui `canControl`), `players[]` (conexão/progresso), `teams[]` (16 times: campanha e situação), `events[]` (todas as etapas já jogadas, com placares por mapa) e, no fim, `result` (campeão, humanos com campanha/situação/elenco, MVP). Os elencos dos rivais só aparecem em `result`.
+
+## Estado
+Durable Object `CupRoom` (SQLite). Persistido: seed + ações do draft + estilos + nº de etapas; o torneio é reconstruído por replay determinístico (validado: reinício do servidor devolve o mesmo campeão e placares). TTL de 1 h sem atividade.
+
+## Colocar no ar (Fase 3)
+`npx wrangler deploy` (aplica a migration `v2` do `CupRoom`). Não há mudança de banco.

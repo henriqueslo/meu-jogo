@@ -10,7 +10,7 @@ site/js/ui.js      só DOM (escape obrigatório)
 site/js/share.js   card de compartilhamento
 ```
 
-> **Status:** Fase 1 (desafio do dia) e Fase 2 (duelo por código de sala) implementadas — ver `docs/API.md`. Fase 3 (mini-campeonato) pendente.
+> **Status:** Fases 1 (desafio do dia), 2 (duelo por código) e 3 (campeonato com 2–8 jogadores) implementadas — ver `docs/API.md`.
 
 ## Modos sugeridos (do mais barato ao mais rico)
 

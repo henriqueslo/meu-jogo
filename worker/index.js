@@ -6,7 +6,7 @@ import { handle } from "./handler.js";
 import { handleRooms } from "./rooms-api.js";
 import { d1Store } from "./d1store.js";
 
-export { Room } from "./room-do.js";
+export { Room, CupRoom } from "./room-do.js";
 
 export default {
   async fetch(request, env) {
