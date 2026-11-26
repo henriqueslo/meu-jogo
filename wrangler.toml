@@ -36,3 +36,7 @@ new_sqlite_classes = ["CupRoom"]
 # Logs persistidos no painel (Workers Logs) — eventos estruturados em JSON (worker/log.js)
 [observability]
 enabled = true
+
+# Retenção de dados: job diário às 03:17 UTC (ver worker/retention.js e a Política de Privacidade)
+[triggers]
+crons = ["17 3 * * *"]

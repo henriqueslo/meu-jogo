@@ -25,6 +25,17 @@ export function d1Store(db) {
     async count(day, name) {
       await db.prepare("INSERT INTO metrics (day, name, n) VALUES (?1, ?2, 1) ON CONFLICT(day, name) DO UPDATE SET n = n + 1").bind(day, name).run();
     },
+    /* Retenção (ver retention.js): tudo parametrizado; devolve quantas linhas cada passo afetou. */
+    async purge({ today, entriesBefore, metricsBefore, rateLimitsBefore }) {
+      const [e, ip, m, r] = await db.batch([
+        db.prepare("DELETE FROM daily_entries WHERE day < ?1").bind(entriesBefore),
+        db.prepare("UPDATE daily_entries SET ip_hash = '' WHERE day < ?1 AND ip_hash <> ''").bind(today),
+        db.prepare("DELETE FROM metrics WHERE day < ?1").bind(metricsBefore),
+        db.prepare("DELETE FROM rate_limits WHERE created_at < ?1").bind(rateLimitsBefore),
+      ]);
+      const n = (x) => x?.meta?.changes ?? 0;
+      return { entries_deleted: n(e), ip_hashes_cleared: n(ip), metrics_deleted: n(m), rate_limits_deleted: n(r) };
+    },
     async ping() { return (await db.prepare("SELECT 1 AS ok").first())?.ok === 1; },
     /* Contador de rate limit: incrementa e devolve o total da janela (UPSERT atômico). */
     async hit(key, nowIso) {

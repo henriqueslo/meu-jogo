@@ -150,6 +150,15 @@ export function memoryStore() {
     counts: new Map(),
     async count(day, name) { const k = day + "|" + name; this.counts.set(k, (this.counts.get(k) ?? 0) + 1); },
     async ping() { return true; },
+    async purge({ today, entriesBefore, metricsBefore }) {
+      const before = this.rows.length;
+      for (let i = this.rows.length - 1; i >= 0; i--) if (this.rows[i].day < entriesBefore) this.rows.splice(i, 1);
+      let cleared = 0;
+      for (const r of this.rows) if (r.day < today && r.ip_hash) { r.ip_hash = ""; cleared++; }
+      let metrics = 0;
+      for (const k of [...this.counts.keys()]) if (k.split("|")[0] < metricsBefore) { this.counts.delete(k); metrics++; }
+      return { entries_deleted: before - this.rows.length, ip_hashes_cleared: cleared, metrics_deleted: metrics, rate_limits_deleted: 0 };
+    },
     async countByIp(day, h) { return rows.filter((r) => r.day === day && r.ip_hash === h).length; },
     async hasEntry(day, id) { return rows.some((r) => r.day === day && r.player_id === id); },
     async insertEntry(e) { rows.push(e); },

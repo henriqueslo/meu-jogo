@@ -124,3 +124,9 @@ O detalhe do motivo (qual termo) não é devolvido, para não ensinar a burlar a
 # Saúde
 
 `GET /api/v1/health` → **200** `{ ok: true, db: true, time }` ou **503** `{ ok: false, db: false, time }` (D1 fora). Cache de 30 s no caso de sucesso, `no-store` na falha. Não expõe versão, segredos nem contagens.
+
+---
+
+# Retenção e privacidade
+
+Um Cron Trigger diário (`[triggers] crons` em `wrangler.toml`) chama `scheduled()` → `runPurge()` (`worker/retention.js`): apaga entradas do ranking com mais de **90 dias**, zera `ip_hash` de dias anteriores, apaga `metrics` com mais de 90 dias e `rate_limits` com mais de 2 h, e registra `purge_done` com as contagens. Salas de duelo/campeonato expiram sozinhas após 1 h sem atividade. A Política de Privacidade (`site/privacidade.html`) descreve exatamente isso; `test/privacy.test.js` mantém texto e código alinhados.
