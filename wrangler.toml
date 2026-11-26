@@ -32,3 +32,7 @@ class_name = "CupRoom"
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["CupRoom"]
+
+# Logs persistidos no painel (Workers Logs) — eventos estruturados em JSON (worker/log.js)
+[observability]
+enabled = true

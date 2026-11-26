@@ -12,6 +12,7 @@ import {
   sanitizeTeamName, STYLES, MAX_REFRESHES,
 } from "../site/js/engine.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "../site/js/moderation.js";
+import { log } from "./log.js";
 
 const MAX_BODY = 4096;
 const MAX_ENTRIES_PER_IP_PER_DAY = 5;
@@ -109,6 +110,12 @@ export async function handle(request, env, store, now = new Date()) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "");
   try {
+    // Saúde (para monitor externo de uptime): confirma que o Worker e o D1 respondem. Sem dados sensíveis.
+    if (path === "/api/v1/health" && request.method === "GET") {
+      let db = false;
+      try { db = await store.ping(); } catch { db = false; }
+      return json({ ok: db, db, time: now.toISOString() }, db ? 200 : 503, { "cache-control": db ? "public, max-age=30" : "no-store" });
+    }
     if (path === "/api/v1/daily" && request.method === "GET") {
       const day = dayOf(now);
       return json({ day, seed: seedForDay(day, env), max_refreshes: MAX_REFRESHES });
@@ -127,7 +134,7 @@ export async function handle(request, env, store, now = new Date()) {
     throw new ApiError(404, "not-found", "Not found", "Recurso inexistente.");
   } catch (e) {
     if (e instanceof ApiError) return problem(e, path);
-    console.error("unhandled", e); // não vaza detalhes internos ao cliente
+    log("error", { where: "api", message: String(e?.message ?? e) }, "error"); // não vaza detalhes ao cliente; sem corpo/IP
     return problem(new ApiError(500, "internal", "Internal error", "Erro interno."), path);
   }
 }
@@ -140,6 +147,9 @@ export function memoryStore() {
   const rows = [];
   return {
     rows,
+    counts: new Map(),
+    async count(day, name) { const k = day + "|" + name; this.counts.set(k, (this.counts.get(k) ?? 0) + 1); },
+    async ping() { return true; },
     async countByIp(day, h) { return rows.filter((r) => r.day === day && r.ip_hash === h).length; },
     async hasEntry(day, id) { return rows.some((r) => r.day === day && r.player_id === id); },
     async insertEntry(e) { rows.push(e); },

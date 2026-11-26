@@ -21,6 +21,11 @@ export function d1Store(db) {
         .bind(day, e.tier, e.wins, e.forca, e.created_at).first();
       return r?.rank ?? 1;
     },
+    /* Contador diário de métricas (UPSERT atômico). */
+    async count(day, name) {
+      await db.prepare("INSERT INTO metrics (day, name, n) VALUES (?1, ?2, 1) ON CONFLICT(day, name) DO UPDATE SET n = n + 1").bind(day, name).run();
+    },
+    async ping() { return (await db.prepare("SELECT 1 AS ok").first())?.ok === 1; },
     /* Contador de rate limit: incrementa e devolve o total da janela (UPSERT atômico). */
     async hit(key, nowIso) {
       await db.prepare("DELETE FROM rate_limits WHERE created_at < ?1").bind(new Date(Date.parse(nowIso) - 2 * 3600e3).toISOString()).run();

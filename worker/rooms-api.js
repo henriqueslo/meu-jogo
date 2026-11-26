@@ -4,6 +4,7 @@
  * Protocolo das mensagens: docs/API.md. */
 import { ApiError, json, problem, secretOf, sha256Hex } from "./handler.js";
 import { newCode, isCode, normalizeCode, originAllowed } from "./rooms.js";
+import { log } from "./log.js";
 
 export const MAX_ROOMS_PER_HOUR = 10;
 /* Dois tipos de sala: duelo (ROOM) e campeonato (CUP). Limites de criação são independentes. */
@@ -70,7 +71,7 @@ export async function handleRooms(request, env, store, now = new Date()) {
     return null;
   } catch (e) {
     if (e instanceof ApiError) return problem(e, path);
-    console.error("rooms unhandled", e);
+    log("error", { where: "rooms", message: String(e?.message ?? e) }, "error");
     return problem(new ApiError(500, "internal", "Internal error", "Erro interno."), path);
   }
 }
