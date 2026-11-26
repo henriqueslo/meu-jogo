@@ -1,0 +1,70 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { memoryStore } from "../worker/handler.js";
+import { handleRooms, MAX_ROOMS_PER_HOUR } from "../worker/rooms-api.js";
+import { isCode } from "../worker/rooms.js";
+
+const NOW = new Date("2026-08-10T15:00:00Z");
+
+/* Namespace de Durable Objects falso: guarda quais salas foram iniciadas. */
+function fakeRoomNs() {
+  const rooms = new Map(), forwarded = [];
+  return {
+    rooms, forwarded,
+    idFromName: (n) => n,
+    get: (id) => ({
+      async fetch(urlOrReq, init) {
+        if (typeof urlOrReq === "string") {            // /init interno
+          if (rooms.has(id)) return new Response(null, { status: 409 });
+          rooms.set(id, JSON.parse(init.body)); return new Response(null, { status: 201 });
+        }
+        forwarded.push(id); return new Response("ok", { status: 200 });
+      },
+    }),
+  };
+}
+const mkEnv = () => ({ DAILY_SECRET: "test-secret-0123456789", ROOM: fakeRoomNs() });
+const post = (env, store, ip = "1.1.1.1") =>
+  handleRooms(new Request("http://x/api/v1/rooms", { method: "POST", headers: { "cf-connecting-ip": ip } }), env, store, NOW);
+const ws = (env, store, code, headers = {}) =>
+  handleRooms(new Request(`https://minhalineup.com/api/v1/rooms/${code}/ws`, { headers }), env, store, NOW);
+
+test("POST /rooms cria sala com código válido e seed aleatória no DO", async () => {
+  const env = mkEnv(), r = await post(env, memoryStore());
+  assert.equal(r.status, 201);
+  const { code } = await r.json();
+  assert.ok(isCode(code)); assert.ok(env.ROOM.rooms.get(code).seed >= 0);
+});
+
+test("rate limit: a 11ª sala por hora/rede dá 429; outra rede não é afetada", async () => {
+  const env = mkEnv(), store = memoryStore();
+  for (let i = 0; i < MAX_ROOMS_PER_HOUR; i++) assert.equal((await post(env, store)).status, 201);
+  const r = await post(env, store);
+  assert.equal(r.status, 429); assert.equal(r.headers.get("retry-after"), "3600");
+  assert.equal((await post(env, store, "2.2.2.2")).status, 201);
+  assert.equal(env.ROOM.rooms.size, MAX_ROOMS_PER_HOUR + 1);   // a recusada não criou DO
+});
+
+test("método errado em /rooms = 405 problem+json; rotas alheias retornam null", async () => {
+  const env = mkEnv(), s = memoryStore();
+  const r = await handleRooms(new Request("http://x/api/v1/rooms"), env, s, NOW);
+  assert.equal(r.status, 405); assert.match(r.headers.get("content-type"), /problem\+json/);
+  assert.equal(await handleRooms(new Request("http://x/api/v1/daily"), env, s, NOW), null);
+});
+
+test("WebSocket: código inválido 404, sem upgrade 426, origem errada 403, ok encaminha ao DO", async () => {
+  const env = mkEnv(), s = memoryStore();
+  const ok = { upgrade: "websocket", origin: "https://minhalineup.com" };
+  assert.equal((await ws(env, s, "abc", ok)).status, 404);
+  assert.equal((await ws(env, s, "ABC234", { origin: ok.origin })).status, 426);
+  assert.equal((await ws(env, s, "ABC234", { upgrade: "websocket", origin: "https://evil.example" })).status, 403);
+  assert.equal((await ws(env, s, "ABC234", { upgrade: "websocket" })).status, 403);
+  assert.equal(env.ROOM.forwarded.length, 0);
+  assert.equal((await ws(env, s, "abc234", ok)).status, 200);          // minúsculas normalizadas
+  assert.deepEqual(env.ROOM.forwarded, ["ABC234"]);
+});
+
+test("sem DAILY_SECRET a criação de sala falha fechada (500 sem detalhes)", async () => {
+  const r = await post({ ROOM: fakeRoomNs() }, memoryStore());
+  assert.equal(r.status, 500); assert.ok(!(await r.text()).includes("SECRET"));
+});

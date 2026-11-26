@@ -21,6 +21,12 @@ export function d1Store(db) {
         .bind(day, e.tier, e.wins, e.forca, e.created_at).first();
       return r?.rank ?? 1;
     },
+    /* Contador de rate limit: incrementa e devolve o total da janela (UPSERT atômico). */
+    async hit(key, nowIso) {
+      await db.prepare("DELETE FROM rate_limits WHERE created_at < ?1").bind(new Date(Date.parse(nowIso) - 2 * 3600e3).toISOString()).run();
+      const r = await db.prepare("INSERT INTO rate_limits (key, n, created_at) VALUES (?1, 1, ?2) ON CONFLICT(key) DO UPDATE SET n = n + 1 RETURNING n").bind(key, nowIso).first();
+      return r?.n ?? 1;
+    },
     async leaderboard(day, limit) {
       const { results } = await db.prepare(`SELECT ${COLS} FROM daily_entries WHERE day = ?1 ${ORDER_SQL} LIMIT ?2`).bind(day, limit).all();
       return results ?? [];

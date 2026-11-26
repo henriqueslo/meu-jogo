@@ -21,10 +21,10 @@ export class ApiError extends Error {
   constructor(status, slug, title, detail, extra = {}) { super(detail); Object.assign(this, { status, slug, title, detail, extra }); }
 }
 
-const json = (obj, status = 200, headers = {}) =>
+export const json = (obj, status = 200, headers = {}) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
 
-const problem = (e, instance) =>
+export const problem = (e, instance) =>
   new Response(JSON.stringify({ type: ERR(e.slug), title: e.title, status: e.status, detail: e.detail, instance, ...e.extra }), {
     status: e.status, headers: { "content-type": "application/problem+json; charset=utf-8", "cache-control": "no-store", ...(e.extra.retry_after ? { "retry-after": String(e.extra.retry_after) } : {}) },
   });
@@ -38,7 +38,7 @@ export function dayOf(now) {
  * (e pré-jogar) os dias futuros só conhecendo o código público. */
 /* Falha FECHADA: sem segredo configurado o desafio fica indisponível (500), em vez de
  * cair num valor padrão público que permitiria prever as seeds de qualquer dia. */
-function secretOf(env) {
+export function secretOf(env) {
   if (typeof env?.DAILY_SECRET !== "string" || env.DAILY_SECRET.length < 16) throw new Error("DAILY_SECRET ausente ou curto demais");
   return env.DAILY_SECRET;
 }
@@ -47,7 +47,7 @@ export function seedForDay(day, env) {
   return hashSeed(`${secretOf(env)}|${day}`);
 }
 
-async function sha256Hex(text) {
+export async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -142,6 +142,8 @@ export function memoryStore() {
     async hasEntry(day, id) { return rows.some((r) => r.day === day && r.player_id === id); },
     async insertEntry(e) { rows.push(e); },
     async rankOf(day, e) { return rows.filter((r) => r.day === day).sort(ORDER).findIndex((r) => r === e) + 1; },
+    _hits: new Map(),
+    async hit(key) { const n = (this._hits.get(key) ?? 0) + 1; this._hits.set(key, n); return n; },
     async leaderboard(day, limit) { return rows.filter((r) => r.day === day).sort(ORDER).slice(0, limit); },
   };
 }

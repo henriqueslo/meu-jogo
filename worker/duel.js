@@ -1,0 +1,153 @@
+/* Duelo 1v1 — máquina de estados PURA (sem Cloudflare, sem I/O).
+ * O Durable Object (room-do.js) só cuida de sockets e persistência; toda regra está aqui,
+ * por isso roda e é testada em Node.
+ *
+ * Fluxo:  waiting (<2 jogadores) -> draft (cada um monta o elenco; MESMAS ofertas, mesma seed)
+ *         -> done (servidor simula a série Bo3) -> rematch (ambos pedem) -> draft (nova rodada)
+ *
+ * O servidor é a autoridade: o cliente só envia INTENÇÕES (refresh, pick, style, rematch).
+ * Ofertas, ratings e resultado nunca vêm do cliente. O estado do draft é reconstruível por
+ * replay (seed + ações), então persiste como JSON simples e sobrevive à hibernação do DO. */
+import { LINEUPS, ROLES } from "../site/js/data.js";
+import {
+  MAX_REFRESHES, STYLES, createStreams, pickRandomLineups, resolveSquad,
+  sanitizeTeamName, duelMatch, hashSeed,
+} from "../site/js/engine.js";
+
+export const MAX_PLAYERS = 2;
+export const BEST_OF = 3;
+const BY_ID = new Map(LINEUPS.map((l) => [l.id, l]));
+
+export class DuelError extends Error {
+  constructor(code, detail) { super(detail); this.code = code; }
+}
+
+class Draft {
+  constructor(seed) {
+    this.streams = createStreams(seed);
+    this.taken = { roles: new Set(), nicks: new Set() };
+    this.picks = {};
+    this.refreshesLeft = MAX_REFRESHES;
+    this.actions = [];
+    this.offers = this._roll();
+  }
+  _roll() { return pickRandomLineups(this.streams.draftRand, this.taken).map((l) => l.id); }
+  get done() { return Object.keys(this.picks).length === ROLES.length; }
+
+  refresh() {
+    if (this.done) throw new DuelError("draft-complete", "Seu elenco já está completo.");
+    if (this.refreshesLeft <= 0) throw new DuelError("no-refresh", "Sem atualizações nesta vaga.");
+    this.refreshesLeft--;
+    this.offers = this._roll();
+    this.actions.push({ t: "refresh" });
+  }
+
+  pick(lineupId, nick) {
+    if (this.done) throw new DuelError("draft-complete", "Seu elenco já está completo.");
+    if (!this.offers.includes(lineupId)) throw new DuelError("not-offered", "Essa lineup não está entre as ofertas.");
+    const pl = BY_ID.get(lineupId).jogadores.find((p) => p.nick === nick);
+    if (!pl) throw new DuelError("not-offered", "Jogador inexistente nessa lineup.");
+    if (this.taken.roles.has(pl.papel) || this.taken.nicks.has(pl.nick)) throw new DuelError("not-eligible", "Papel ocupado ou jogador repetido.");
+    this.taken.roles.add(pl.papel); this.taken.nicks.add(pl.nick);
+    this.picks[pl.papel] = { lineupId, nick: pl.nick };
+    this.refreshesLeft = MAX_REFRESHES;
+    this.actions.push({ t: "pick", lineupId, nick: pl.nick });
+    this.offers = this.done ? [] : this._roll();
+  }
+
+  static replay(seed, actions) {
+    const d = new Draft(seed);
+    for (const a of actions) a.t === "refresh" ? d.refresh() : d.pick(a.lineupId, a.nick);
+    return d;
+  }
+}
+
+const hex = (n) => [...globalThis.crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
+const str = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
+
+export class Duel {
+  constructor({ code, seed, round = 0, players = [], result = null }) {
+    this.code = code; this.seed = seed >>> 0; this.round = round; this.result = result;
+    this.players = players.map((p) => ({ ...p, draft: Draft.replay(this._draftSeed(round), p.actions ?? []) }));
+  }
+  static create(code, seed) { return new Duel({ code, seed }); }
+
+  _draftSeed(round = this.round) { return hashSeed(`${this.seed}|${round}`); }
+  get phase() { return this.players.length < MAX_PLAYERS ? "waiting" : this.result ? "done" : "draft"; }
+
+  toJSON() {
+    return {
+      code: this.code, seed: this.seed, round: this.round, result: this.result,
+      players: this.players.map((p) => ({ name: p.name, token: p.token, style: p.style ?? null, rematch: !!p.rematch, actions: p.draft.actions })),
+    };
+  }
+  static fromJSON(j) { return new Duel(j); }
+
+  /* Entra na sala (ou reconecta com o token). Retorna { slot, token }. */
+  join(name, token) {
+    if (token) {
+      const slot = this.players.findIndex((p) => p.token === token);
+      if (slot >= 0) return { slot, token, reconnected: true };
+    }
+    if (this.players.length >= MAX_PLAYERS) throw new DuelError("room-full", "Sala cheia.");
+    const clean = sanitizeTeamName(name);
+    if (clean.length < 2) throw new DuelError("invalid-name", "Nome do time precisa de 2–24 caracteres válidos.");
+    const player = { name: clean, token: hex(16), style: null, rematch: false, actions: [], draft: new Draft(this._draftSeed()) };
+    this.players.push(player);
+    return { slot: this.players.length - 1, token: player.token };
+  }
+
+  /* Aplica uma intenção do jogador `slot`. Lança DuelError se inválida (estado não muda). */
+  apply(slot, msg) {
+    const p = this.players[slot];
+    if (!p) throw new DuelError("not-joined", "Entre na sala primeiro.");
+    switch (msg?.t) {
+      case "refresh":
+        this._needDraft(); p.draft.refresh(); return;
+      case "pick":
+        this._needDraft();
+        if (!str(msg.lineupId, 64) || !str(msg.nick, 40)) throw new DuelError("bad-message", "pick inválido.");
+        p.draft.pick(msg.lineupId, msg.nick); return;
+      case "style":
+        this._needDraft();
+        if (!p.draft.done) throw new DuelError("draft-incomplete", "Complete o elenco antes do estilo.");
+        if (p.style) throw new DuelError("style-locked", "Estilo já escolhido.");
+        if (!STYLES.includes(msg.style)) throw new DuelError("bad-message", "Estilo inválido.");
+        p.style = msg.style; this._maybeFinish(); return;
+      case "rematch":
+        if (this.phase !== "done") throw new DuelError("bad-phase", "Revanche só depois do resultado.");
+        p.rematch = true;
+        if (this.players.every((x) => x.rematch)) this._nextRound();
+        return;
+      default:
+        throw new DuelError("bad-message", "Mensagem desconhecida.");
+    }
+  }
+
+  _needDraft() { if (this.phase !== "draft") throw new DuelError("bad-phase", "A partida não está em fase de draft."); }
+
+  _maybeFinish() {
+    if (!this.players.every((p) => p.draft.done && p.style)) return;
+    const [a, b] = this.players.map((p) => ({ teamName: p.name, squad: resolveSquad(p.draft.picks), style: p.style }));
+    const m = duelMatch({ a, b, seed: hashSeed(`${this.seed}|${this.round}|match`), bo: BEST_OF });
+    const side = (s) => ({ name: s.teamName, style: s.style, squad: Object.fromEntries(ROLES.map((r) => [r, { nick: s.squad[r].nick, pais: s.squad[r].pais, team: s.squad[r].team, forca: s.squad[r].forca }])) });
+    this.result = { winner: m.winner, winsA: m.winsA, winsB: m.winsB, maps: m.maps, forca: m.forca, a: side(a), b: side(b), stats: m.stats };
+  }
+
+  _nextRound() {
+    this.round++; this.result = null;
+    this.players = this.players.map((p) => ({ name: p.name, token: p.token, style: null, rematch: false, actions: [], draft: new Draft(this._draftSeed()) }));
+  }
+
+  /* Visão para um jogador: só o que ele pode ver. O elenco do rival aparece apenas no resultado. */
+  view(slot, connected = []) {
+    const me = this.players[slot], opp = this.players[1 - slot];
+    const squad = me ? Object.fromEntries(Object.entries(resolveSquad(me.draft.picks, { partial: true })).map(([r, s]) => [r, { nick: s.nick, pais: s.pais, forca: s.forca, team: s.team, lineupId: s.lineupId }])) : {};
+    return {
+      v: 1, phase: this.phase, code: this.code, round: this.round, best_of: BEST_OF,
+      you: me ? { slot, name: me.name, offers: this.phase === "draft" ? me.draft.offers : [], refreshesLeft: me.draft.refreshesLeft, squad, draftDone: me.draft.done, style: me.style, rematch: !!me.rematch } : null,
+      opp: opp ? { name: opp.name, connected: !!connected[1 - slot], picks: Object.keys(opp.draft.picks).length, styleChosen: !!opp.style, rematch: !!opp.rematch } : null,
+      result: this.result,
+    };
+  }
+}
