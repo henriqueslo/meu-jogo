@@ -33,6 +33,10 @@ class GameRoom extends DurableObject {
       await this.#save();
       return new Response(null, { status: 201 });
     }
+    // Consulta leve usada pelo botão "voltar à sala": só diz se a sala existe e em que fase está.
+    if (request.method === "GET" && url.pathname === "/info") {
+      return this.game ? Response.json({ phase: this.game.phase }) : new Response(null, { status: 404 });
+    }
     if (request.headers.get("upgrade") !== "websocket") return new Response("Expected WebSocket", { status: 426 });
     if (!this.game) return new Response("Sala inexistente", { status: 404 });
 

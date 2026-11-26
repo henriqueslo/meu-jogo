@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { memoryStore } from "../worker/handler.js";
-import { handleRooms, MAX_ROOMS_PER_HOUR } from "../worker/rooms-api.js";
+import { handleRooms, MAX_ROOMS_PER_HOUR, MAX_INFO_PER_HOUR } from "../worker/rooms-api.js";
 import { isCode } from "../worker/rooms.js";
 
 const NOW = new Date("2026-08-10T15:00:00Z");
@@ -14,6 +14,9 @@ function fakeRoomNs() {
     idFromName: (n) => n,
     get: (id) => ({
       async fetch(urlOrReq, init) {
+        if (typeof urlOrReq === "string" && urlOrReq.endsWith("/info")) {
+          return rooms.has(id) ? Response.json({ phase: "waiting" }) : new Response(null, { status: 404 });
+        }
         if (typeof urlOrReq === "string") {            // /init interno
           if (rooms.has(id)) return new Response(null, { status: 409 });
           rooms.set(id, JSON.parse(init.body)); return new Response(null, { status: 201 });
@@ -84,4 +87,23 @@ test("campeonato: WebSocket em /cups/:code/ws vai para o DO CUP (mesmas checagen
   assert.equal((await req({ upgrade: "websocket", origin: "https://evil.example" })).status, 403);
   assert.equal((await req({ upgrade: "websocket", origin: "https://minhalineup.com" })).status, 200);
   assert.deepEqual(env.CUP.forwarded, ["ABC234"]); assert.deepEqual(env.ROOM.forwarded, []);
+});
+
+test("GET /rooms/:code (info): sala existente 200; inexistente/ inválida 404; campeonato usa CUP", async () => {
+  const env = { ...mkEnv(), CUP: fakeRoomNs() }, s = memoryStore();
+  const { code } = await (await post(env, s)).json();
+  const get = (path) => handleRooms(new Request("http://x" + path, { headers: { "cf-connecting-ip": "4.4.4.4" } }), env, s, NOW);
+  const ok = await get(`/api/v1/rooms/${code}`);
+  assert.equal(ok.status, 200); assert.deepEqual(await ok.json(), { exists: true, phase: "waiting" });
+  assert.equal((await get(`/api/v1/rooms/ZZZZZZ`)).status, 404);
+  assert.equal((await get(`/api/v1/rooms/abc`)).status, 404);
+  assert.equal((await get(`/api/v1/cups/${code}`)).status, 404);     // outro namespace: não existe como campeonato
+});
+
+test("info tem rate limit por rede (anti-varredura de códigos)", async () => {
+  const env = mkEnv(), s = memoryStore();
+  const get = () => handleRooms(new Request("http://x/api/v1/rooms/ZZZZZZ", { headers: { "cf-connecting-ip": "5.5.5.5" } }), env, s, NOW);
+  for (let i = 0; i < MAX_INFO_PER_HOUR; i++) assert.equal((await get()).status, 404);
+  const r = await get();
+  assert.equal(r.status, 429); assert.equal(r.headers.get("retry-after"), "3600");
 });
