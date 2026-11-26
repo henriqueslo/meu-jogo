@@ -130,3 +130,9 @@ O detalhe do motivo (qual termo) não é devolvido, para não ensinar a burlar a
 # Retenção e privacidade
 
 Um Cron Trigger diário (`[triggers] crons` em `wrangler.toml`) chama `scheduled()` → `runPurge()` (`worker/retention.js`): apaga entradas do ranking com mais de **90 dias**, zera `ip_hash` de dias anteriores, apaga `metrics` com mais de 90 dias e `rate_limits` com mais de 2 h, e registra `purge_done` com as contagens. Salas de duelo/campeonato expiram sozinhas após 1 h sem atividade. A Política de Privacidade (`site/privacidade.html`) descreve exatamente isso; `test/privacy.test.js` mantém texto e código alinhados.
+
+---
+
+# Desfazer no draft (duelo e campeonato)
+
+Nova mensagem do cliente: `{ "t": "undo" }`. Desfaz a última escolha (e as atualizações feitas depois dela); as ofertas voltam **iguais** às de antes. Permitida só na fase `draft` e **antes de o estilo ser fixado** (depois: erro `style-locked`; sem escolhas: `nothing-to-undo`). A visão do jogador (`you`) ganhou `canUndo: boolean`.

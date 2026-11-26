@@ -99,6 +99,10 @@ export class Cup {
         this._needDraft();
         if (!str(msg.lineupId, 64) || !str(msg.nick, 40)) throw new DuelError("bad-message", "pick inválido.");
         p.draft.pick(msg.lineupId, msg.nick); return;
+      case "undo":                                       // desfazer a última escolha (só antes de fixar o estilo)
+        this._needDraft();
+        if (p.style) throw new DuelError("style-locked", "Estilo já escolhido; não dá mais para desfazer.");
+        p.draft.undo(); return;
       case "style":
         this._needDraft();
         if (!p.draft.done) throw new DuelError("draft-incomplete", "Complete o elenco antes do estilo.");
@@ -152,7 +156,7 @@ export class Cup {
     const canControl = slot === 0 || !connected[0];
     const out = {
       v: 1, kind: "cup", phase, code: this.code, max_players: MAX_HUMANS, min_players: MIN_HUMANS,
-      you: me ? { slot, name: me.name, host: slot === 0, canControl, offers: phase === "draft" ? me.draft.offers : [], refreshesLeft: me.draft.refreshesLeft, squad, draftDone: me.draft.done, style: me.style } : null,
+      you: me ? { slot, name: me.name, host: slot === 0, canControl, offers: phase === "draft" ? me.draft.offers : [], refreshesLeft: me.draft.refreshesLeft, squad, draftDone: me.draft.done, canUndo: me.draft.canUndo && !me.style, style: me.style } : null,
       players: this.players.map((p, i) => ({ name: p.name, host: i === 0, connected: !!connected[i], picks: Object.keys(p.draft.picks).length, ready: this._ready(p) })),
       teams: null, events: [], result: null,
     };

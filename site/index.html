@@ -25,9 +25,9 @@
     <label for="team-name-input" style="color:var(--dim); font-size:13px; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:1.2px; font-weight:600;">Nome do seu time <span style="color:var(--t);">*</span></label>
     <input type="text" id="team-name-input" maxlength="24" required placeholder="Ex: Falcons BR"
       style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
-    <p id="name-error" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
-    <button class="primary" id="btn-begin" disabled style="width:100%; margin:6px 0 0;">Montar minha lineup →</button>
-    <button class="secondary" id="btn-daily" disabled hidden style="width:100%; margin:6px 0 0;">📅 Desafio do dia · todos jogam o mesmo baralho</button>
+    <p id="name-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
+    <button class="primary" id="btn-begin" style="width:100%; margin:6px 0 0;">Montar minha lineup →</button>
+    <button class="secondary" id="btn-daily" hidden style="width:100%; margin:6px 0 0;">📅 Desafio do dia · todos jogam o mesmo baralho</button>
     <div id="daily-board-start" hidden></div>
     <div id="resume-box" class="card" hidden style="margin-top:10px;">
       <div id="resume-text" style="font-size:14px;"></div>
@@ -36,14 +36,14 @@
     </div>
     <div id="duel-box" hidden>
       <div class="stage-label">Duelo 1 × 1</div>
-      <button class="secondary" id="btn-duel-create" disabled style="width:100%; margin:6px 0 0;">⚔️ Criar duelo (gera um código)</button>
-      <button class="secondary" id="btn-cup-create" disabled style="width:100%; margin:6px 0 0;">🏆 Criar campeonato (2 a 8 jogadores)</button>
+      <button class="secondary" id="btn-duel-create" style="width:100%; margin:6px 0 0;">⚔️ Criar duelo (gera um código)</button>
+      <button class="secondary" id="btn-cup-create" style="width:100%; margin:6px 0 0;">🏆 Criar campeonato (2 a 8 jogadores)</button>
       <div class="join-row">
         <input type="text" id="duel-code-input" maxlength="6" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Código da sala"
           style="padding:11px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px; text-transform:uppercase; letter-spacing:4px;">
-        <button class="secondary" id="btn-duel-join" disabled >Duelo</button>
-        <button class="secondary" id="btn-cup-join" disabled >Campeonato</button>
+        <button class="secondary" id="btn-join" type="button">Entrar</button>
       </div>
+      <p id="join-error" role="alert" style="color:var(--danger); font-size:13px; min-height:18px; margin:6px 0 0;"></p>
     </div>
 
     <div class="stage-label">Como jogar</div>
@@ -67,6 +67,7 @@
   <section id="screen-draft" class="screen">
     <div class="progress" id="draft-progress">Vaga 1 de 5</div>
     <div class="slots draft-slots" id="slots"></div>
+    <button class="secondary" id="btn-undo" type="button" hidden>↩ Desfazer última escolha</button>
     <button class="rollbtn primary" id="btn-roll">🎲 Atualizar Lineups (3 restantes)</button>
     <p id="refresh-hint" style="color:var(--dim); font-size:12px; margin:4px 0 0;"></p>
     <div id="lineup-offers"></div>
@@ -82,19 +83,23 @@
       <div class="style-opt" data-style="tatico" role="radio" aria-checked="false" tabindex="0"><b>Tático</b><small>consistente, menos zebra</small></div>
       <div class="style-opt" data-style="aim" role="radio" aria-checked="false" tabindex="0"><b>Aim puro</b><small>ganha os duelos individuais</small></div>
     </div>
-    <button class="primary" id="btn-start" disabled>Disputar o Major →</button>
+    <button class="primary" id="btn-start" type="button">Disputar o Major →</button>
+    <button class="secondary" id="btn-undo-team" type="button">↩ Desfazer última escolha</button>
   </section>
 
   <!-- SIMULATION SCREEN -->
   <section id="screen-sim" class="screen">
     <div id="sim-content"></div>
-    <button class="primary" id="btn-next" style="display:none;">Continuar →</button>
+    <div class="action-bar"><button class="primary" id="btn-next" type="button" hidden>Continuar →</button></div>
   </section>
 
   <!-- RESULTS SCREEN -->
   <section id="screen-results" class="screen">
     <div id="results-content"></div>
-    <button class="secondary" id="btn-restart">Montar outro time</button>
+    <div class="action-bar" id="result-actions">
+      <button class="primary" id="btn-share" type="button">📤 Compartilhar</button>
+      <button class="secondary" id="btn-restart" type="button">🔁 Jogar de novo</button>
+    </div>
   </section>
 
 </main>
@@ -117,6 +122,7 @@
     <h2 class="phase-title" id="phase-title"></h2>
     <div class="phase-line"></div>
     <div class="phase-sub" id="phase-sub"></div>
+    <div class="phase-skip">toque para continuar</div>
   </div>
 </div>
 

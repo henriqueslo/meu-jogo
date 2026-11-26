@@ -6,6 +6,9 @@ export class GamePage {
     this.begin = page.getByRole("button", { name: /Montar minha lineup/ });
     this.next = page.getByRole("button", { name: /→/ });                  // “Próxima rodada →”, “Semifinal →”…
     this.offers = page.locator("#lineup-offers button:not([disabled])");  // jogadores escolhíveis do draft
+    this.undo = page.getByRole("button", { name: /Desfazer última escolha/ });
+    this.share = page.getByRole("button", { name: /Compartilhar/ });
+    this.playAgain = page.getByRole("button", { name: /Jogar de novo/ });
   }
 
   /* Simula o backend online (o botão de modos só aparece se /api/v1/daily responder). */

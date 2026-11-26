@@ -42,7 +42,7 @@ Data: 26/11/2026 · Método: fluxo completo percorrido no navegador (celular 375
 
 ## Roteiro (UX → beleza)
 1. ✅ **Fase A — consertar** (U-01…U-04, e U-09 em parte): **feita.** Sem rolagem lateral de 320 a 414 px, alvos de 48 px, texto mínimo de 12 px; elenco em linhas legíveis e o draft mostra só o que falta (“Faltam: AWP · IGL…”) em vez de 5 vagas vazias.
-2. **Fase B — fluxo** (U-02, U-05, U-07, U-08, U-09, U-12): barra de ação fixa, dicas, entrar com código único, desfazer.
+2. ✅ **Fase B — fluxo** (U-02, U-05, U-07, U-08, U-09, U-12): **feita.** Barra de ação fixa (“Próxima rodada”, “Compartilhar”, “Jogar de novo” sempre à vista); botões que explicam em vez de ficarem mortos; estilo Tático pré-selecionado; entrar em sala com **um** botão (o servidor diz se é duelo ou campeonato); “Desfazer última escolha” no draft (livre, desafio, duelo e campeonato); jogador apagado diz por quê; transição de fase só no mata-mata (900 ms, tocar pula).
 3. **Fase C — jornada** (U-06, U-10, U-11, U-13, U-14): início enxuto, resumo de rodada, resultado com história e funil.
 4. **Fase D — beleza** (U-15…U-18 e o visual): grade no desktop, movimento, cartões, tema.
 
@@ -57,3 +57,8 @@ npx.cmd playwright install chromium      # uma vez (baixa o navegador de teste)
 npm.cmd run test:e2e                     # roda os testes de interface
 ```
 O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs ficam em `e2e/` (não em `test/`, que o `node --test` executa). O CI roda `npm test` e `npm run test:e2e` em jobs separados. Duelo e campeonato (WebSocket) ainda não têm spec: foram verificados à mão e entram numa fase futura.
+
+### Como a Fase B foi construída
+- **Desfazer seguro:** o `Draft` (agora compartilhado entre navegador e servidor, em `site/js/engine.js`) é uma função de `(seed, ações)`. Desfazer = refazer tudo menos a última escolha; as ofertas voltam **idênticas** e o log do Desafio do dia continua válido para o servidor (`test/draft.test.js` prova, inclusive depois de desfazer e escolher outro jogador).
+- **Multiplayer:** nova mensagem `undo` (só na fase de draft e antes de fixar o estilo); a visão do jogador traz `canUndo`.
+- **Testes:** `e2e/flow.spec.js` (10 cenários, escritos antes e vermelhos) cobre barra fixa, validação no clique, estilo padrão, desfazer, motivo do jogador apagado, entrar com código único (WebSocket simulado pelo Playwright) e transições.

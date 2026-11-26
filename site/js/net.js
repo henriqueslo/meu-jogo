@@ -42,6 +42,20 @@ export async function roomExists(kind, code) {
   } catch { return null; }
 }
 
+/* Descobre se o código é de duelo ou de campeonato. "rooms" | "cups" | null (não existe) | "error" (não deu para saber). */
+export async function resolveRoomKind(code) {
+  const probe = async (kind) => {
+    try {
+      const r = await fetch(`/api/v1/${kind}/${code}`, { headers: { accept: "application/json" } });
+      return r.status === 404 ? false : r.ok ? true : null;
+    } catch { return null; }
+  };
+  const [rooms, cups] = await Promise.all([probe("rooms"), probe("cups")]);
+  if (rooms === true) return "rooms";
+  if (cups === true) return "cups";
+  return rooms === false && cups === false ? null : "error";
+}
+
 export function connect({ kind, code, name, onState, onNotice, onStatus }) {
   let sock = null, tries = 0, timer = null, leaving = false, token = getToken(kind, code);
 
