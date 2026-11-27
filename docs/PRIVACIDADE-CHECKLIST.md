@@ -13,7 +13,7 @@
 | Contadores agregados | Saúde/uso | Legítimo interesse | D1 `metrics` | 90 dias; sem dado pessoal | `worker/metrics.js` |
 | Logs estruturados | Operação | Legítimo interesse | Cloudflare Workers Logs | Poucos dias (Cloudflare); **sem IP, nome ou ID** | `worker/log.js` |
 | IP/UA nos logs da hospedagem | Segurança/CDN | (da Cloudflare) | Cloudflare | Política da Cloudflare | — |
-| `localStorage`/`sessionStorage` (`ml_*`) | Reentrada, identificador do Desafio | Execução do serviço | Navegador do usuário | Ver política (55 min a “até limpar”) | `site/js/session.js`, `net.js`, `daily.js` |
+| `localStorage`/`sessionStorage` (`ml_*`) | Último nome do time (`ml_name`), reentrada, identificador do Desafio | Execução do serviço | Navegador do usuário | Ver política (55 min a “até limpar”) | `site/js/session.js`, `net.js`, `daily.js` |
 
 Não coletamos: nome real, e-mail, telefone, CPF, localização, pagamento. Sem cookies próprios. Sem analytics de terceiros. Fontes servidas pelo próprio site. Anúncios **desligados**.
 

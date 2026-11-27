@@ -31,6 +31,7 @@ test("resultado: compartilhar e jogar de novo ficam à vista", async ({ page }) 
 test("nome vazio: o botão principal NÃO fica morto — explica e leva o foco ao campo", async ({ page }) => {
   const game = new GamePage(page);
   await game.open();
+  await game.nameInput.fill("");                                    // o nome vem sugerido (C1): apagar volta ao caso de erro
   await expect(game.begin).toBeEnabled();
   await game.begin.click();
   await expect(page.getByRole("alert").filter({ hasText: /Dê um nome ao seu time/ })).toBeVisible();

@@ -25,9 +25,10 @@
     <label for="team-name-input" style="color:var(--dim); font-size:13px; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:1.2px; font-weight:600;">Nome do seu time <span style="color:var(--t);">*</span></label>
     <input type="text" id="team-name-input" maxlength="24" required placeholder="Ex: Falcons BR"
       style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
+    <p class="name-hint" id="name-hint">Sugestão de nome: troque se quiser.</p>
     <p id="name-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
-    <button class="primary" id="btn-begin" style="width:100%; margin:6px 0 0;">Montar minha lineup →</button>
-    <button class="secondary" id="btn-daily" hidden style="width:100%; margin:6px 0 0;">📅 Desafio do dia · todos jogam o mesmo baralho</button>
+    <button class="primary" id="btn-begin" style="width:100%; margin:6px 0 0;">Jogar · montar minha lineup →</button>
+    <button class="secondary daily-cta" id="btn-daily" hidden style="width:100%; margin:6px 0 0;">📅 Desafio do dia · todos jogam o mesmo baralho</button>
     <div id="daily-board-start" hidden></div>
     <div id="resume-box" class="card" hidden style="margin-top:10px;">
       <div id="resume-text" style="font-size:14px;"></div>
@@ -63,16 +64,24 @@
     </div>
 
     <div class="stage-label">Como jogar</div>
-    <ol class="rules">
-      <li><b>Dê um nome ao seu time.</b> É ele que aparece no placar, no card de compartilhamento e no ranking.</li>
-      <li><b>Monte a sua LineUp de 5 jogadores.</b> Para cada vaga — AWP, IGL, Entry, Support e Rifler — você recebe 3 lineups históricas do CS e escolhe 1 jogador de uma delas. Cada jogador tem um <span class="r-hl">rating individual</span> que reflete o nível dele <b>naquela época</b>: o FalleN de 2016 não vale o mesmo que o de 2026. A força do seu time é a média dos cinco. São <b>3 atualizações por vaga</b>: depois disso, é obrigado a escolher entre os que estão na tela.</li>
-      <li><b>Defina o estilo de jogo.</b> <span class="r-hl">Rush</span> é agressivo e dá mais zebra; <span class="r-hl">Tático</span> é consistente e reduz surpresas; <span class="r-hl">Aim puro</span> vence os duelos individuais.</li>
-      <li><b>Dispute a Primeira Fase.</b> 16 times no <span class="r-hl">formato suíço</span>: não há grupos fixos — a cada rodada você enfrenta um time com a mesma campanha que a sua (quem está 2-0 pega quem está 2-0). <b>3 vitórias classificam</b> para os playoffs; <b>3 derrotas eliminam</b>. Os jogos decisivos são Bo3.</li>
-      <li><b>Sobreviva ao mata-mata.</b> Os 8 classificados vão aos playoffs eliminatórios: Bo3 nas quartas e na semi, <b>Bo5 na grande final</b>. Perdeu, acabou.</li>
-      <li><b>Como cada mapa é decidido.</b> Vence quem chegar a <span class="r-hl">13 rounds</span> primeiro. Se der <span class="r-hl">12 a 12</span>, vai para a prorrogação: 6 rounds em que leva quem fizer <b>4 primeiro</b> — ou seja, o mapa termina em <b>16</b>. Se a prorrogação empatar em 15 a 15, joga-se outra, que termina em <b>19</b>; depois 22, e assim por diante até sair um vencedor.</li>
-      <li><b>Busque o Major Perfeito.</b> A marca máxima é fechar <span class="r-hl">3-0 na Primeira Fase</span> e ser campeão <span class="r-hl">sem perder um único mapa</span> nos playoffs. 💎</li>
+    <ol class="steps" aria-label="Como jogar">
+      <li><b>Monte 5 jogadores.</b> Uma vaga por vez (AWP, IGL, Entry, Support, Rifler): você vê 3 lineups históricas e leva 1 jogador.</li>
+      <li><b>Escolha o estilo.</b> Rush arrisca, Tático é constante, Aim puro vence duelos. Sugerimos um conforme a força do seu time.</li>
+      <li><b>Dispute o Major.</b> Suíço de 16 times, depois playoffs. Quem fecha invicto conquista o Major Perfeito. 💎</li>
     </ol>
-    <p class="rules-note">Dica: clique em qualquer card de partida para ver o ranking de K/D daquele jogo. No fim, o jogador de maior impacto é eleito MVP do campeonato.</p>
+    <details class="rules-more">
+      <summary>Ver as regras completas</summary>
+      <ol class="rules">
+        <li><b>Dê um nome ao seu time.</b> É ele que aparece no placar, no card de compartilhamento e no ranking.</li>
+        <li><b>Monte a sua LineUp de 5 jogadores.</b> Para cada vaga — AWP, IGL, Entry, Support e Rifler — você recebe 3 lineups históricas do CS e escolhe 1 jogador de uma delas. Cada jogador tem um <span class="r-hl">rating individual</span> que reflete o nível dele <b>naquela época</b>: o FalleN de 2016 não vale o mesmo que o de 2026. A força do seu time é a média dos cinco. São <b>3 atualizações por vaga</b>: depois disso, é obrigado a escolher entre os que estão na tela.</li>
+        <li><b>Defina o estilo de jogo.</b> <span class="r-hl">Rush</span> é agressivo e dá mais zebra; <span class="r-hl">Tático</span> é consistente e reduz surpresas; <span class="r-hl">Aim puro</span> vence os duelos individuais.</li>
+        <li><b>Dispute a Primeira Fase.</b> 16 times no <span class="r-hl">formato suíço</span>: não há grupos fixos — a cada rodada você enfrenta um time com a mesma campanha que a sua (quem está 2-0 pega quem está 2-0). <b>3 vitórias classificam</b> para os playoffs; <b>3 derrotas eliminam</b>. Os jogos decisivos são Bo3.</li>
+        <li><b>Sobreviva ao mata-mata.</b> Os 8 classificados vão aos playoffs eliminatórios: Bo3 nas quartas e na semi, <b>Bo5 na grande final</b>. Perdeu, acabou.</li>
+        <li><b>Como cada mapa é decidido.</b> Vence quem chegar a <span class="r-hl">13 rounds</span> primeiro. Se der <span class="r-hl">12 a 12</span>, vai para a prorrogação: 6 rounds em que leva quem fizer <b>4 primeiro</b> — ou seja, o mapa termina em <b>16</b>. Se a prorrogação empatar em 15 a 15, joga-se outra, que termina em <b>19</b>; depois 22, e assim por diante até sair um vencedor.</li>
+        <li><b>Busque o Major Perfeito.</b> A marca máxima é fechar <span class="r-hl">3-0 na Primeira Fase</span> e ser campeão <span class="r-hl">sem perder um único mapa</span> nos playoffs. 💎</li>
+      </ol>
+      <p class="rules-note">Dica: clique em qualquer card de partida para ver o ranking de K/D daquele jogo. No fim, o jogador de maior impacto é eleito MVP do campeonato.</p>
+    </details>
   </section>
 
   <!-- DUELO (Fase 2) -->
