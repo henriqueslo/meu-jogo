@@ -43,7 +43,8 @@ Data: 26/11/2026 · Método: fluxo completo percorrido no navegador (celular 375
 ## Roteiro (UX → beleza)
 1. ✅ **Fase A — consertar** (U-01…U-04, e U-09 em parte): **feita.** Sem rolagem lateral de 320 a 414 px, alvos de 48 px, texto mínimo de 12 px; elenco em linhas legíveis e o draft mostra só o que falta (“Faltam: AWP · IGL…”) em vez de 5 vagas vazias.
 2. ✅ **Fase B — fluxo** (U-02, U-05, U-07, U-08, U-09, U-12): **feita.** Barra de ação fixa (“Próxima rodada”, “Compartilhar”, “Jogar de novo” sempre à vista); botões que explicam em vez de ficarem mortos; estilo Tático pré-selecionado; entrar em sala com **um** botão (o servidor diz se é duelo ou campeonato); “Desfazer última escolha” no draft (livre, desafio, duelo e campeonato); jogador apagado diz por quê; transição de fase só no mata-mata (900 ms, tocar pula).
-3. **Fase C — jornada** (U-06, U-10, U-11, U-13, U-14): início enxuto, resumo de rodada, resultado com história e funil.
+3. ✅ **Fase C — jornada** (U-06, U-10, U-11, U-13, U-14): **feita.** Início enxuto (C1), estilo com contexto (C2), rodadas com a campanha à vista (C3), resultado com a história do torneio e convites (C4); depois, o duelo e o campeonato ganharam a mesma experiência e o compartilhar.
+4. **Fase D — beleza:** **D1 (grade no desktop) feita**; faltam o duelo/campeonato em grade, movimento e tema.
 4. **Fase D — beleza** (U-15…U-18 e o visual): grade no desktop, movimento, cartões, tema.
 
 Cada fase termina com testes de fluxo no navegador (Playwright): sem rolagem lateral em 375 px, alvos ≥ 44 px, fonte ≥ 12 px, ação principal visível sem rolar.
@@ -106,3 +107,15 @@ Feedback de uso: duelo e campeonato não tinham a mesma experiência do solo, e 
 - **Campeonato:** painel “Sua campanha” a cada etapa, só o seu jogo aberto (os outros em “Ver os outros N jogos”), “Próxima etapa” na barra fixa; resultado com herói (perfeito, campeão, vice, caiu nos playoffs, eliminado e quanto faltou), **Sua jornada** e Compartilhar. Quem não é o dono vê o aviso em vez do botão.
 - **Compartilhar:** texto próprio por modo/desfecho (inclui o caso “vice-campeão”) e o card de imagem com o rótulo certo (“SÉRIE Bo3” no duelo). Sem mudança no servidor nem no protocolo.
 - **Testes:** `e2e/multiplayer.spec.js` (19 cenários, escritos antes) com servidor de mentira em `e2e/mp.js`; além disso, um duelo e um campeonato completos foram jogados por dois navegadores contra o Worker local (herói, jornada, campanha, compartilhar e revanche conferidos).
+
+### Fase D1 — o desktop aproveita a largura ✅
+Antes, em 1280 px o jogo era uma coluna de 640 px no meio e quase metade da tela ficava vazia. Em telas ≥ 1024 px (o celular não muda):
+- **Largura:** conteúdo até 1120 px, centrado; o logo alinha com o início do conteúdo.
+- **Início:** “Jogar” e “Desafio do dia” à esquerda, “Jogar com amigos” à direita; “Como jogar” em 3 colunas. Sem os modos online, fica uma coluna só, centrada.
+- **Draft:** o elenco numa lateral que acompanha a rolagem; as 3 ofertas cabem sem rolar a página (1280×800).
+- **Tela do time:** elenco de um lado; força, estilos e botão do outro.
+- **Rodadas:** “Sua campanha” na lateral (fixa ao rolar) e o seu jogo ao lado.
+- **Resultado:** herói em largura total; jornada e lineup de um lado, campeão, MVP e texto para compartilhar do outro (de ~1550 px para ~1030 px de altura).
+- **Barra de ações:** botões de largura razoável e centrados, em vez de um botão de 1000 px.
+- **Ficou para a próxima etapa:** duelo, campeonato e convite seguem numa coluna centrada de 680 px (para não esticarem) até ganharem a sua grade.
+- **Testes:** `e2e/desktop.spec.js` (13 cenários em 1024 e 1280 px, mais 1920 px e uma checagem de que o celular não mudou), escritos antes.

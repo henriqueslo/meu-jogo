@@ -514,3 +514,54 @@ button.player-chip:disabled{cursor:not-allowed;}
   color:var(--ct); font-size:14px; font-weight:600;
 }
 .rules-more[open] summary{margin-bottom:8px;}
+
+/* ============ Fase D1: o desktop aproveita a largura (≥1024px) ============
+ * Só vale em telas largas; o celular segue exatamente como antes. */
+@media (min-width:1024px){
+  main{max-width:1120px; padding-top:24px;}
+  header{padding-inline:max(16px, calc((100% - 1120px) / 2 + 16px));}       /* o logo alinha com o início do conteúdo */
+
+  /* Telas que continuam numa coluna só (duelo, campeonato e convite ganham a grade na etapa seguinte) */
+  #screen-duel.active, #screen-cup.active, #screen-invite.active{max-width:680px; margin-inline:auto;}
+
+  /* Início: jogar à esquerda, jogar com amigos à direita, "como jogar" em 3 colunas embaixo */
+  #screen-start.active{display:grid; grid-template-columns:minmax(0,440px) minmax(0,1fr); column-gap:40px; align-items:start;}
+  #screen-start > *{grid-column:1;}
+  #screen-start > #duel-box{grid-column:2; grid-row:1 / span 8;}
+  #screen-start > .stage-label, #screen-start > .steps, #screen-start > .rules-more{grid-column:1 / -1;}
+  #screen-start:has(#duel-box[hidden]){grid-template-columns:minmax(0,520px); justify-content:center;}   /* sem modos online: coluna única, centrada */
+  #screen-start #duel-box .stage-label{margin-top:0;}
+  .steps{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px;}
+  .steps li{margin:0;}
+  .rules-more .rules{max-width:780px;}
+
+  /* Draft: o elenco numa lateral que acompanha a rolagem; as ofertas na área principal */
+  .draft-layout{display:grid; grid-template-columns:300px minmax(0,1fr); column-gap:24px; align-items:start;}
+  .draft-side{position:sticky; top:16px;}
+  .draft-side .draft-slots{margin-top:0;}
+  .draft-main > .rollbtn{margin-top:0;}
+
+  /* Tela do time: elenco de um lado; força, estilos e botão do outro */
+  #screen-team.active{display:grid; grid-template-columns:380px minmax(0,1fr); column-gap:32px; align-items:start;}
+  #screen-team > *{grid-column:2;}
+  #screen-team > h3{grid-column:1 / -1;}
+  #screen-team > #team-final{grid-column:1; grid-row:2 / span 7; grid-template-columns:1fr; gap:6px; margin-top:0;}
+  #team-final .slot{display:grid; grid-template-columns:68px minmax(0,1fr) auto; align-items:center; gap:10px; text-align:left; padding:8px 12px; min-height:48px;}
+  #team-final .slot .team{text-align:right;}
+  #screen-team > button{justify-self:start;}
+  #screen-team > #team-strength:empty{display:none;}
+
+  /* Rodadas: "Sua campanha" na lateral (fixa ao rolar) e os jogos ao lado */
+  #sim-content{display:grid; grid-template-columns:340px minmax(0,1fr); column-gap:28px; align-items:start;}
+  #sim-content > *{grid-column:2;}
+  #sim-content > .stage-label{grid-column:1 / -1;}
+  #sim-content > .campaign{grid-column:1; grid-row:2 / span 12; position:sticky; top:16px; margin:0;}
+
+  /* Resultado: herói em largura total; jornada+lineup de um lado, campeão/MVP/texto do outro */
+  .result-cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:32px; align-items:start;}
+
+  /* Barra de ações: botões com largura razoável e centrados */
+  .action-bar{justify-content:center;}
+  .action-bar > .primary{flex:0 1 380px;}
+  .action-bar > .secondary{flex:0 1 240px;}
+}
