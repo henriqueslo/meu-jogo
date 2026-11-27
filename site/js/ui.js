@@ -2,7 +2,7 @@
  * REGRA DE OURO: todo texto dinâmico em HTML passa por esc(). */
 import { ROLES } from "./data.js";
 import {
-  newSeed, Draft, actionsToLog, resolveSquad,
+  newSeed, Draft, actionsToLog, resolveSquad, teamStrength, styleAdvice, STYLE_INFO,
   sanitizeTeamName, createTournament, advance, tournamentMvp, summarize,
 } from "./engine.js";
 import { shareResult } from "./share.js";
@@ -126,10 +126,52 @@ function selectStyle(style) {
   });
 }
 
+/* ---- Contexto para escolher o estilo (C2): força do time e o que cada estilo faz ---- */
+const STYLE_NAME = { rush: "Rush", tatico: "Tático", aim: "Aim puro" };
+const STYLE_TEXT = {
+  rush: "Agressivo: ganha vantagem nos rounds, mas o jogo fica muito imprevisível — mais zebras, para os dois lados.",
+  tatico: "Consistente: o time mais forte costuma vencer. Quase nenhuma zebra.",
+  aim: "Equilibrado: um pequeno bônus nos duelos e imprevisibilidade moderada.",
+};
+const NIVEL = { acima: "Acima da média", media: "Na média", abaixo: "Abaixo da média" };
+const ADVICE = {
+  acima: "Seu time está acima da média: o Tático reduz o risco de zebra e deixa a força decidir.",
+  media: "Seu time está na média: o Aim puro dá um bônus pequeno sem muito risco.",
+  abaixo: "Seu time está abaixo da média: o Rush aumenta a imprevisibilidade e as chances de uma zebra.",
+};
+
+function squadStrength() {
+  const sum = Object.values(state.squad).reduce((s, p) => s + p.forca, 0);
+  return teamStrength(Math.round(sum / ROLES.length));    // mesma média que o motor usa
+}
+
+function strengthHTML(st) {
+  const pos = (v) => Math.max(0, Math.min(100, ((v - 60) / 40) * 100));     // escala 60–100
+  return `<section class="strength" role="region" aria-label="Força do time">
+    <div class="strength-row"><span class="strength-title">Força do time</span><span class="strength-num mono">${st.forca}</span></div>
+    <div class="strength-bar" aria-hidden="true"><span class="fill" style="width:${pos(st.forca)}%"></span><span class="avg" style="left:${pos(st.media)}%"></span></div>
+    <p class="strength-text"><b>${NIVEL[st.nivel]}</b> · média dos adversários ${st.media} · mais forte que ${st.percentil}% das lineups históricas</p>
+  </section>`;
+}
+
+/* Números vêm do motor (STYLE_INFO): o que a tela promete é o que a simulação faz. */
+function styleCardHTML(style, suggested) {
+  const { bias, variance } = STYLE_INFO[style];
+  const risco = variance === 0 ? 1 : variance <= 0.04 ? 2 : 3;
+  const rotulo = ["baixa", "média", "alta"][risco - 1];
+  const bonus = bias === 0 ? "sem bônus nos rounds" : `+${bias * 2}% por round`;
+  return `<b>${STYLE_NAME[style]}</b>${suggested ? '<span class="tag-sug">Sugerido</span>' : ""}<small>${STYLE_TEXT[style]}</small>
+    <span class="style-meta"><span class="risk" role="img" aria-label="Imprevisibilidade ${rotulo}">${"●".repeat(risco)}${"○".repeat(3 - risco)}</span><span>${bonus}</span></span>`;
+}
+
 function goToTeamScreen() {
   showScreen("screen-team");
-  selectStyle(state.style);                       // padrão (Tático) já marcado; botão de disputar sempre ativo
+  const st = squadStrength(), sugerido = styleAdvice(st.nivel);
   $("team-final").innerHTML = ROLES.map((r) => `<div class="slot filled">${slotHTML(r, state.squad[r])}</div>`).join("");
+  $("team-strength").innerHTML = strengthHTML(st);
+  document.querySelectorAll(".style-opt").forEach((o) => { o.innerHTML = styleCardHTML(o.dataset.style, o.dataset.style === sugerido); });
+  $("style-advice").textContent = ADVICE[st.nivel];
+  selectStyle(state.style);                       // o padrão (Tático) continua marcado; a sugestão é só uma etiqueta
 }
 
 document.querySelectorAll(".style-opt").forEach((opt) => {

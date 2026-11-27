@@ -78,3 +78,9 @@ O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs fic
 - **Ações na barra fixa:** *Compartilhar* é a principal; **“Tentar de novo com este time”** (mesmo elenco, nova seed, volta à tela do time para trocar o estilo; **só no jogo livre**) e **“Montar outro time”** (novo draft).
 - **“E agora?”** (só com os modos online disponíveis e nome aceito): *Desafiar um amigo* (cria o duelo direto) e *Desafio do dia*.
 - **Testes:** `e2e/result.spec.js` (15 cenários, escritos antes) + `SEEDS.retry` (mesmo time, torneio diferente) guardado por teste de unidade.
+
+### Fase C2 — estilo escolhido com contexto (U-10) ✅
+- **Força do time:** a tela do time mostra a nota (média dos 5 jogadores) ao lado da média dos adversários e do percentil entre as lineups históricas (“mais forte que 74%…”), com o nível em palavras: acima, na média ou abaixo.
+- **Cada estilo em linguagem simples**, com os números reais do motor (`STYLE_INFO`): bônus por round (Rush +2%, Aim +1%, Tático sem bônus) e imprevisibilidade (baixa/média/alta, lida por leitor de tela).
+- **Sugestão com motivo:** time forte → Tático (menos zebra); fraco → Rush (a variância ajuda); médio → Aim. Uma só etiqueta “Sugerido” e uma frase explicando. **O padrão continua Tático**: sugerir não escolhe pelo jogador.
+- **Testes:** `e2e/style.spec.js` (7 cenários, escritos antes) e `test/strength.test.js` (5), com `SEEDS.forca` para cada nível, guardadas por `test/seeds.test.js`. O motor não mudou: os resultados das simulações são os mesmos de antes.
