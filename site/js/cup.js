@@ -1,12 +1,19 @@
 /* Cliente do Campeonato multiplayer (Fase 3). Espelho do estado do servidor: manda intenções
  * (start, refresh, pick, style, force, advance) e renderiza o que volta. Texto de outros jogadores
- * (nomes de time) é dado não confiável: sempre via esc(). */
+ * (nomes de time) é dado não confiável: sempre via esc().
+ * A experiência segue a do jogo solo (estilo com contexto, campanha à vista, herói e jornada no resultado,
+ * compartilhar, barra de ações fixa): as peças compartilhadas estão em parts.js. */
 import { ROLES } from "./data.js";
 import { esc, slotHTML, offersHTML, lineupById, draftSlotsHTML } from "./render.js";
 import { connect, createRoom as createRoomOf, normalizeCode, validCode } from "./net.js";
+import {
+  styleChooserHTML, squadLineHTML, wireStyleChooser, STYLE_NAME, cupJourney, campaignPanelHTML, campaignStatusText, NEXT_AFTER,
+  heroOutcome, journeyHTML, cupShare,
+} from "./parts.js";
+import { shareResult } from "./share.js";
 
 const $ = (id) => document.getElementById(id);
-const STYLE_LABEL = { rush: "Rush", tatico: "Tático", aim: "Aim puro" };
+const DEFAULT_STYLE = "tatico";
 const STATUS = {
   champion: "🏆 Campeão", eliminated: "Eliminado no suíço", qualified: "Playoffs", active: "Em disputa",
   "out:Quartas": "Caiu nas quartas", "out:Semifinal": "Caiu na semifinal", "out:Final": "Vice-campeão",
@@ -14,12 +21,13 @@ const STATUS = {
 const EVENT_TITLE = { qf: "Quartas de final · Bo3", sf: "Semifinal · Bo3", final: "Grande final · Bo5", seed: "Playoffs · chaveamento" };
 
 let conn = null, view = null, myCode = "", myName = "", notice = "";
+let pendingStyle = DEFAULT_STYLE;          // o que está marcado na tela (só vai ao servidor ao confirmar)
 let onExit = () => {};
 
 export const createCup = () => createRoomOf("cups");
 
 export function openCup({ code, name, exit }) {
-  myCode = normalizeCode(code); myName = name; onExit = exit; view = null; notice = "";
+  myCode = normalizeCode(code); myName = name; onExit = exit; view = null; notice = ""; pendingStyle = DEFAULT_STYLE;
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   $("screen-cup").classList.add("active");
   render();
@@ -28,15 +36,16 @@ export function openCup({ code, name, exit }) {
 
 const send = (obj) => { notice = ""; conn && conn.send(obj); };
 const leave = () => { conn && conn.leave(); conn = null; view = null; onExit(); };
+const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">Sair do campeonato</button>`;
 
 /* ------------------------------ Render ------------------------------ */
 function render() {
   const c = $("cup-content");
   const head = `<div class="stage-label">Campeonato · sala <span class="mono">${esc(view?.code ?? myCode)}</span></div>
     <p style="color:var(--danger); min-height:18px; margin:0 0 6px;">${esc(notice)}</p>`;
-  let body = `<p style="color:var(--dim);">Conectando…</p>`;
+  let body = `<p style="color:var(--dim);">Conectando…</p>${leaveBtn()}`;
   if (view) body = { lobby: lobbyHTML, draft: draftHTML, running: runningHTML, done: doneHTML }[view.phase](view);
-  c.innerHTML = head + body + `<button class="secondary" id="cup-leave" type="button">Sair do campeonato</button>`;
+  c.innerHTML = head + body;
   bind();
 }
 
@@ -58,29 +67,29 @@ function lobbyHTML(v) {
     <div class="stage-label">Jogadores (${n}/${v.max_players})</div>${playersHTML(v, false)}
     ${host ? `<button class="primary" id="cup-start" type="button" ${n < v.min_players ? "disabled" : ""}>🏁 Iniciar campeonato</button>
       ${n < v.min_players ? `<p style="color:var(--dim); font-size:12px;">Precisa de pelo menos ${v.min_players} jogadores.</p>` : ""}`
-      : `<p style="color:var(--dim); font-size:13px;">Aguardando o dono iniciar…</p>`}`;
+      : `<p style="color:var(--dim); font-size:13px;">Aguardando o dono iniciar…</p>`}${leaveBtn()}`;
 }
 
 function draftHTML(v) {
   const y = v.you, filled = Object.keys(y.squad).length;
   const slots = draftSlotsHTML(y.squad);
-  let action;
-  if (!y.draftDone) {
-    const n = y.refreshesLeft;
-    action = `<div class="progress">Escolha ${filled + 1} de 5</div>
-      <button class="rollbtn primary" id="cup-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
-      <div id="cup-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>`;
-  } else if (!y.style) {
-    action = `<p style="color:var(--dim); font-size:13px;">Elenco pronto. Escolha o estilo (definitivo):</p>
-      <div class="style-opts">${["rush", "tatico", "aim"].map((s) => `<div class="style-opt" data-cup-style="${s}" role="button" tabindex="0"><b>${STYLE_LABEL[s]}</b></div>`).join("")}</div>`;
-  } else {
-    action = `<p style="color:var(--dim);">Estilo <b>${esc(STYLE_LABEL[y.style])}</b> escolhido. Aguardando os outros jogadores…</p>`;
-  }
   const waiting = v.players.some((p) => !p.ready);
   const force = y.canControl && waiting
     ? `<button class="secondary" id="cup-force" type="button">⏩ Completar automaticamente quem faltar</button>
        <p style="color:var(--dim); font-size:12px;">${y.host ? "Você é o dono." : "O dono está offline: você pode seguir sem ele."} Jogadores incompletos recebem elenco automático e estilo Tático.</p>` : "";
-  return `<div class="slots draft-slots">${slots}</div>${y.canUndo ? `<button class="secondary" id="cup-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : ""}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}${action}${force}`;
+  const undo = y.canUndo ? `<button class="secondary" id="cup-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : "";
+  const base = `<div class="slots draft-slots">${slots}</div>${undo}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}`;
+  if (!y.draftDone) {
+    const n = y.refreshesLeft;
+    return `${base}<div class="progress">Escolha ${filled + 1} de 5</div>
+      <button class="rollbtn primary" id="cup-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
+      <div id="cup-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>${force}${leaveBtn()}`;
+  }
+  if (!y.style) {
+    return `${squadLineHTML(y.squad)}<div id="cup-style">${styleChooserHTML(y.squad, pendingStyle)}</div>${undo}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}${force}
+      <div class="action-bar"><button class="primary" id="cup-confirm" type="button">Confirmar estilo →</button>${leaveBtn()}</div>`;
+  }
+  return `${squadLineHTML(y.squad)}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}<p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando os outros jogadores…</p>${force}${leaveBtn()}`;
 }
 
 const rec = (t) => `${t.wins}-${t.losses}`;
@@ -95,43 +104,89 @@ function standingsHTML(v) {
   }).join("")}</div>`;
 }
 
+/* Estado do jogador nos playoffs: "Quartas"/"Semifinal"/"Final" quando já caiu. */
+const outAtOf = (status) => (status?.startsWith("out:") ? status.slice(4) : null);
+const myTeam = (v) => v.teams?.find((t) => t.human === v.you.slot);
+
+function campaignHTML(v) {
+  const me = myTeam(v); if (!me) return "";
+  return campaignPanelHTML({
+    record: rec(me), journey: cupJourney(v.events, v.you.slot),
+    status: campaignStatusText({
+      champion: me.status === "champion", eliminated: me.status === "eliminated", outAt: outAtOf(me.status), qualified: me.status === "qualified",
+      next: NEXT_AFTER[v.events.at(-1)?.type], wins: me.wins, losses: me.losses,
+    }),
+  });
+}
+
+/* A etapa: o seu jogo inteiro; os outros recolhidos (ou abertos, se você nem jogou). */
+function roundHTML(v, ev) {
+  const isMine = (m) => m.a.human === v.you.slot || m.b.human === v.you.slot;
+  const mine = ev.matches.filter(isMine), others = ev.matches.filter((m) => !isMine(m));
+  const nm = (t) => `${t.human !== null ? "★ " : ""}${esc(t.name)}`;
+  const card = (m) => `<div class="card mine"><span class="mine-tag">seu time</span>
+      <div class="row"><div class="${m.winner === "A" ? "" : "loser"}" style="font-weight:700;">${nm(m.a)}</div><div class="vs">Bo${m.bo}</div><div style="font-weight:700; text-align:right;" class="${m.winner === "B" ? "" : "loser"}">${nm(m.b)}</div></div>
+      <div class="row" style="margin-top:4px;"><div class="score ${m.winner === "A" ? "winner" : "loser"}">${m.winsA}</div><div class="vs">×</div><div class="score ${m.winner === "B" ? "winner" : "loser"}">${m.winsB}</div></div>
+      ${m.maps.map(([map, a, b, ot]) => `<div class="maprow"><span>${esc(map)}${ot ? ' <span style="color:var(--t);">· PRORROGAÇÃO</span>' : ""}</span><span>${a} - ${b}</span></div>`).join("")}
+    </div>`;
+  const row = (m) => `<li><span class="${m.winner === "A" ? "w" : ""}">${nm(m.a)}</span><b class="mono">${m.winsA}×${m.winsB}</b><span class="${m.winner === "B" ? "w" : ""}">${nm(m.b)}</span></li>`;
+  const label = mine.length ? `Ver os outros ${others.length} ${others.length === 1 ? "jogo" : "jogos"}` : `Jogos da etapa (${others.length})`;
+  return mine.map(card).join("") +
+    (others.length ? `<details class="others"${mine.length ? "" : " open"}><summary>${label}</summary><ul>${others.map(row).join("")}</ul></details>` : "");
+}
+
 function eventHTML(v) {
   const ev = v.events.at(-1);
   if (!ev) return `<p style="color:var(--dim);">Tudo pronto. Clique em avançar para jogar a 1ª rodada.</p>`;
   const title = ev.type === "swiss" ? `Primeira Fase · rodada ${ev.round}` : EVENT_TITLE[ev.type];
   if (ev.type === "seed") {
-    return `<div class="stage-label">${title}</div>` + ev.seeds.map((t, i) => `<div class="bracket-match"><span>#${i + 1} seed</span><span class="${t.human === v.you.slot ? "you" : ""}">${t.human !== null ? "★ " : ""}${esc(t.name)} (força ${t.forca})</span></div>`).join("");
+    return `<div class="stage-label">${title}</div>${campaignHTML(v)}` + ev.seeds.map((t, i) => `<div class="bracket-match"><span>#${i + 1} seed</span><span class="${t.human === v.you.slot ? "you" : ""}">${t.human !== null ? "★ " : ""}${esc(t.name)} (força ${t.forca})</span></div>`).join("");
   }
-  const ordered = [...ev.matches].sort((x, y) => (y.a.human !== null || y.b.human !== null) - (x.a.human !== null || x.b.human !== null));
-  return `<div class="stage-label">${title}</div>` + ordered.map((m) => {
-    const hum = m.a.human !== null || m.b.human !== null, mine = m.a.human === v.you.slot || m.b.human === v.you.slot;
-    const nm = (t) => `${t.human !== null ? "★ " : ""}${esc(t.name)}`;
-    return `<div class="card${mine ? " mine" : ""}">
-      <div class="row"><div class="${m.winner === "A" ? "" : "loser"}" style="font-weight:700;">${nm(m.a)}</div><div class="vs">Bo${m.bo}</div><div style="font-weight:700; text-align:right;" class="${m.winner === "B" ? "" : "loser"}">${nm(m.b)}</div></div>
-      <div class="row" style="margin-top:4px;"><div class="score ${m.winner === "A" ? "winner" : "loser"}">${m.winsA}</div><div class="vs">×</div><div class="score ${m.winner === "B" ? "winner" : "loser"}">${m.winsB}</div></div>
-      ${hum ? m.maps.map(([map, a, b, ot]) => `<div class="maprow"><span>${esc(map)}${ot ? ' <span style="color:var(--t);">· PRORROGAÇÃO</span>' : ""}</span><span>${a} - ${b}</span></div>`).join("") : ""}
-    </div>`;
-  }).join("");
+  return `<div class="stage-label">${title}</div>${campaignHTML(v)}${roundHTML(v, ev)}`;
 }
 
 function runningHTML(v) {
   const ctrl = v.you.canControl;
   return `${eventHTML(v)}
-    ${ctrl ? `<button class="primary" id="cup-advance" type="button">Próxima etapa ▶</button>${v.you.host ? "" : '<p style="color:var(--dim); font-size:12px;">O dono está offline: você pode avançar.</p>'}`
+    <div class="stage-label">Classificação</div>${standingsHTML(v)}
+    ${ctrl ? (v.you.host ? "" : '<p style="color:var(--dim); font-size:12px;">O dono está offline: você pode avançar.</p>')
       : `<p style="color:var(--dim); font-size:13px;">O dono avança as etapas. Aguardando…</p>`}
-    <div class="stage-label">Classificação</div>${standingsHTML(v)}`;
+    <div class="action-bar">${ctrl ? `<button class="primary" id="cup-advance" type="button">Próxima etapa ▶</button>` : ""}${leaveBtn()}</div>`;
+}
+
+/* Tudo o que o resultado e o compartilhamento precisam sobre o jogador. */
+function summaryOf(v) {
+  const r = v.result, me = r.humans.find((h) => h.slot === v.you.slot);
+  const journey = cupJourney(v.events, v.you.slot);
+  const lost = [...journey].reverse().find((j) => !j.won);
+  const playoffsRun = journey.filter((j) => j.phase !== "swiss");
+  const cleanPlayoffs = playoffsRun.length > 0 && playoffsRun.every((j) => j.won && j.maps.every((m) => m[1] > m[2]));
+  const champion = r.champion.human === v.you.slot;
+  const playoffs = me.status !== "eliminated";
+  const vice = outAtOf(me.status) === "Final";
+  return { r, me, journey, lost, cleanPlayoffs, champion, playoffs, vice };
+}
+
+function shareOf(v) {
+  const { me, cleanPlayoffs, champion, playoffs, vice } = summaryOf(v);
+  return cupShare({
+    team: me.name, wins: me.wins, losses: me.losses, perfeito: !!me.perfeito, champion, vice, playoffs, cleanPlayoffs,
+    lineup: ROLES.map((ro) => ({ papel: ro, nick: me.squad[ro] })), players: v.result.humans.length,
+  });
 }
 
 function doneHTML(v) {
-  const r = v.result, me = r.humans.find((h) => h.slot === v.you.slot);
-  const won = r.champion.human === v.you.slot;
+  const { r, me, journey, lost, cleanPlayoffs, champion } = summaryOf(v);
+  const hero = heroOutcome({ perfeito: !!me.perfeito, champion, cleanPlayoffs, outAt: outAtOf(me.status), wins: me.wins, losses: me.losses, lost });
   const mvp = r.mvp ? `<div class="stage-label">MVP do campeonato</div><div class="card row"><b>${esc(r.mvp.nick)}</b><span class="mono">${r.mvp.kills}/${r.mvp.deaths} · ${esc(r.mvp.team)}</span></div>` : "";
-  return `<div class="${won ? "achievement" : "card"}" style="text-align:center;"><h2 style="margin:0;">${won ? (me.perfeito ? "💎 MAJOR PERFEITO" : "🏆 VOCÊ É O CAMPEÃO") : `Campeão: ${esc(r.champion.name)}`}</h2>
-      <p style="margin:4px 0; color:var(--dim);">Seu time: ${esc(me.name)} · ${me.wins}-${me.losses} no suíço · ${esc(STATUS[me.status] ?? "")}</p></div>
+  return `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>
+    ${journeyHTML(journey)}
+    <div class="stage-label">Campeão</div><div class="card row"><b>${esc(r.champion.name)}</b><span style="color:var(--dim);">força ${r.champion.forca}</span></div>
     <div class="stage-label">Jogadores humanos</div>
     ${r.humans.map((h) => `<div class="card" style="padding:8px 12px;"><div class="row"><b>${esc(h.name)}${h.slot === v.you.slot ? " (você)" : ""}</b><span style="color:var(--dim); font-size:12px;">${h.wins}-${h.losses} · ${esc(STATUS[h.status] ?? "")}</span></div>
       <div style="color:var(--dim); font-size:12px;">${ROLES.map((ro) => `${ro}: ${esc(h.squad[ro])}`).join(" · ")}</div></div>`).join("")}
-    ${mvp}<div class="stage-label">Classificação final</div>${standingsHTML(v)}`;
+    ${mvp}<div class="stage-label">Classificação final</div>${standingsHTML(v)}
+    <div class="action-bar"><button class="primary" id="cup-share" type="button">📤 Compartilhar</button>${leaveBtn()}</div>`;
 }
 
 function bind() {
@@ -141,15 +196,14 @@ function bind() {
   $("cup-refresh")?.addEventListener("click", () => send({ t: "refresh" }));
   $("cup-force")?.addEventListener("click", () => send({ t: "force" }));
   $("cup-advance")?.addEventListener("click", (e) => { e.currentTarget.disabled = true; send({ t: "advance" }); });
+  $("cup-share")?.addEventListener("click", (e) => { const s = shareOf(view); shareResult(e.currentTarget, s.data, s.text); });
   $("cup-offers")?.addEventListener("click", (e) => {
     const chip = e.target.closest(".player-chip");
     if (chip && !chip.disabled) send({ t: "pick", lineupId: chip.dataset.lineup, nick: chip.dataset.nick });
   });
-  document.querySelectorAll("[data-cup-style]").forEach((el) => {
-    const go = () => send({ t: "style", style: el.dataset.cupStyle });
-    el.addEventListener("click", go);
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
-  });
+  const estilos = $("cup-style");
+  if (estilos) wireStyleChooser(estilos, (s) => { pendingStyle = s; });
+  $("cup-confirm")?.addEventListener("click", (e) => { e.currentTarget.disabled = true; send({ t: "style", style: pendingStyle }); });
   $("cup-copy")?.addEventListener("click", async (e) => {
     const b = e.currentTarget;
     try { await navigator.clipboard.writeText(b.dataset.link); b.textContent = "✅ Link copiado!"; } catch { b.textContent = b.dataset.link; }

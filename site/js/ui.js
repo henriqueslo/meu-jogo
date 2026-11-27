@@ -2,9 +2,13 @@
  * REGRA DE OURO: todo texto dinâmico em HTML passa por esc(). */
 import { ROLES } from "./data.js";
 import {
-  newSeed, Draft, actionsToLog, resolveSquad, teamStrength, styleAdvice, STYLE_INFO,
+  newSeed, Draft, actionsToLog, resolveSquad, styleAdvice,
   sanitizeTeamName, createTournament, advance, tournamentMvp, summarize,
 } from "./engine.js";
+import {
+  SITE_URL, squadStrength, strengthHTML, styleCardHTML, ADVICE,
+  campaignStatusText, campaignPanelHTML, heroOutcome, journeyHTML,
+} from "./parts.js";
 import { shareResult } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
 import { esc, flagEmoji, slotHTML, draftSlotsHTML, offersHTML, lineupById } from "./render.js";
@@ -14,7 +18,6 @@ import { openCup, createCup } from "./cup.js";
 import { adoptActive, inRoomFlag, roomExists, resolveRoomKind } from "./net.js";
 import { loadActive, clearActive, kindLabel } from "./session.js";
 
-const SITE_URL = "https://minhalineup.com";
 const DEFAULT_STYLE = "tatico";           // já vem selecionado: o jogador só decide se quiser mudar
 const $ = (id) => document.getElementById(id);
 
@@ -136,47 +139,11 @@ function selectStyle(style) {
   });
 }
 
-/* ---- Contexto para escolher o estilo (C2): força do time e o que cada estilo faz ---- */
-const STYLE_NAME = { rush: "Rush", tatico: "Tático", aim: "Aim puro" };
-const STYLE_TEXT = {
-  rush: "Agressivo: ganha vantagem nos rounds, mas o jogo fica muito imprevisível — mais zebras, para os dois lados.",
-  tatico: "Consistente: o time mais forte costuma vencer. Quase nenhuma zebra.",
-  aim: "Equilibrado: um pequeno bônus nos duelos e imprevisibilidade moderada.",
-};
-const NIVEL = { acima: "Acima da média", media: "Na média", abaixo: "Abaixo da média" };
-const ADVICE = {
-  acima: "Seu time está acima da média: o Tático reduz o risco de zebra e deixa a força decidir.",
-  media: "Seu time está na média: o Aim puro dá um bônus pequeno sem muito risco.",
-  abaixo: "Seu time está abaixo da média: o Rush aumenta a imprevisibilidade e as chances de uma zebra.",
-};
-
-function squadStrength() {
-  const sum = Object.values(state.squad).reduce((s, p) => s + p.forca, 0);
-  return teamStrength(Math.round(sum / ROLES.length));    // mesma média que o motor usa
-}
-
-function strengthHTML(st) {
-  const pos = (v) => Math.max(0, Math.min(100, ((v - 60) / 40) * 100));     // escala 60–100
-  return `<section class="strength" role="region" aria-label="Força do time">
-    <div class="strength-row"><span class="strength-title">Força do time</span><span class="strength-num mono">${st.forca}</span></div>
-    <div class="strength-bar" aria-hidden="true"><span class="fill" style="width:${pos(st.forca)}%"></span><span class="avg" style="left:${pos(st.media)}%"></span></div>
-    <p class="strength-text"><b>${NIVEL[st.nivel]}</b> · média dos adversários ${st.media} · mais forte que ${st.percentil}% das lineups históricas</p>
-  </section>`;
-}
-
-/* Números vêm do motor (STYLE_INFO): o que a tela promete é o que a simulação faz. */
-function styleCardHTML(style, suggested) {
-  const { bias, variance } = STYLE_INFO[style];
-  const risco = variance === 0 ? 1 : variance <= 0.04 ? 2 : 3;
-  const rotulo = ["baixa", "média", "alta"][risco - 1];
-  const bonus = bias === 0 ? "sem bônus nos rounds" : `+${bias * 2}% por round`;
-  return `<b>${STYLE_NAME[style]}</b>${suggested ? '<span class="tag-sug">Sugerido</span>' : ""}<small>${STYLE_TEXT[style]}</small>
-    <span class="style-meta"><span class="risk" role="img" aria-label="Imprevisibilidade ${rotulo}">${"●".repeat(risco)}${"○".repeat(3 - risco)}</span><span>${bonus}</span></span>`;
-}
+/* Força do time, cartas de estilo e sugestão: site/js/parts.js (as mesmas telas do duelo e do campeonato). */
 
 function goToTeamScreen() {
   showScreen("screen-team");
-  const st = squadStrength(), sugerido = styleAdvice(st.nivel);
+  const st = squadStrength(state.squad), sugerido = styleAdvice(st.nivel);
   $("team-final").innerHTML = ROLES.map((r) => `<div class="slot filled">${slotHTML(r, state.squad[r])}</div>`).join("");
   $("team-strength").innerHTML = strengthHTML(st);
   document.querySelectorAll(".style-opt").forEach((o) => { o.innerHTML = styleCardHTML(o.dataset.style, o.dataset.style === sugerido); });
@@ -230,29 +197,14 @@ function advanceTournament() {
   return ev;
 }
 
-/* Uma frase sobre onde o jogador está agora (o que falta para classificar/eliminar, ou onde caiu). */
-function campaignStatus(t, you) {
-  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-  if (t.champion === you) return "🏆 Campeão do Major!";
-  if (t.eliminated.includes(you)) return "❌ Eliminado na Primeira Fase";
-  if (you.outAt) return you.outAt === "Final" ? "🥈 Vice-campeão" : `❌ Eliminado ${you.outAt === "Quartas" ? "nas quartas de final" : "na semifinal"}`;
-  if (t.qualified.includes(you)) {
-    const next = { qf: "quartas de final", sf: "semifinal", final: "grande final" }[t.phase];
-    return next ? `✅ Classificado · nos playoffs: ${next}` : "✅ Classificado para os playoffs";
-  }
-  return `Classifica com mais ${n(3 - you.wins, "vitória", "vitórias")} · elimina com mais ${n(3 - you.losses, "derrota", "derrotas")}`;
-}
-
+/* O painel e as frases da campanha são os mesmos do duelo e do campeonato (site/js/parts.js). */
 function campaignHTML() {
   const t = state.tournament, you = t.teams.find((x) => x.isUser);
-  const swiss = state.journey.filter((j) => j.phase === "swiss");
-  const track = swiss.map((j) => (j.won ? "🟩" : "🟥")).join("");
-  const spoken = swiss.map((j) => (j.won ? "vitória" : "derrota")).join(", ");
-  return `<section class="campaign" role="region" aria-label="Sua campanha">
-    <div class="campaign-row"><span class="campaign-title">Sua campanha</span><span class="campaign-record mono">${you.wins}-${you.losses}</span></div>
-    ${track ? `<div class="campaign-track" role="img" aria-label="Fase suíça: ${spoken}">${track}</div>` : ""}
-    <p class="campaign-status">${esc(campaignStatus(t, you))}</p>
-  </section>`;
+  const next = { qf: "quartas de final", sf: "semifinal", final: "grande final" }[t.phase];
+  return campaignPanelHTML({
+    record: `${you.wins}-${you.losses}`, journey: state.journey,
+    status: campaignStatusText({ champion: t.champion === you, eliminated: t.eliminated.includes(you), outAt: you.outAt, qualified: t.qualified.includes(you), next, wins: you.wins, losses: you.losses }),
+  });
 }
 
 /* A etapa: o jogo do jogador inteiro; os outros recolhidos (ou abertos, se ele nem jogou). */
@@ -377,23 +329,10 @@ function buildShareText(s) {
 }
 
 /* ------------------------- Resultado: a história do torneio ------------------------- */
-/* O herói diz o que aconteceu COM QUEM e o que faltou: é o momento de maior emoção do jogo. */
+/* O herói e a jornada vêm de site/js/parts.js (os mesmos do campeonato). */
 function heroFor(s, you) {
   const lost = [...state.journey].reverse().find((j) => !j.won);            // último jogo perdido
-  const who = lost ? `${lost.opponent} (${lost.score})` : "";
-  if (s.perfeito) return { cls: "gold", title: "💎 MAJOR PERFEITO", sub: `Campeão sem perder um único mapa. Fase suíça ${s.wins}-${s.losses}.` };
-  if (s.isChampion) return { cls: "gold", title: "🏆 CAMPEÃO DO MAJOR", sub: `Fase suíça ${s.wins}-${s.losses}${s.cleanPlayoffs ? " e invicto nos playoffs" : ""}. O troféu é seu.` };
-  if (you.outAt === "Final") return { cls: "silver", title: "🥈 Vice-campeão", sub: `Perdeu a grande final para ${who}. Faltou um jogo para o título.` };
-  if (you.outAt) return { cls: "", title: `Caiu ${you.outAt === "Quartas" ? "nas quartas de final" : "na semifinal"}`, sub: `Perdeu para ${who}. Chegar aos playoffs já é um bom time: tente outro estilo para ir além.` };
-  const falta = s.wins === 2 ? "Ficou a 1 vitória dos playoffs." : s.wins === 1 ? "Faltaram 2 vitórias para os playoffs." : "Nenhuma vitória na fase suíça desta vez. Tente outro estilo ou outro time.";
-  return { cls: "", title: "Eliminado na Primeira Fase", sub: `${s.wins}-${s.losses} no suíço. ${falta}${s.wins > 0 ? " Que tal tentar outro estilo?" : ""}` };
-}
-
-/* A jornada: um jogo por linha, em ordem (alimentada por recordJourney, na C3). */
-function journeyHTML() {
-  if (!state.journey.length) return "";
-  return `<div class="stage-label">Sua jornada</div><ol class="journey" aria-label="Sua jornada">${state.journey.map((j) =>
-    `<li class="${j.won ? "win" : "loss"}"><span class="j-stage">${esc(j.stage)}</span><span class="j-opp">${esc(j.opponent)}</span><b class="j-score mono">${esc(j.score)}</b><span class="j-res" aria-label="${j.won ? "Vitória" : "Derrota"}">${j.won ? "V" : "D"}</span></li>`).join("")}</ol>`;
+  return heroOutcome({ perfeito: s.perfeito, champion: s.isChampion, cleanPlayoffs: s.cleanPlayoffs, outAt: you.outAt, wins: s.wins, losses: s.losses, lost });
 }
 
 /* Convites no pico de engajamento — só quando os modos online existem e o nome é aceito nele. */
@@ -414,7 +353,7 @@ function renderResults() {
   const t = state.tournament, s = summarize(t), you = t.teams.find((x) => x.isUser);
   const hero = heroFor(s, you);
   let html = `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>`;
-  html += journeyHTML();
+  html += journeyHTML(state.journey);
   html += `<div class="stage-label">Sua lineup · força ${you.forca}</div><div class="slots">` +
     ROLES.map((r) => `<div class="slot filled">${slotHTML(r, state.squad[r], false)}</div>`).join("") + `</div>`;
   html += nextStepsHTML();

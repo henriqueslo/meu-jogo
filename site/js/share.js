@@ -62,7 +62,7 @@ export function drawShareCard(d){
   }
   c.textAlign = 'center';
   c.font = '600 24px Rajdhani, sans-serif'; c.fillStyle = DIM;
-  c.fillText(`PRIMEIRA FASE  ${d.wins}-${d.losses}`, W/2, sqY + 96);
+  c.fillText(`${d.rotulo || 'PRIMEIRA FASE'}  ${d.wins}-${d.losses}`, W/2, sqY + 96);
 
   // resultado
   const boxY = 848, boxH = 132;
@@ -101,10 +101,15 @@ export async function shareResult(btn, lastShareData, lastShareText){
   };
 
   try{
-    if(document.fonts && document.fonts.ready) await document.fonts.ready;
-    // sem dados da lineup em memória (ex: recarregou a página) -> compartilha só texto
-    const cv = lastShareData ? drawShareCard(lastShareData) : null;
-    const file = cv ? await canvasToFile(cv) : null;
+    // fonte lenta não pode travar o compartilhar: espera no máximo 1,5 s
+    if(document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r, 1500))]);
+    // sem dados da lineup em memória (ex: recarregou a página) -> compartilha só texto.
+    // Se o card falhar por qualquer motivo, o texto ainda é compartilhado.
+    let file = null;
+    try{
+      const cv = lastShareData ? drawShareCard(lastShareData) : null;
+      file = cv ? await canvasToFile(cv) : null;
+    }catch(_){ file = null; }
 
     // 1) share nativo com imagem
     if(file && navigator.canShare && navigator.canShare({files:[file]})){
