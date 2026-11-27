@@ -1,20 +1,25 @@
 /* Cliente do Duelo 1v1 (Fase 2). A tela é só um espelho do estado enviado pelo servidor:
- * o cliente manda INTENÇÕES (refresh/pick/style/rematch) e renderiza o que o servidor devolve. */
+ * o cliente manda INTENÇÕES (refresh/pick/style/rematch) e renderiza o que o servidor devolve.
+ * A experiência segue a do jogo solo (força e estilo com contexto, herói no resultado, compartilhar,
+ * barra de ações fixa): as peças compartilhadas estão em parts.js. Texto do rival é dado não confiável: sempre via esc(). */
 import { ROLES } from "./data.js";
 import { esc, slotHTML, offersHTML, lineupById, draftSlotsHTML } from "./render.js";
 import { connect, createRoom as createRoomOf, normalizeCode, validCode } from "./net.js";
+import { styleChooserHTML, squadLineHTML, wireStyleChooser, STYLE_NAME, duelShare } from "./parts.js";
+import { shareResult } from "./share.js";
 export { normalizeCode, validCode };
 
 const $ = (id) => document.getElementById(id);
-const STYLE_LABEL = { rush: "Rush", tatico: "Tático", aim: "Aim puro" };
+const DEFAULT_STYLE = "tatico";
 
 let conn = null, view = null, myCode = "", myName = "";
+let pendingStyle = DEFAULT_STYLE;          // o que está marcado na tela (só vai ao servidor ao confirmar)
 let onExit = () => {};
 
 export const createRoom = () => createRoomOf("rooms");
 
 export function openDuel({ code, name, exit }) {
-  myCode = normalizeCode(code); myName = name; onExit = exit; view = null;
+  myCode = normalizeCode(code); myName = name; onExit = exit; view = null; pendingStyle = DEFAULT_STYLE;
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   $("screen-duel").classList.add("active");
   render();
@@ -30,16 +35,18 @@ export function leaveDuel() {
 }
 
 /* ------------------------------ Render ------------------------------ */
+let lastRound = -1;
 function render() {
   const c = $("duel-content");
   if (!view) { c.innerHTML = `<div class="stage-label">Duelo · sala ${esc(myCode)}</div><p id="duel-status" style="color:var(--dim);">Conectando…</p><p id="duel-flash" style="color:var(--danger);"></p>${leaveBtn()}`; bind(); return; }
   const v = view, head = `<div class="stage-label">Duelo Bo${v.best_of} · sala <span class="mono">${esc(v.code)}</span> · rodada ${v.round + 1}</div>
     <p id="duel-flash" style="color:var(--danger); min-height:18px; margin:0 0 6px;"></p>`;
+  if (v.round !== lastRound) { lastRound = v.round; pendingStyle = DEFAULT_STYLE; }       // revanche: volta ao padrão
   let body = "";
-  if (v.phase === "waiting") body = waitingHTML(v);
+  if (v.phase === "waiting") body = waitingHTML(v) + leaveBtn();
   else if (v.phase === "draft") body = draftHTML(v);
   else body = resultHTML(v);
-  c.innerHTML = head + body + leaveBtn();
+  c.innerHTML = head + body;
   bind();
 }
 
@@ -65,32 +72,49 @@ function oppLine(v) {
 function draftHTML(v) {
   const y = v.you, filled = Object.keys(y.squad).length;
   const slots = draftSlotsHTML(y.squad);
-  let action;
+  const undo = y.canUndo ? `<button class="secondary" id="duel-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : "";
   if (!y.draftDone) {
     const n = y.refreshesLeft;
-    action = `<div class="progress">Escolha ${filled + 1} de 5</div>
+    return `<div class="slots draft-slots">${slots}</div>${undo}${oppLine(v)}<div class="progress">Escolha ${filled + 1} de 5</div>
       <button class="rollbtn primary" id="duel-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
-      <div id="duel-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>`;
-  } else if (!y.style) {
-    action = `<p style="color:var(--dim); font-size:13px;">Elenco pronto. Escolha o estilo de jogo (não dá para trocar depois):</p>
-      <div class="style-opts">${["rush", "tatico", "aim"].map((s) => `<div class="style-opt" data-duel-style="${s}" role="button" tabindex="0"><b>${STYLE_LABEL[s]}</b></div>`).join("")}</div>`;
-  } else {
-    action = `<p style="color:var(--dim);">Estilo <b>${esc(STYLE_LABEL[y.style])}</b> escolhido. Aguardando o rival terminar…</p>`;
+      <div id="duel-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>${leaveBtn()}`;
   }
-  return `<div class="slots draft-slots">${slots}</div>${y.canUndo ? `<button class="secondary" id="duel-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : ""}${oppLine(v)}${action}`;
+  if (!y.style) {
+    return `${squadLineHTML(y.squad)}<div id="duel-style">${styleChooserHTML(y.squad, pendingStyle)}</div>${undo}${oppLine(v)}
+      <div class="action-bar"><button class="primary" id="duel-confirm" type="button">Confirmar estilo →</button>${leaveBtn()}</div>`;
+  }
+  return `${squadLineHTML(y.squad)}${oppLine(v)}
+    <p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando o rival terminar…</p>${leaveBtn()}`;
+}
+
+/* Lineup do jogador e dados de compartilhamento a partir do resultado do servidor. */
+function shareOf(v) {
+  const r = v.result, mineIsA = v.you.slot === 0, mine = mineIsA ? r.a : r.b, other = mineIsA ? r.b : r.a;
+  const won = r.winner === (mineIsA ? "A" : "B");
+  return duelShare({
+    won, team: mine.name, rival: other.name, mine: mineIsA ? r.winsA : r.winsB, other: mineIsA ? r.winsB : r.winsA, bestOf: v.best_of,
+    lineup: ROLES.map((ro) => ({ papel: ro, nick: mine.squad[ro].nick })),
+  });
 }
 
 function resultHTML(v) {
-  const r = v.result, mine = v.you.slot === 0 ? "A" : "B", won = r.winner === mine;
-  const side = (k, s) => `<div class="card"><b>${esc(s.name)}</b> <span style="color:var(--dim); font-size:12px;">· ${esc(STYLE_LABEL[s.style])} · força ${r.forca[k]}</span>
+  const r = v.result, mineIsA = v.you.slot === 0, mine = mineIsA ? r.a : r.b, other = mineIsA ? r.b : r.a;
+  const won = r.winner === (mineIsA ? "A" : "B"), mi = mineIsA ? r.winsA : r.winsB, ou = mineIsA ? r.winsB : r.winsA;
+  const hero = won
+    ? { cls: "gold", title: "🏆 VITÓRIA", sub: `Você venceu ${other.name} por ${mi}×${ou} (melhor de ${v.best_of}).` }
+    : { cls: "", title: "Derrota", sub: `Perdeu para ${other.name} por ${mi}×${ou}. Que tal pedir a revanche e tentar outro estilo?` };
+  const side = (k, s) => `<div class="card"><b>${esc(s.name)}</b> <span style="color:var(--dim); font-size:12px;">· ${esc(STYLE_NAME[s.style])} · força ${r.forca[k]}</span>
       <div class="slots" style="margin:8px 0 0;">${ROLES.map((ro) => `<div class="slot filled">${slotHTML(ro, s.squad[ro], false)}</div>`).join("")}</div></div>`;
   const maps = r.maps.map((m) => `<div class="maprow"><span>${esc(m.map)}${m.ot ? ` <span style="color:var(--t);">· PRORROGAÇÃO</span>` : ""}</span><span>${m.a} - ${m.b}</span></div>`).join("");
   const o = v.opp;
-  return `<div class="${won ? "achievement" : "card"}" style="text-align:center;"><h2 style="margin:0;">${won ? "🏆 VITÓRIA" : "Derrota"}</h2>
-      <p style="margin:4px 0;">${esc(r.a.name)} <b class="mono">${r.winsA} × ${r.winsB}</b> ${esc(r.b.name)}</p></div>
-    ${maps}${side("A", r.a)}${side("B", r.b)}
-    <button class="primary" id="duel-rematch" type="button" ${v.you.rematch ? "disabled" : ""}>${v.you.rematch ? "Aguardando o rival…" : "🔁 Revanche"}</button>
-    ${o && o.rematch ? '<p style="color:var(--dim); font-size:13px;">O rival quer revanche!</p>' : ""}`;
+  return `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>
+    <div class="stage-label">Mapas</div>${maps}${side("A", r.a)}${side("B", r.b)}
+    ${o && o.rematch ? '<p style="color:var(--dim); font-size:13px;">O rival quer revanche!</p>' : ""}
+    <div class="action-bar">
+      <button class="primary" id="duel-share" type="button">📤 Compartilhar</button>
+      <button class="secondary" id="duel-rematch" type="button" ${v.you.rematch ? "disabled" : ""}>${v.you.rematch ? "Aguardando o rival…" : "🔁 Revanche"}</button>
+      ${leaveBtn()}
+    </div>`;
 }
 
 function bind() {
@@ -98,15 +122,14 @@ function bind() {
   $("duel-undo")?.addEventListener("click", () => send({ t: "undo" }));
   $("duel-refresh")?.addEventListener("click", () => send({ t: "refresh" }));
   $("duel-rematch")?.addEventListener("click", () => send({ t: "rematch" }));
+  $("duel-share")?.addEventListener("click", (e) => { const s = shareOf(view); shareResult(e.currentTarget, s.data, s.text); });
   $("duel-offers")?.addEventListener("click", (e) => {
     const chip = e.target.closest(".player-chip");
     if (chip && !chip.disabled) send({ t: "pick", lineupId: chip.dataset.lineup, nick: chip.dataset.nick });
   });
-  document.querySelectorAll("[data-duel-style]").forEach((el) => {
-    const go = () => send({ t: "style", style: el.dataset.duelStyle });
-    el.addEventListener("click", go);
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
-  });
+  const estilos = $("duel-style");
+  if (estilos) wireStyleChooser(estilos, (s) => { pendingStyle = s; });
+  $("duel-confirm")?.addEventListener("click", (e) => { e.currentTarget.disabled = true; send({ t: "style", style: pendingStyle }); });
   $("duel-copy")?.addEventListener("click", async (e) => {
     const b = e.currentTarget;
     try { await navigator.clipboard.writeText(b.dataset.link); b.textContent = "✅ Link copiado!"; } catch { b.textContent = b.dataset.link; }

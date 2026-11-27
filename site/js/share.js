@@ -62,7 +62,7 @@ export function drawShareCard(d){
   }
   c.textAlign = 'center';
   c.font = '600 24px Rajdhani, sans-serif'; c.fillStyle = DIM;
-  c.fillText(`PRIMEIRA FASE  ${d.wins}-${d.losses}`, W/2, sqY + 96);
+  c.fillText(`${d.rotulo || 'PRIMEIRA FASE'}  ${d.wins}-${d.losses}`, W/2, sqY + 96);
 
   // resultado
   const boxY = 848, boxH = 132;

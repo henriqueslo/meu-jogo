@@ -503,6 +503,11 @@ button.player-chip:disabled{cursor:not-allowed;}
 .invite-code .mono{color:var(--text); font-weight:700; letter-spacing:3px;}
 .invite-label{color:var(--dim); font-size:13px; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:1.2px; font-weight:600;}
 #invite-gone{background:var(--panel); padding:12px 14px; color:var(--dim); font-size:14.5px; line-height:1.5;}
+.squad-line{
+  display:flex; flex-wrap:wrap; gap:4px 14px; margin:0 0 12px; padding:10px 12px;
+  background:var(--panel); font-size:13px; color:var(--dim); line-height:1.4;
+}
+.squad-line b{color:var(--text); font-weight:600; margin-right:3px;}
 .rules-more{margin-top:6px;}
 .rules-more summary{
   cursor:pointer; min-height:48px; display:flex; align-items:center;
