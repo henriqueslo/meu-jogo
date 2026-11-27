@@ -3,7 +3,7 @@ export class GamePage {
   constructor(page) {
     this.page = page;
     this.nameInput = page.getByLabel(/Nome do seu time/);
-    this.begin = page.getByRole("button", { name: /Montar minha lineup/ });
+    this.begin = page.getByRole("button", { name: /^Jogar · montar minha lineup/ });
     this.next = page.getByRole("button", { name: /→/ });                  // “Próxima rodada →”, “Semifinal →”…
     this.offers = page.locator("#lineup-offers button:not([disabled])");  // jogadores escolhíveis do draft
     this.undo = page.getByRole("button", { name: /Desfazer última escolha/ });

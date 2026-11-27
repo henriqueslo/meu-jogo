@@ -81,6 +81,15 @@ $("btn-undo-team").addEventListener("click", undoPick);
 /* ------------------------------ Início ------------------------------ */
 const nameInput = $("team-name-input");
 
+/* O nome já vem preenchido (o último usado, ou "Meu Time"), para o primeiro toque em Jogar funcionar. */
+const NAME_KEY = "ml_name", DEFAULT_NAME = "Meu Time";
+function loadName() {
+  try { const v = sanitizeTeamName(localStorage.getItem(NAME_KEY) || ""); return v.length >= 2 ? v : DEFAULT_NAME; } catch { return DEFAULT_NAME; }
+}
+function saveName(name) { try { localStorage.setItem(NAME_KEY, name); } catch { /* sem storage: só não lembra */ } }
+nameInput.value = loadName();
+nameInput.addEventListener("focus", () => nameInput.select());      // tocar no campo e digitar já troca a sugestão
+
 /* Os botões nunca ficam "mortos": clicar sem nome explica e leva o foco ao campo. */
 function showNameError(msg) { $("name-error").textContent = msg; nameInput.focus(); }
 
@@ -88,6 +97,7 @@ function requireName({ online }) {
   const clean = sanitizeTeamName(nameInput.value);
   if (clean.length < 2) { showNameError("Dê um nome ao seu time para começar (2 a 24 caracteres: letras, números, espaço . _ -)."); return null; }
   if (online && !moderateName(clean).ok) { showNameError(NAME_BLOCKED_MESSAGE + " (O jogo livre aceita qualquer nome.)"); return null; }
+  saveName(clean);
   return clean;
 }
 

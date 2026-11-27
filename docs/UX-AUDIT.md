@@ -84,3 +84,10 @@ O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs fic
 - **Cada estilo em linguagem simples**, com os números reais do motor (`STYLE_INFO`): bônus por round (Rush +2%, Aim +1%, Tático sem bônus) e imprevisibilidade (baixa/média/alta, lida por leitor de tela).
 - **Sugestão com motivo:** time forte → Tático (menos zebra); fraco → Rush (a variância ajuda); médio → Aim. Uma só etiqueta “Sugerido” e uma frase explicando. **O padrão continua Tático**: sugerir não escolhe pelo jogador.
 - **Testes:** `e2e/style.spec.js` (7 cenários, escritos antes) e `test/strength.test.js` (5), com `SEEDS.forca` para cada nível, guardadas por `test/seeds.test.js`. O motor não mudou: os resultados das simulações são os mesmos de antes.
+
+### Fase C1 — tela inicial enxuta (U-06) ✅
+- **Primeiro toque já joga:** o nome vem preenchido (o último usado, ou “Meu Time”), com a nota “Sugestão de nome: troque se quiser”. Tocar no campo seleciona o texto, então digitar já troca. Apagar o nome continua explicando o que fazer (nada de botão morto).
+- **Ordem clara:** **Jogar · montar minha lineup** (única ação primária) → **Desafio do dia** (destaque dourado, só com a API no ar) → **Jogar com amigos** (duelo, campeonato, código). Os dois primeiros cabem na primeira tela do celular.
+- **Como jogar em 3 passos** (montar 5 jogadores, escolher o estilo, disputar o Major); as **regras completas** ficam recolhidas em “Ver as regras completas”. Sem os modos online, a página inteira tem menos de 1100 px de altura (eram ~2500 px).
+- **Privacidade:** o último nome fica só no navegador (`ml_name`, localStorage); a política (`site/privacidade.html`) e a checklist foram atualizadas, e o teste de consistência `ml_*` cobre a chave.
+- **Testes:** `e2e/start.spec.js` (9 cenários, escritos antes); `flow.spec.js` ajustado para apagar o nome sugerido antes de testar o erro.
