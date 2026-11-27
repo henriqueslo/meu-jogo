@@ -11,6 +11,22 @@ const compartilhar = (page) => page.getByRole("button", { name: /Compartilhar/ }
 const estilo = (page, nome) => page.getByRole("radio", { name: nome });
 const compartilhado = (page) => page.evaluate(() => window.__shared);
 
+/* Espera o texto compartilhado; se não vier, a falha diz o que o botão mostra e quais erros a página teve. */
+async function textoCompartilhado(page) {
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(e.message));
+  page.on("console", (m) => { if (m.type() === "error") erros.push(m.text()); });
+  await compartilhar(page).click();
+  try {
+    await expect.poll(() => compartilhado(page), { timeout: 10000 }).not.toBeNull();
+  } catch (e) {
+    throw new Error(`${e.message}
+rótulo do botão: ${JSON.stringify(await compartilhar(page).innerText().catch(() => "?"))}
+erros da página: ${JSON.stringify(erros)}`);
+  }
+  return compartilhado(page);
+}
+
 /* O botão fixo não pode aparecer antes das opções: a 1ª carta de estilo tem de caber inteira acima da barra, sem rolar. */
 async function cartaAcimaDaBarra(page, nome) {
   const carta = await estilo(page, nome).boundingBox();
@@ -75,9 +91,7 @@ test.describe("duelo 1×1", () => {
 
   test("compartilhar o duelo: texto com o resultado, o rival e o endereço do jogo", async ({ page }) => {
     await abrirSala(page, { view: duelo({ won: true }) });
-    await compartilhar(page).click();
-    await expect.poll(() => compartilhado(page)).not.toBeNull();
-    const { text } = await compartilhado(page);
+    const { text } = await textoCompartilhado(page);
     expect(text).toMatch(/Rival FC/);
     expect(text).toMatch(/2×1|2-1/);
     expect(text).toMatch(/Jog1/);                                                         // a lineup vai junto
@@ -190,9 +204,7 @@ test.describe("campeonato", () => {
     await abrirSala(page, { kind: "cups", view: campeonato({
       phase: "done", script: ["V", "V", "V", "qf:V", "sf:V", "final:V"], status: "champion", wins: 3, losses: 0,
     }) });
-    await compartilhar(page).click();
-    await expect.poll(() => compartilhado(page)).not.toBeNull();
-    const { text } = await compartilhado(page);
+    const { text } = await textoCompartilhado(page);
     expect(text).toMatch(/campeonato/i);
     expect(text).toMatch(/Meu Time/);
     expect(text).toMatch(/Jog1/);

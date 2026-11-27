@@ -85,8 +85,9 @@ export function campeonato({ phase = "running", script = ["V"], status = "active
 export async function abrirSala(page, { kind = "rooms", view, enviadas = [] }) {
   await page.addInitScript(() => {                           // captura o compartilhamento (sem abrir a folha do sistema)
     window.__shared = null;
-    navigator.canShare = () => false;
-    navigator.share = async (d) => { window.__shared = d; };
+    const definir = (nome, valor) => Object.defineProperty(navigator, nome, { value: valor, configurable: true, writable: true });   // vale mesmo se o navegador já tiver (ou não) a API
+    definir("canShare", () => false);
+    definir("share", async (d) => { window.__shared = d; });
   });
   await page.route(`**/api/v1/${kind}/ABC234`, (r) => r.fulfill({ json: { exists: true } }));
   await page.routeWebSocket(new RegExp(`/api/v1/${kind}/ABC234/ws`), (ws) => {
