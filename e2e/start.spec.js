@@ -11,32 +11,39 @@ const desafio = (page) => page.getByRole("button", { name: /Desafio do dia/ });
 const amigos = (page) => page.getByText("Jogar com amigos", { exact: true });
 const regras = (page) => page.getByText(/prorrogação/);
 
-/* ----------------------------- primeiro toque ----------------------------- */
-test("o nome já vem sugerido: um toque em Jogar abre o draft, sem digitar nada", async ({ page }) => {
+/* ----------------------------- nome: a pessoa escolhe (sem nome padrão) ----------------------------- */
+test("o campo de nome começa vazio e explica que é a pessoa quem escolhe", async ({ page }) => {
   const game = new GamePage(page);
   await game.open();
-  await expect(game.nameInput).not.toHaveValue("");
-  await jogar(page).click();
-  await expect(page.getByText(/Escolha 1 de 5/)).toBeVisible();
+  await expect(game.nameInput).toHaveValue("");
+  await expect(page.getByText(/escolha um nome/i).first()).toBeVisible();
 });
 
-test("o nome sugerido é editável e o campo diz que é uma sugestão", async ({ page }) => {
+test("sem nome o jogo não começa: explica, leva o foco ao campo e não abre o draft", async ({ page }) => {
   const game = new GamePage(page);
   await game.open();
-  await expect(page.getByText(/sugest/i).first()).toBeVisible();
-  await game.nameInput.fill("Falcons BR");
-  await jogar(page).click();
-  await expect(page.getByText(/Escolha 1 de 5/)).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("ml_name"))).toBe("Falcons BR");   // o nome editado é o que vale
-});
-
-test("apagar o nome continua explicando o que fazer (não fica botão morto)", async ({ page }) => {
-  const game = new GamePage(page);
-  await game.open();
-  await game.nameInput.fill("");
   await jogar(page).click();
   await expect(page.getByRole("alert").filter({ hasText: /nome/i })).toBeVisible();
   await expect(game.nameInput).toBeFocused();
+  await expect(page.getByText(/Escolha 1 de 5/)).toBeHidden();
+});
+
+test("nome só com espaços ou símbolos também trava", async ({ page }) => {
+  const game = new GamePage(page);
+  await game.open();
+  await game.nameInput.fill("   @@@  ");
+  await jogar(page).click();
+  await expect(page.getByRole("alert").filter({ hasText: /nome/i })).toBeVisible();
+  await expect(page.getByText(/Escolha 1 de 5/)).toBeHidden();
+});
+
+test("com o nome escolhido, um toque em Jogar abre o draft", async ({ page }) => {
+  const game = new GamePage(page);
+  await game.open();
+  await game.nameInput.fill("Falcons BR");
+  await jogar(page).click();
+  await expect(page.getByText(/Escolha 1 de 5/)).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("ml_name"))).toBe("Falcons BR");
 });
 
 test("o último nome usado volta na próxima visita", async ({ page }) => {
