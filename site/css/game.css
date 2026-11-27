@@ -565,3 +565,41 @@ button.player-chip:disabled{cursor:not-allowed;}
   .action-bar > .primary{flex:0 1 380px;}
   .action-bar > .secondary{flex:0 1 240px;}
 }
+
+/* ============ Fase D2: duelo e campeonato aproveitam a largura (≥1024px) ============
+ * Os contêineres (draft-layout, duel-result, cup-run, cup-done) são blocos comuns no celular: a ordem de leitura não muda. */
+@media (min-width:1024px){
+  #screen-duel.active, #screen-cup.active{max-width:none;}
+  /* salas de espera: cards estreitos e centrados */
+  #duel-content[data-phase="waiting"], #duel-content[data-phase="conectando"],
+  #cup-content[data-phase="lobby"], #cup-content[data-phase="conectando"]{max-width:560px; margin-inline:auto;}
+  .draft-side .squad-line{flex-direction:column; gap:6px;}
+
+  /* Duelo, resultado: herói em largura total, as duas lineups lado a lado, mapas embaixo */
+  .duel-result{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px 24px; align-items:start;}
+  .duel-result > .result-hero{grid-column:1 / -1; grid-row:1;}
+  .duel-result > .dr-side{grid-row:2;}
+  .duel-result > .dr-maps{grid-column:1 / -1; grid-row:3; width:100%; max-width:560px; justify-self:center;}
+
+  /* Campeonato, rodada: campanha e classificação na lateral, os jogos ao lado */
+  .cup-run{display:grid; grid-template-columns:340px minmax(0,1fr); column-gap:28px; align-items:start;}
+  .cup-run > .cr-title{grid-column:1 / -1;}
+  .cup-run > .cr-camp{grid-column:1; grid-row:2 / span 2; position:sticky; top:16px;}
+  .cup-run > .cr-round{grid-column:2; grid-row:2;}
+  .cup-run > .cr-stand{grid-column:2; grid-row:3;}
+  .cr-camp:empty{display:none;}
+  .cr-camp .campaign{margin:0;}
+
+  /* Campeonato, resultado: herói em largura total; jornada de um lado, campeão e MVP do outro */
+  .cup-done{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:32px; align-items:start;
+    grid-template-rows:auto auto 1fr auto;                       /* o espaço extra da jornada (alta) fica na linha do MVP, não entre campeão e MVP */
+    grid-template-areas:"hero hero" "journey champion" "journey mvp" "humans stand";}
+  .cup-done > .result-hero{grid-area:hero;}
+  .cd-journey{grid-area:journey;} .cd-champion{grid-area:champion;} .cd-mvp{grid-area:mvp;}
+  .cd-humans{grid-area:humans;} .cd-stand{grid-area:stand;}
+}
+/* telas largas: a classificação de 16 times em duas colunas, para a rodada caber numa tela */
+@media (min-width:1200px){
+  .cr-stand .card{column-count:2; column-gap:28px;}
+  .cr-stand .card .row{break-inside:avoid;}
+}

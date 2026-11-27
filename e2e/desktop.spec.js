@@ -1,10 +1,9 @@
-/* Fase D1 (docs/UX-AUDIT.md): o desktop aproveita a largura. Em telas largas (≥1024px) o conteúdo deixa de ser uma
+/* Fase D1 (docs/UX-AUDIT.md): o desktop aproveita a largura (duelo e campeonato: ver desktop-mp.spec.js). Em telas largas (≥1024px) o conteúdo deixa de ser uma
  * única coluna de 640px: início em 2 colunas, draft com o elenco ao lado, campanha ao lado dos jogos, resultado em 2
  * colunas. O celular não muda (coberto pelos outros specs). */
 import { test, expect } from "@playwright/test";
 import { GamePage } from "./pages/game.js";
 import { SEEDS } from "./seeds.js";
-import { abrirSala, duelo } from "./mp.js";
 
 const box = async (loc) => { const b = await loc.first().boundingBox(); if (!b) throw new Error("elemento sem caixa (invisível?)"); return { ...b, right: b.x + b.width, bottom: b.y + b.height }; };
 const medir = (page) => page.evaluate(() => {
@@ -125,13 +124,6 @@ for (const viewport of [{ width: 1024, height: 768 }, { width: 1280, height: 800
         expect.soft(m.small, `${nome}: alvos pequenos`).toEqual([]);
         expect.soft(m.tiny, `${nome}: texto pequeno`).toEqual([]);
       }
-    });
-
-    test("duelo: continua numa coluna centrada (não estica 1000px)", async ({ page }) => {
-      await abrirSala(page, { view: duelo({ won: true }) });
-      const c = await box(page.locator("#duel-content"));
-      expect(c.width).toBeLessThanOrEqual(720);
-      expect(Math.abs(c.x + c.width / 2 - viewport.width / 2)).toBeLessThan(10);
     });
   });
 }

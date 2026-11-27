@@ -41,6 +41,7 @@ const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">S
 /* ------------------------------ Render ------------------------------ */
 function render() {
   const c = $("cup-content");
+  c.dataset.phase = view ? view.phase : "conectando";
   const head = `<div class="stage-label">Campeonato · sala <span class="mono">${esc(view?.code ?? myCode)}</span></div>
     <p style="color:var(--danger); min-height:18px; margin:0 0 6px;">${esc(notice)}</p>`;
   let body = `<p style="color:var(--dim);">Conectando…</p>${leaveBtn()}`;
@@ -78,18 +79,21 @@ function draftHTML(v) {
     ? `<button class="secondary" id="cup-force" type="button">⏩ Completar automaticamente quem faltar</button>
        <p style="color:var(--dim); font-size:12px;">${y.host ? "Você é o dono." : "O dono está offline: você pode seguir sem ele."} Jogadores incompletos recebem elenco automático e estilo Tático.</p>` : "";
   const undo = y.canUndo ? `<button class="secondary" id="cup-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : "";
-  const base = `<div class="slots draft-slots">${slots}</div>${undo}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}`;
+  const jogadores = `<div class="stage-label">Jogadores</div>${playersHTML(v, true)}`;
   if (!y.draftDone) {
     const n = y.refreshesLeft;
-    return `${base}<div class="progress">Escolha ${filled + 1} de 5</div>
+    return `<div class="draft-layout"><aside class="draft-side"><div class="slots draft-slots">${slots}</div>${undo}${jogadores}</aside>
+      <div class="draft-main"><div class="progress">Escolha ${filled + 1} de 5</div>
       <button class="rollbtn primary" id="cup-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
-      <div id="cup-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>${force}${leaveBtn()}`;
+      <div id="cup-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>${force}${leaveBtn()}</div></div>`;
   }
   if (!y.style) {
-    return `${squadLineHTML(y.squad)}<div id="cup-style">${styleChooserHTML(y.squad, pendingStyle)}</div>${undo}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}${force}
+    return `<div class="draft-layout"><aside class="draft-side">${squadLineHTML(y.squad)}</aside>
+      <div class="draft-main"><div id="cup-style">${styleChooserHTML(y.squad, pendingStyle)}</div>${undo}${jogadores}${force}</div></div>
       <div class="action-bar"><button class="primary" id="cup-confirm" type="button">Confirmar estilo →</button>${leaveBtn()}</div>`;
   }
-  return `${squadLineHTML(y.squad)}<div class="stage-label">Jogadores</div>${playersHTML(v, true)}<p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando os outros jogadores…</p>${force}${leaveBtn()}`;
+  return `<div class="draft-layout"><aside class="draft-side">${squadLineHTML(y.squad)}${jogadores}</aside>
+    <div class="draft-main"><p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando os outros jogadores…</p>${force}${leaveBtn()}</div></div>`;
 }
 
 const rec = (t) => `${t.wins}-${t.losses}`;
@@ -135,20 +139,21 @@ function roundHTML(v, ev) {
     (others.length ? `<details class="others"${mine.length ? "" : " open"}><summary>${label}</summary><ul>${others.map(row).join("")}</ul></details>` : "");
 }
 
-function eventHTML(v) {
+/* A etapa em três partes (título, campanha, jogos): a grade do desktop põe a campanha na lateral. */
+function eventParts(v) {
   const ev = v.events.at(-1);
-  if (!ev) return `<p style="color:var(--dim);">Tudo pronto. Clique em avançar para jogar a 1ª rodada.</p>`;
-  const title = ev.type === "swiss" ? `Primeira Fase · rodada ${ev.round}` : EVENT_TITLE[ev.type];
+  if (!ev) return { title: "", camp: "", round: `<p style="color:var(--dim);">Tudo pronto. Clique em avançar para jogar a 1ª rodada.</p>` };
+  const title = `<div class="stage-label">${ev.type === "swiss" ? `Primeira Fase · rodada ${ev.round}` : EVENT_TITLE[ev.type]}</div>`;
   if (ev.type === "seed") {
-    return `<div class="stage-label">${title}</div>${campaignHTML(v)}` + ev.seeds.map((t, i) => `<div class="bracket-match"><span>#${i + 1} seed</span><span class="${t.human === v.you.slot ? "you" : ""}">${t.human !== null ? "★ " : ""}${esc(t.name)} (força ${t.forca})</span></div>`).join("");
+    return { title, camp: campaignHTML(v), round: ev.seeds.map((t, i) => `<div class="bracket-match"><span>#${i + 1} seed</span><span class="${t.human === v.you.slot ? "you" : ""}">${t.human !== null ? "★ " : ""}${esc(t.name)} (força ${t.forca})</span></div>`).join("") };
   }
-  return `<div class="stage-label">${title}</div>${campaignHTML(v)}${roundHTML(v, ev)}`;
+  return { title, camp: campaignHTML(v), round: roundHTML(v, ev) };
 }
 
 function runningHTML(v) {
-  const ctrl = v.you.canControl;
-  return `${eventHTML(v)}
-    <div class="stage-label">Classificação</div>${standingsHTML(v)}
+  const ctrl = v.you.canControl, p = eventParts(v);
+  return `<div class="cup-run"><div class="cr-title">${p.title}</div><div class="cr-camp">${p.camp}</div><div class="cr-round">${p.round}</div>
+    <div class="cr-stand"><div class="stage-label">Classificação</div>${standingsHTML(v)}</div></div>
     ${ctrl ? (v.you.host ? "" : '<p style="color:var(--dim); font-size:12px;">O dono está offline: você pode avançar.</p>')
       : `<p style="color:var(--dim); font-size:13px;">O dono avança as etapas. Aguardando…</p>`}
     <div class="action-bar">${ctrl ? `<button class="primary" id="cup-advance" type="button">Próxima etapa ▶</button>` : ""}${leaveBtn()}</div>`;
@@ -179,13 +184,13 @@ function doneHTML(v) {
   const { r, me, journey, lost, cleanPlayoffs, champion } = summaryOf(v);
   const hero = heroOutcome({ perfeito: !!me.perfeito, champion, cleanPlayoffs, outAt: outAtOf(me.status), wins: me.wins, losses: me.losses, lost });
   const mvp = r.mvp ? `<div class="stage-label">MVP do campeonato</div><div class="card row"><b>${esc(r.mvp.nick)}</b><span class="mono">${r.mvp.kills}/${r.mvp.deaths} · ${esc(r.mvp.team)}</span></div>` : "";
-  return `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>
-    ${journeyHTML(journey)}
-    <div class="stage-label">Campeão</div><div class="card row"><b>${esc(r.champion.name)}</b><span style="color:var(--dim);">força ${r.champion.forca}</span></div>
-    <div class="stage-label">Jogadores humanos</div>
+  return `<div class="cup-done"><section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>
+    <div class="cd-journey">${journeyHTML(journey)}</div>
+    <div class="cd-champion"><div class="stage-label">Campeão</div><div class="card row"><b>${esc(r.champion.name)}</b><span style="color:var(--dim);">força ${r.champion.forca}</span></div></div>
+    <div class="cd-humans"><div class="stage-label">Jogadores humanos</div>
     ${r.humans.map((h) => `<div class="card" style="padding:8px 12px;"><div class="row"><b>${esc(h.name)}${h.slot === v.you.slot ? " (você)" : ""}</b><span style="color:var(--dim); font-size:12px;">${h.wins}-${h.losses} · ${esc(STATUS[h.status] ?? "")}</span></div>
-      <div style="color:var(--dim); font-size:12px;">${ROLES.map((ro) => `${ro}: ${esc(h.squad[ro])}`).join(" · ")}</div></div>`).join("")}
-    ${mvp}<div class="stage-label">Classificação final</div>${standingsHTML(v)}
+      <div style="color:var(--dim); font-size:12px;">${ROLES.map((ro) => `${ro}: ${esc(h.squad[ro])}`).join(" · ")}</div></div>`).join("")}</div>
+    <div class="cd-mvp">${mvp}</div><div class="cd-stand"><div class="stage-label">Classificação final</div>${standingsHTML(v)}</div></div>
     <div class="action-bar"><button class="primary" id="cup-share" type="button">📤 Compartilhar</button>${leaveBtn()}</div>`;
 }
 

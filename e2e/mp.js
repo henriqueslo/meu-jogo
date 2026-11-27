@@ -1,19 +1,24 @@
 /* Servidor de mentira para o duelo e o campeonato: o Playwright entra na sala pelo link de convite
  * e o WebSocket responde com o estado que o teste quer ver (o cliente é só um espelho do servidor). */
+import { LINEUPS } from "../site/js/data.js";
 export const ROLES = ["AWP", "IGL", "Entry", "Support", "Rifler"];
+export const OFFERS = LINEUPS.slice(0, 3).map((l) => l.id);          // 3 lineups reais para o draft aparecer
 
 export const elenco = (forca, prefixo = "Jog") =>
   Object.fromEntries(ROLES.map((r, i) => [r, { nick: `${prefixo}${i + 1}`, pais: "br", forca, team: "Time X", lineupId: `L${i}` }]));
 
+/* Elenco com só os primeiros `n` papéis preenchidos (draft em andamento). */
+export const parcial = (forca, n, prefixo = "Jog") => Object.fromEntries(Object.entries(elenco(forca, prefixo)).slice(0, n));
+
 /* ------------------------------ duelo ------------------------------ */
-export function duelo({ phase = "done", won = true, style = "tatico", forca = 90, draftDone = true, rematch = false } = {}) {
+export function duelo({ phase = "done", won = true, style = "tatico", forca = 90, draftDone = true, rematch = false, picks = 5 } = {}) {
   const lado = (nome, f, est, pref) => ({
     name: nome, style: est,
     squad: Object.fromEntries(ROLES.map((r, i) => [r, { nick: `${pref}${i + 1}`, pais: "br", team: "Time X", forca: f }])),
   });
   const base = {
     v: 1, phase, code: "ABC234", round: 0, best_of: 3,
-    you: { slot: 0, name: "Meu Time", offers: [], refreshesLeft: 0, squad: elenco(forca), draftDone, canUndo: false, style: phase === "done" ? style : null, rematch },
+    you: { slot: 0, name: "Meu Time", offers: phase === "draft" && !draftDone ? OFFERS : [], refreshesLeft: 3, squad: parcial(forca, picks), draftDone, canUndo: false, style: phase === "done" ? style : null, rematch },
     opp: { name: "Rival FC", connected: true, picks: 5, styleChosen: phase === "done", rematch: false },
     result: null,
   };
@@ -58,11 +63,11 @@ export function eventos(script) {
 }
 
 export function campeonato({ phase = "running", script = ["V"], status = "active", wins = 1, losses = 0, perfeito = false,
-  champion = null, host = true, forca = 90, style = null, draftDone = true } = {}) {
+  champion = null, host = true, forca = 90, style = null, draftDone = true, picks = 5 } = {}) {
   const teams = [{ ...eu, wins, losses, status }, { ...rival, wins: 0, losses: 1, status: "active" }, ...Array.from({ length: 14 }, (_, i) => ({ ...bot(i + 1), wins: 0, losses: 0, status: "active" }))];
   const v = {
     v: 1, kind: "cup", phase, code: "ABC234", max_players: 8, min_players: 2,
-    you: { slot: 0, name: "Meu Time", host, canControl: host, offers: [], refreshesLeft: 0, squad: elenco(forca), draftDone, canUndo: false, style },
+    you: { slot: 0, name: "Meu Time", host, canControl: host, offers: phase === "draft" && !draftDone ? OFFERS : [], refreshesLeft: 3, squad: parcial(forca, picks), draftDone, canUndo: false, style },
     players: [{ name: "Meu Time", host: true, connected: true, picks: 5, ready: true }, { name: "Rival FC", host: false, connected: true, picks: 5, ready: true }],
     teams: null, events: [], result: null,
   };

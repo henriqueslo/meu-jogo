@@ -44,7 +44,7 @@ Data: 26/11/2026 · Método: fluxo completo percorrido no navegador (celular 375
 1. ✅ **Fase A — consertar** (U-01…U-04, e U-09 em parte): **feita.** Sem rolagem lateral de 320 a 414 px, alvos de 48 px, texto mínimo de 12 px; elenco em linhas legíveis e o draft mostra só o que falta (“Faltam: AWP · IGL…”) em vez de 5 vagas vazias.
 2. ✅ **Fase B — fluxo** (U-02, U-05, U-07, U-08, U-09, U-12): **feita.** Barra de ação fixa (“Próxima rodada”, “Compartilhar”, “Jogar de novo” sempre à vista); botões que explicam em vez de ficarem mortos; estilo Tático pré-selecionado; entrar em sala com **um** botão (o servidor diz se é duelo ou campeonato); “Desfazer última escolha” no draft (livre, desafio, duelo e campeonato); jogador apagado diz por quê; transição de fase só no mata-mata (900 ms, tocar pula).
 3. ✅ **Fase C — jornada** (U-06, U-10, U-11, U-13, U-14): **feita.** Início enxuto (C1), estilo com contexto (C2), rodadas com a campanha à vista (C3), resultado com a história do torneio e convites (C4); depois, o duelo e o campeonato ganharam a mesma experiência e o compartilhar.
-4. **Fase D — beleza:** **D1 (grade no desktop) feita**; faltam o duelo/campeonato em grade, movimento e tema.
+4. **Fase D — beleza:** **D1 e D2 (grade no desktop, solo e multiplayer) feitas**; faltam movimento (D3) e tema (D4).
 4. **Fase D — beleza** (U-15…U-18 e o visual): grade no desktop, movimento, cartões, tema.
 
 Cada fase termina com testes de fluxo no navegador (Playwright): sem rolagem lateral em 375 px, alvos ≥ 44 px, fonte ≥ 12 px, ação principal visível sem rolar.
@@ -119,3 +119,12 @@ Antes, em 1280 px o jogo era uma coluna de 640 px no meio e quase metade da tela
 - **Barra de ações:** botões de largura razoável e centrados, em vez de um botão de 1000 px.
 - **Ficou para a próxima etapa:** duelo, campeonato e convite seguem numa coluna centrada de 680 px (para não esticarem) até ganharem a sua grade.
 - **Testes:** `e2e/desktop.spec.js` (13 cenários em 1024 e 1280 px, mais 1920 px e uma checagem de que o celular não mudou), escritos antes.
+
+### Fase D2 — duelo, campeonato e convite no desktop ✅
+Em telas ≥ 1024 px (o celular não muda; os blocos novos são contêineres comuns, então a ordem de leitura é a de antes):
+- **Draft (duelo e campeonato):** o elenco numa lateral que acompanha a rolagem e as ofertas na área principal; no campeonato os jogadores da sala ficam na lateral. Na etapa do estilo, o elenco ao lado e as 3 cartas na área principal.
+- **Duelo, resultado:** herói em largura total, **as duas lineups lado a lado** e os mapas embaixo, com Compartilhar, Revanche e Sair centrados.
+- **Campeonato, rodada:** “Sua campanha” na lateral (fixa ao rolar); o seu jogo e a **classificação em duas colunas** ao lado, de modo que a rodada inteira cabe numa tela de 1280×800.
+- **Campeonato, resultado:** herói em largura total; jornada de um lado, campeão e MVP do outro; jogadores humanos e classificação final embaixo.
+- **Salas de espera e convite:** cards estreitos e centrados (não esticam).
+- **Testes:** `e2e/desktop-mp.spec.js` (em 1024 e 1280 px, mais a ordem no celular) com o servidor de mentira estendido (`e2e/mp.js`: draft em andamento com ofertas reais). Duelo e campeonato foram também jogados por dois navegadores contra o Worker local, no desktop e no celular. O teste da D1 que fixava o duelo em 680 px foi removido: é o que a D2 muda de propósito.
