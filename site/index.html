@@ -107,11 +107,17 @@
   <!-- DRAFT SCREEN -->
   <section id="screen-draft" class="screen">
     <div class="progress" id="draft-progress">Vaga 1 de 5</div>
-    <div class="slots draft-slots" id="slots"></div>
-    <button class="secondary" id="btn-undo" type="button" hidden>↩ Desfazer última escolha</button>
-    <button class="rollbtn primary" id="btn-roll">🎲 Atualizar Lineups (3 restantes)</button>
-    <p id="refresh-hint" style="color:var(--dim); font-size:12px; margin:4px 0 0;"></p>
-    <div id="lineup-offers"></div>
+    <div class="draft-layout">
+      <aside class="draft-side">
+        <div class="slots draft-slots" id="slots"></div>
+        <button class="secondary" id="btn-undo" type="button" hidden>↩ Desfazer última escolha</button>
+      </aside>
+      <div class="draft-main">
+        <button class="rollbtn primary" id="btn-roll">🎲 Atualizar Lineups (3 restantes)</button>
+        <p id="refresh-hint" style="color:var(--dim); font-size:12px; margin:4px 0 0;"></p>
+        <div id="lineup-offers"></div>
+      </div>
+    </div>
   </section>
 
   <!-- TEAM / STYLE SCREEN -->

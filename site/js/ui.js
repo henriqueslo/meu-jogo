@@ -353,9 +353,10 @@ function renderResults() {
   const t = state.tournament, s = summarize(t), you = t.teams.find((x) => x.isUser);
   const hero = heroFor(s, you);
   let html = `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>`;
-  html += journeyHTML(state.journey);
+  html += '<div class="result-cols"><div class="result-col">' + journeyHTML(state.journey);
   html += `<div class="stage-label">Sua lineup · força ${you.forca}</div><div class="slots">` +
     ROLES.map((r) => `<div class="slot filled">${slotHTML(r, state.squad[r], false)}</div>`).join("") + `</div>`;
+  html += '</div><div class="result-col">';
   html += nextStepsHTML();
   html += `<div class="stage-label">Campeão do Major</div><div class="card row"><b>${esc(t.champion.nome)}</b><span style="color:var(--dim);">força ${t.champion.forca}</span></div>`;
 
@@ -380,6 +381,7 @@ function renderResults() {
   };
   // textContent no lugar de "strip": exibe o texto fielmente, sem interpretar HTML.
   html += `<div class="stage-label">Texto para compartilhar</div><div class="share-box" id="share-box"></div>`;
+  html += '</div></div>';
   $("results-content").innerHTML = html;
   $("share-box").textContent = state.shareText;
 
