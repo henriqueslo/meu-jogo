@@ -25,7 +25,7 @@
     <label for="team-name-input" style="color:var(--dim); font-size:13px; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:1.2px; font-weight:600;">Nome do seu time <span style="color:var(--t);">*</span></label>
     <input type="text" id="team-name-input" maxlength="24" required placeholder="Ex: Falcons BR"
       style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
-    <p class="name-hint" id="name-hint">Sugestão de nome: troque se quiser.</p>
+    <p class="name-hint" id="name-hint">Escolha um nome: é ele que aparece no placar, no card de compartilhar e no ranking.</p>
     <p id="name-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
     <button class="primary" id="btn-begin" style="width:100%; margin:6px 0 0;">Jogar · montar minha lineup →</button>
     <button class="secondary daily-cta" id="btn-daily" hidden style="width:100%; margin:6px 0 0;">📅 Desafio do dia · todos jogam o mesmo baralho</button>
@@ -82,6 +82,22 @@
       </ol>
       <p class="rules-note">Dica: clique em qualquer card de partida para ver o ranking de K/D daquele jogo. No fim, o jogador de maior impacto é eleito MVP do campeonato.</p>
     </details>
+  </section>
+
+  <!-- CONVITE por link (?duelo= / ?campeonato=): cai direto aqui, sem passar pela home -->
+  <section id="screen-invite" class="screen">
+    <h2 id="invite-title" class="invite-title">Você foi convidado para um duelo 1×1</h2>
+    <p class="invite-code">Sala <span class="mono" id="invite-code"></span></p>
+    <div id="invite-form">
+      <label for="invite-name-input" class="invite-label">Seu nome de time <span style="color:var(--t);">*</span></label>
+      <input type="text" id="invite-name-input" maxlength="24" required placeholder="Ex: Falcons BR" autocomplete="off"
+        style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
+      <p class="name-hint">Escolha um nome: é ele que a outra pessoa vai ver na sala.</p>
+      <p id="invite-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
+      <button class="primary" id="btn-invite-join" type="button" style="width:100%; margin:6px 0 0;">Entrar no duelo →</button>
+    </div>
+    <p id="invite-gone" role="status" hidden>Essa sala já foi encerrada: elas somem depois de 1 hora sem atividade. Peça um link novo a quem convidou você.</p>
+    <button class="secondary" id="btn-invite-home" type="button" style="width:100%; margin:14px 0 0;">Ir para o início</button>
   </section>
 
   <!-- DUELO (Fase 2) -->

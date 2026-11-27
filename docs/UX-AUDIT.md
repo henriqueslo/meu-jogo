@@ -91,3 +91,9 @@ O servidor de teste (`e2e/serve.js`) usa a mesma CSP de produção. Os specs fic
 - **Como jogar em 3 passos** (montar 5 jogadores, escolher o estilo, disputar o Major); as **regras completas** ficam recolhidas em “Ver as regras completas”. Sem os modos online, a página inteira tem menos de 1100 px de altura (eram ~2500 px).
 - **Privacidade:** o último nome fica só no navegador (`ml_name`, localStorage); a política (`site/privacidade.html`) e a checklist foram atualizadas, e o teste de consistência `ml_*` cobre a chave.
 - **Testes:** `e2e/start.spec.js` (9 cenários, escritos antes); `flow.spec.js` ajustado para apagar o nome sugerido antes de testar o erro.
+
+### Ajuste pós-C1 — convite direto e nome obrigatório ✅
+Feedback de uso: quem recebia o link caía na home e o botão laranja iniciava uma partida solo sem querer; e o nome sugerido tirava a graça de criar o nome do time.
+- **Convite por link:** `/?duelo=CÓDIGO` e `/?campeonato=CÓDIGO` abrem direto a **página do convite** (“Você foi convidado para um duelo 1×1 / campeonato”, sala e campo de nome), sem a home e sem o botão de jogo solo. Não depende da API do Desafio do dia. Sala já encerrada → mensagem clara e “Ir para o início”; quem só quer jogar sozinho tem a mesma saída. Ao entrar, o link é limpo da barra (não reabre o convite), e quem já estava naquela sala volta direto a ela.
+- **Nome obrigatório e sem padrão:** o campo começa vazio (só vem preenchido o último nome que a própria pessoa usou, `ml_name`). Sem nome, nada começa: o aviso explica, o foco vai ao campo, e o mesmo vale no convite e nos modos online (com a moderação de sempre).
+- **Testes:** `e2e/invite.spec.js` (13 cenários) e `e2e/start.spec.js` reescrito para o nome obrigatório, escritos antes e vermelhos.

@@ -81,22 +81,22 @@ $("btn-undo-team").addEventListener("click", undoPick);
 /* ------------------------------ Início ------------------------------ */
 const nameInput = $("team-name-input");
 
-/* O nome já vem preenchido (o último usado, ou "Meu Time"), para o primeiro toque em Jogar funcionar. */
-const NAME_KEY = "ml_name", DEFAULT_NAME = "Meu Time";
+/* Quem escolhe o nome é a pessoa: não há nome padrão. Só voltamos o último nome que ela mesma usou. */
+const NAME_KEY = "ml_name";
 function loadName() {
-  try { const v = sanitizeTeamName(localStorage.getItem(NAME_KEY) || ""); return v.length >= 2 ? v : DEFAULT_NAME; } catch { return DEFAULT_NAME; }
+  try { const v = sanitizeTeamName(localStorage.getItem(NAME_KEY) || ""); return v.length >= 2 ? v : ""; } catch { return ""; }
 }
 function saveName(name) { try { localStorage.setItem(NAME_KEY, name); } catch { /* sem storage: só não lembra */ } }
 nameInput.value = loadName();
 nameInput.addEventListener("focus", () => nameInput.select());      // tocar no campo e digitar já troca a sugestão
 
 /* Os botões nunca ficam "mortos": clicar sem nome explica e leva o foco ao campo. */
-function showNameError(msg) { $("name-error").textContent = msg; nameInput.focus(); }
+function showNameError(msg, field = nameInput, errId = "name-error") { $(errId).textContent = msg; field.focus(); }
 
-function requireName({ online }) {
-  const clean = sanitizeTeamName(nameInput.value);
-  if (clean.length < 2) { showNameError("Dê um nome ao seu time para começar (2 a 24 caracteres: letras, números, espaço . _ -)."); return null; }
-  if (online && !moderateName(clean).ok) { showNameError(NAME_BLOCKED_MESSAGE + " (O jogo livre aceita qualquer nome.)"); return null; }
+function requireName({ online, field = nameInput, errId = "name-error" }) {
+  const clean = sanitizeTeamName(field.value);
+  if (clean.length < 2) { showNameError("Dê um nome ao seu time para começar (2 a 24 caracteres: letras, números, espaço . _ -).", field, errId); return null; }
+  if (online && !moderateName(clean).ok) { showNameError(NAME_BLOCKED_MESSAGE + (field === nameInput ? " (O jogo livre aceita qualquer nome.)" : ""), field, errId); return null; }
   saveName(clean);
   return clean;
 }
@@ -482,10 +482,6 @@ async function initDaily() {
   $("btn-daily").hidden = false;
   $("duel-box").hidden = false;
   refreshStartControls();
-  const q = new URLSearchParams(location.search).get("duelo");
-  if (q && validCode(q)) $("duel-code-input").value = normalizeCode(q);
-  const qc = new URLSearchParams(location.search).get("campeonato");
-  if (qc && validCode(qc)) $("duel-code-input").value = normalizeCode(qc);
   const rows = await fetchBoard(state.daily.day, 5);
   if (rows && rows.length) {
     $("daily-board-start").innerHTML = `<div class="stage-label">Ranking de hoje</div>${boardHTML(rows, esc)}`;
@@ -593,4 +589,47 @@ async function initResume() {
   $("btn-resume").onclick = () => { $("resume-box").hidden = true; resumeRoom(a); };
   $("btn-resume-drop").onclick = () => { clearActive(store); $("resume-box").hidden = true; };
 }
-initResume();
+
+/* ------------------------- Convite por link ------------------------- */
+/* ?duelo=CÓDIGO ou ?campeonato=CÓDIGO levam direto à página do convite: só falta o nome.
+ * (Antes caía na home, e o botão principal de lá começa uma partida solo.) Não depende da API do Desafio. */
+function initInvite() {
+  const qs = new URLSearchParams(location.search);
+  const dq = qs.get("duelo"), cq = qs.get("campeonato");
+  const kind = dq && validCode(dq) ? "rooms" : cq && validCode(cq) ? "cups" : null;
+  if (!kind) return false;
+  const code = normalizeCode(kind === "rooms" ? dq : cq);
+  const open = kind === "rooms" ? openDuel : openCup;
+  const nomeDaSala = kind === "rooms" ? "duelo" : "campeonato";
+
+  let store; try { store = localStorage; } catch { store = null; }
+  const a = store && loadActive(store);
+  if (a && a.kind === kind && a.code === code) { resumeRoom(a); return true; }   // já estava nessa sala: volta sem pedir nome
+
+  $("invite-title").textContent = kind === "rooms" ? "Você foi convidado para um duelo 1×1" : "Você foi convidado para um campeonato";
+  $("invite-code").textContent = code;
+  $("btn-invite-join").textContent = `Entrar no ${nomeDaSala} →`;
+  const field = $("invite-name-input");
+  field.value = loadName();
+  field.addEventListener("input", () => { $("invite-error").textContent = ""; });
+  field.addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-invite-join").click(); });
+  showScreen("screen-invite");
+
+  const leave = () => history.replaceState(null, "", location.pathname);   // o link não volta a abrir o convite
+  $("btn-invite-home").addEventListener("click", () => { leave(); backToStart(); });
+  $("btn-invite-join").addEventListener("click", () => {
+    const name = requireName({ online: true, field, errId: "invite-error" });
+    if (!name) return;
+    leave();
+    open({ code, name, exit: backToStart });
+  });
+
+  roomExists(kind, code).then((exists) => {
+    if (exists !== false) return;                                   // true ou "não deu para saber": deixa tentar
+    $("invite-form").hidden = true;
+    $("invite-gone").hidden = false;
+  });
+  return true;
+}
+
+if (!initInvite()) initResume();
