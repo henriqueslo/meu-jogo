@@ -38,6 +38,7 @@ export function leaveDuel() {
 let lastRound = -1;
 function render() {
   const c = $("duel-content");
+  c.dataset.phase = view ? view.phase : "conectando";
   if (!view) { c.innerHTML = `<div class="stage-label">Duelo · sala ${esc(myCode)}</div><p id="duel-status" style="color:var(--dim);">Conectando…</p><p id="duel-flash" style="color:var(--danger);"></p>${leaveBtn()}`; bind(); return; }
   const v = view, head = `<div class="stage-label">Duelo Bo${v.best_of} · sala <span class="mono">${esc(v.code)}</span> · rodada ${v.round + 1}</div>
     <p id="duel-flash" style="color:var(--danger); min-height:18px; margin:0 0 6px;"></p>`;
@@ -75,16 +76,18 @@ function draftHTML(v) {
   const undo = y.canUndo ? `<button class="secondary" id="duel-undo" type="button" style="margin:8px 0 0;">↩ Desfazer última escolha</button>` : "";
   if (!y.draftDone) {
     const n = y.refreshesLeft;
-    return `<div class="slots draft-slots">${slots}</div>${undo}${oppLine(v)}<div class="progress">Escolha ${filled + 1} de 5</div>
+    return `<div class="draft-layout"><aside class="draft-side"><div class="slots draft-slots">${slots}</div>${undo}${oppLine(v)}</aside>
+      <div class="draft-main"><div class="progress">Escolha ${filled + 1} de 5</div>
       <button class="rollbtn primary" id="duel-refresh" type="button" ${n <= 0 ? "disabled" : ""}>${n <= 0 ? "Sem atualizações — escolha um jogador" : `🎲 Atualizar Lineups (${n} restante${n > 1 ? "s" : ""})`}</button>
-      <div id="duel-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>${leaveBtn()}`;
+      <div id="duel-offers">${offersHTML(y.offers.map(lineupById).filter(Boolean), y.squad)}</div>${leaveBtn()}</div></div>`;
   }
   if (!y.style) {
-    return `${squadLineHTML(y.squad)}<div id="duel-style">${styleChooserHTML(y.squad, pendingStyle)}</div>${undo}${oppLine(v)}
+    return `<div class="draft-layout"><aside class="draft-side">${squadLineHTML(y.squad)}</aside>
+      <div class="draft-main"><div id="duel-style">${styleChooserHTML(y.squad, pendingStyle)}</div>${undo}${oppLine(v)}</div></div>
       <div class="action-bar"><button class="primary" id="duel-confirm" type="button">Confirmar estilo →</button>${leaveBtn()}</div>`;
   }
-  return `${squadLineHTML(y.squad)}${oppLine(v)}
-    <p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando o rival terminar…</p>${leaveBtn()}`;
+  return `<div class="draft-layout"><aside class="draft-side">${squadLineHTML(y.squad)}${oppLine(v)}</aside>
+    <div class="draft-main"><p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando o rival terminar…</p>${leaveBtn()}</div></div>`;
 }
 
 /* Lineup do jogador e dados de compartilhamento a partir do resultado do servidor. */
@@ -103,12 +106,12 @@ function resultHTML(v) {
   const hero = won
     ? { cls: "gold", title: "🏆 VITÓRIA", sub: `Você venceu ${other.name} por ${mi}×${ou} (melhor de ${v.best_of}).` }
     : { cls: "", title: "Derrota", sub: `Perdeu para ${other.name} por ${mi}×${ou}. Que tal pedir a revanche e tentar outro estilo?` };
-  const side = (k, s) => `<div class="card"><b>${esc(s.name)}</b> <span style="color:var(--dim); font-size:12px;">· ${esc(STYLE_NAME[s.style])} · força ${r.forca[k]}</span>
-      <div class="slots" style="margin:8px 0 0;">${ROLES.map((ro) => `<div class="slot filled">${slotHTML(ro, s.squad[ro], false)}</div>`).join("")}</div></div>`;
+  const side = (k, s) => `<div class="dr-side"><div class="card"><b>${esc(s.name)}</b> <span style="color:var(--dim); font-size:12px;">· ${esc(STYLE_NAME[s.style])} · força ${r.forca[k]}</span>
+      <div class="slots" style="margin:8px 0 0;">${ROLES.map((ro) => `<div class="slot filled">${slotHTML(ro, s.squad[ro], false)}</div>`).join("")}</div></div></div>`;
   const maps = r.maps.map((m) => `<div class="maprow"><span>${esc(m.map)}${m.ot ? ` <span style="color:var(--t);">· PRORROGAÇÃO</span>` : ""}</span><span>${m.a} - ${m.b}</span></div>`).join("");
   const o = v.opp;
-  return `<section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>
-    <div class="stage-label">Mapas</div>${maps}${side("A", r.a)}${side("B", r.b)}
+  return `<div class="duel-result"><section class="result-hero ${hero.cls}"><h2>${esc(hero.title)}</h2><p>${esc(hero.sub)}</p></section>
+    <div class="dr-maps"><div class="stage-label">Mapas</div>${maps}</div>${side("A", r.a)}${side("B", r.b)}</div>
     ${o && o.rematch ? '<p style="color:var(--dim); font-size:13px;">O rival quer revanche!</p>' : ""}
     <div class="action-bar">
       <button class="primary" id="duel-share" type="button">📤 Compartilhar</button>
