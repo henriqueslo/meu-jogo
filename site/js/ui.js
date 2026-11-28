@@ -12,7 +12,7 @@ import {
 import { shareResult, prepareShare } from "./share.js";
 import { iniciarTema } from "./theme.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML, topFiveHTML } from "./daily.js";
-import { esc, flagEmoji, slotHTML, draftSlotsHTML, offersHTML, lineupById } from "./render.js";
+import { esc, flagEmoji, slotHTML, draftSlotsHTML, papelNovo, offersHTML, lineupById } from "./render.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
 import { openCup, openAuction, createCup, createAuction, closeCup } from "./cup.js";
 import { adoptActive, inRoomFlag, roomExists, resolveRoomKind, validCode, normalizeCode } from "./net.js";
@@ -40,8 +40,9 @@ function showScreen(id) {
 
 /* ------------------------------- Draft ------------------------------- */
 function syncDraft() {
+  const antes = state.squad;
   state.squad = resolveSquad(state.draft.picks, { partial: true });
-  $("slots").innerHTML = draftSlotsHTML(state.squad);
+  $("slots").innerHTML = draftSlotsHTML(state.squad, papelNovo(antes, state.squad));
   const filled = Object.keys(state.squad).length;
   $("draft-progress").textContent = filled < 5 ? `Escolha ${filled + 1} de 5` : "LineUp completa!";
   $("btn-roll").style.display = filled < 5 ? "" : "none";

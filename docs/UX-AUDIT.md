@@ -44,7 +44,7 @@ Data: 26/11/2026 · Método: fluxo completo percorrido no navegador (celular 375
 1. ✅ **Fase A — consertar** (U-01…U-04, e U-09 em parte): **feita.** Sem rolagem lateral de 320 a 414 px, alvos de 48 px, texto mínimo de 12 px; elenco em linhas legíveis e o draft mostra só o que falta (“Faltam: AWP · IGL…”) em vez de 5 vagas vazias.
 2. ✅ **Fase B — fluxo** (U-02, U-05, U-07, U-08, U-09, U-12): **feita.** Barra de ação fixa (“Próxima rodada”, “Compartilhar”, “Jogar de novo” sempre à vista); botões que explicam em vez de ficarem mortos; estilo Tático pré-selecionado; entrar em sala com **um** botão (o servidor diz se é duelo ou campeonato); “Desfazer última escolha” no draft (livre, desafio, duelo e campeonato); jogador apagado diz por quê; transição de fase só no mata-mata (900 ms, tocar pula).
 3. ✅ **Fase C — jornada** (U-06, U-10, U-11, U-13, U-14): **feita.** Início enxuto (C1), estilo com contexto (C2), rodadas com a campanha à vista (C3), resultado com a história do torneio e convites (C4); depois, o duelo e o campeonato ganharam a mesma experiência e o compartilhar.
-4. **Fase D — beleza:** **D1 e D2 (grade no desktop, solo e multiplayer) feitas**; faltam movimento (D3) e tema (D4).
+4. **Fase D — beleza:** **D1 e D2 (grade no desktop, solo e multiplayer) feitas**; **D3 (movimento) feita**; o tema (D4) já saiu no pacote beta (modo claro).
 4. **Fase D — beleza** (U-15…U-18 e o visual): grade no desktop, movimento, cartões, tema.
 
 Cada fase termina com testes de fluxo no navegador (Playwright): sem rolagem lateral em 375 px, alvos ≥ 44 px, fonte ≥ 12 px, ação principal visível sem rolar.
@@ -153,3 +153,17 @@ Em telas ≥ 1024 px (o celular não muda; os blocos novos são contêineres com
 - **Contraste:** `e2e/contraste.js` mede a razão de contraste real de todo texto visível; o modo claro passa em AA (4,5:1; 3:1 para texto grande) na home, draft, time, rodada, resultado, ranking, páginas informativas, campeonato e leilão. Único ajuste necessário: o placar de quem perdeu.
 - **Testes:** `e2e/theme.spec.js` (11), 5 testes novos de desempate em `test/auction.test.js`, 4 de revelação em `e2e/auction.spec.js`.
 - **Para mudar o padrão para “seguir o tema do aparelho”:** em `js/theme-init.js`, trocar o valor padrão por `matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"`.
+
+## Fase D3 — movimento (mobile primeiro)
+
+Princípio: tudo foi pensado para o celular (375 px); o desktop só herda. Só `transform` e `opacity`, durações até 0,6 s, e **`prefers-reduced-motion` desliga tudo** (o estado continua visível: o slot novo fica marcado e o relógio em alerta mantém a cor própria).
+
+| Onde | Movimento | Como |
+|---|---|---|
+| Botões e fichas | resposta ao **apertar** (`:active`); o "levantar" da ficha só com mouse (`@media (hover:hover)`), porque no toque ele ficava preso | CSS |
+| Draft | a ficha recém-escolhida **salta** no elenco (não no desfazer); as 3 lineups oferecidas entram em sequência | `papelNovo()` + classe `fresh` |
+| Rodadas | cartões em sequência; placar com "pop" | CSS |
+| Resultado | título do resultado entra em destaque; campeão faz um pulinho | CSS |
+| Leilão | jogador novo desliza (não repete ao enviar o lance); revelação em sequência com destaque no vencedor; **últimos 5 s do lance: relógio e barra vermelhos e pulsando** (não na revelação) | classe `urgent` |
+
+Testes: `test/motion.test.js` (regras do CSS: só transform/opacity, infinita só no alerta, durações, :hover só com mouse) e `e2e/motion.spec.js` (animação ligada e desligada, 375 px sem rolagem lateral, contraste AA do alerta nos dois temas).

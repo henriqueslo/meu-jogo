@@ -17,9 +17,12 @@ export function slotHTML(role, s, withRating = true) {
 }
 
 /* Elenco do draft: só quem já foi escalado vira linha; o que falta vira UMA linha compacta de papéis. */
-export function draftSlotsHTML(squad) {
+/* O papel que acabou de ser preenchido (para o slot "saltar"); null no desfazer ou se nada mudou. */
+export const papelNovo = (antes, depois) => ROLES.find((r) => depois[r] && !(antes || {})[r]) ?? null;
+
+export function draftSlotsHTML(squad, fresh = null) {
   const missing = ROLES.filter((r) => !squad[r]);
-  return ROLES.filter((r) => squad[r]).map((r) => `<div class="slot filled">${slotHTML(r, squad[r])}</div>`).join("") +
+  return ROLES.filter((r) => squad[r]).map((r) => `<div class="slot filled${r === fresh ? " fresh" : ""}">${slotHTML(r, squad[r])}</div>`).join("") +
     (missing.length ? `<div class="slots-missing" role="status">Faltam: ${missing.map((r) => `<span class="role-pill">${esc(r)}</span>`).join("")}</div>` : "");
 }
 

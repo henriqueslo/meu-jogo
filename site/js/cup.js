@@ -35,6 +35,8 @@ let onExit = () => {};
 
 /* Leilão: o que a pessoa digita e o relógio do cliente (o servidor diz quanto falta; o resto é contagem local). */
 let bidText = "", lastKey = null, lastIdx = null;
+const URGENTE_MS = 5000;
+let podeUrgir = false;                                                      // o alerta só vale enquanto se dá lance (não na revelação)
 let ticker = null, deadlineAt = 0, totalMs = 0, timerKey = "";
 
 export const createCup = () => createRoomOf("cups");
@@ -63,7 +65,7 @@ const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">S
 function startTicker() { stopTicker(); ticker = setInterval(tickTimer, 250); }
 function stopTicker() { if (ticker) clearInterval(ticker); ticker = null; }
 function setDeadline(v) {
-  deadlineAt = performance.now() + v.msLeft;
+  deadlineAt = performance.now() + v.msLeft; podeUrgir = v.step === "bidding";
   const k = `${v.idx}|${v.step}`;
   if (k !== timerKey) { timerKey = k; totalMs = v.msLeft; }              // o 1º valor de cada etapa é o tempo total dela
 }
@@ -71,6 +73,8 @@ function tickTimer() {
   const el = $("auction-timer"); if (!el) return;
   const ms = Math.max(0, deadlineAt - performance.now());
   el.textContent = `${Math.ceil(ms / 1000)}s`;
+  const urgente = podeUrgir && ms > 0 && ms <= URGENTE_MS;                  // últimos 5 s: vermelho e pulsando (só CSS)
+  el.classList.toggle("urgent", urgente); document.querySelector(".timer-bar")?.classList.toggle("urgent", urgente);
   const fill = $("timer-fill"); if (fill && totalMs > 0) fill.style.width = `${Math.min(100, (ms / totalMs) * 100)}%`;
 }
 
