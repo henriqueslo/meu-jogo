@@ -50,13 +50,26 @@ function openRoom(k, { code, name, exit }) {
   $("screen-cup").classList.add("active");
   render();
   startTicker();
-  conn = connect({ kind: k, code: myCode, name, onState: (s) => { view = s; render(); }, onNotice: (t) => { notice = t; render(); }, onStatus: (t) => { notice = t; render(); } });
+  conn = connect({ kind: k, code: myCode, name, onState: (s) => { if (s.phase === "cancelled") return cancelado(s); view = s; render(); }, onNotice: (t) => { notice = t; render(); }, onStatus: (t) => { notice = t; render(); } });
 }
 export const openCup = (a) => openRoom("cups", a);
 export const openAuction = (a) => openRoom("auctions", a);
 
 const send = (obj) => { notice = ""; conn && conn.send(obj); };
-const leave = () => { stopTicker(); conn && conn.leave(); conn = null; view = null; onExit(); };
+const leave = () => {
+  const emLeilao = kind === "auctions" && view?.phase === "auction";                // sair no meio do leilão cancela para todos
+  if (emLeilao && !window.confirm("Sair cancela o leilão para todos os jogadores. Sair mesmo?")) return;
+  if (emLeilao) conn?.send({ t: "quit" });
+  stopTicker(); conn && conn.leave(); conn = null; view = null; onExit();
+};
+/* O servidor cancelou o leilão porque alguém saiu ou ficou offline: some o rastro da sala e todos voltam à home com o aviso. */
+function cancelado(s) {
+  const eu = s.cancelled.slot === s.you.slot;
+  const aviso = eu
+    ? { titulo: "Você desistiu do Leilão", detalhe: s.cancelled.why === "offline" ? "Você ficou offline e a partida foi cancelada para todos." : "A partida foi cancelada para todos." }
+    : { titulo: "Jogador desistiu do Leilão", detalhe: `${s.cancelled.name} saiu e a partida foi cancelada.` };
+  stopTicker(); conn && conn.leave(); conn = null; view = null; onExit(aviso);
+}
 /* Sai da tela sem encerrar a sessão da sala (o logo leva à home; a sala continua guardada para "voltar"). */
 export function closeCup() { stopTicker(); conn && conn.detach(); conn = null; view = null; }
 const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">Sair do ${KIND[kind].baixo}</button>`;

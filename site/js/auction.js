@@ -31,7 +31,9 @@ export function boardHTML(v) {
     if (v.step === "bidding") return !p.eligible ? `já tem ${esc(v.lot.role)}` : p.submitted ? "enviou ✓" : "pensando…";
     return "";
   };
-  return `<ul class="auction-board" aria-label="Jogadores">${v.players.map((p, i) => `
+  const fora = v.phase === "auction" ? v.players.filter((p) => !p.connected) : [];
+  const aviso = fora.length ? `<p class="away-warn" role="status">⚠️ ${fora.map((p) => esc(p.name)).join(", ")} ${fora.length > 1 ? "estão offline" : "está offline"}. Se não voltar logo, o leilão será cancelado.</p>` : "";
+  return aviso + `<ul class="auction-board" aria-label="Jogadores">${v.players.map((p, i) => `
     <li><span class="pn">${esc(p.name)}${i === v.you.slot ? " (você)" : ""}${p.host ? ' <span class="badge Underdog">dono</span>' : ""}</span>
       <span class="pc">🪙 ${p.coins} · ${p.filled}/${ROLES.length}</span><span class="ps">${estado(p)}</span></li>`).join("")}</ul>`;
 }
@@ -104,7 +106,7 @@ export function auctionHTML(v, bidText, leave) {
 export function auctionStyleHTML(v, pendingStyle, leave) {
   const y = v.you, ninguemFalta = v.players.every((p) => p.ready);
   const fills = v.fills.length
-    ? `<section class="card"><b>Vagas completadas de graça</b> (entre os jogadores descartados):<ul class="fills">${v.fills.map((f) => `<li>${esc(v.players[f.slot].name)}: ${esc(f.role)} — ${esc(f.nick)}</li>`).join("")}</ul></section>` : "";
+    ? `<section class="card"><b>Vagas completadas de graça</b> (com os jogadores mais fracos que sobraram):<ul class="fills">${v.fills.map((f) => `<li>${esc(v.players[f.slot].name)}: ${esc(f.role)} — ${esc(f.nick)}</li>`).join("")}</ul></section>` : "";
   const force = y.canControl && !ninguemFalta ? `<button class="secondary" id="cup-force" type="button">⏩ Completar automaticamente quem faltar</button>` : "";
   const escolha = y.style
     ? `<p style="color:var(--dim);">Estilo <b>${esc(STYLE_NAME[y.style])}</b> escolhido. Aguardando os outros jogadores…</p>${force}${leave}`

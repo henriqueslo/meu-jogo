@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LINEUPS, ROLES } from "../site/js/data.js";
 import { GameError, mulberry32 } from "../site/js/engine.js";
-import { Auction, buildPool, MIN_PLAYERS, MAX_PLAYERS, START_COINS, LOTS_PER_PLAYER, BID_MS, REVEAL_MS } from "../worker/auction.js";
+import { Auction, buildPool, MIN_PLAYERS, MAX_PLAYERS, START_COINS, LOTS_PER_PLAYER, BID_MS, REVEAL_MS, AWAY_MS } from "../worker/auction.js";
 
 const T0 = 1_000_000;
 const ALL = [true, true, true, true, true];
@@ -246,14 +246,14 @@ test("se só sobram desconectados que poderiam dar lance, o leilão fecha na hor
   for (let i = 0; i < 20 && !(view(a, 0, now).step === "bidding" && view(a, 0, now).lot?.role === r0); i++) { todosPassam(a, now, 2); now = proximo(a, now); }
   assert.equal(view(a, 0, now).you.canBid, false);                     // o 0 já tem esse papel; o 1 PODERIA dar lance
   assert.equal(a.tick(now + 100, [true, true]), false);                // o 1 está conectado: tem que esperar por ele
-  assert.equal(a.tick(now + 200, [false, false]), false);              // ninguém conectado (queda geral): segue o prazo normal
+  a.tick(now + 200, [false, false]);                                   // ninguém conectado (queda geral): só anota; o lote não é queimado
   assert.equal(view(a, 0, now + 200).step, "bidding");
   assert.equal(a.tick(now + 300, [true, false]), true);                // o 1 caiu e só o 0 (que não pode) está online: fecha já
   assert.equal(view(a, 0, now + 300).step, "reveal"); assert.equal(view(a, 0, now + 300).last.winner, null);
 });
 
 /* ------------------------------ vagas que sobram ------------------------------ */
-test("vaga que sobra recebe de graça o melhor descartado do papel", () => {
+test("vaga que sobra recebe de graça o PIOR jogador livre do papel: quem some do leilão não sai favorecido", () => {
   const a = begun(2, 21);
   let now = T0, guard = 0;
   while (view(a, 0, now).phase === "auction" && guard++ < 200) {          // 0 sempre dá o lance máximo; 1 sempre passa
@@ -265,14 +265,23 @@ test("vaga que sobra recebe de graça o melhor descartado do papel", () => {
     now = a.nextDeadline() ?? now; a.tick(now, ALL);
   }
   assert.equal(view(a, 0, now).phase, "style");
-  const nao_vendidos = a.history.filter((h) => h.winner === null).map((h) => h.lot);
-  const pool = a.pool;
-  for (const r of ROLES) {
-    const melhor = nao_vendidos.map((i) => pool[i]).filter((l) => l.role === r).sort((x, y) => y.forca - x.forca)[0];
-    assert.equal(view(a, 1, now).you.squad[r].nick, melhor.nick, `1º a escolher leva o melhor descartado de ${r}`);
-    assert.equal(view(a, 1, now).you.squad[r].price, 0);
+  const pool = a.pool, usados = new Set(a.history.filter((h) => h.winner !== null).map((h) => h.lot));
+  assert.equal(view(a, 1, now).fills.length, 5, "quem só passou recebe as 5 vagas de graça");
+  for (const f of a.fills) {                                              // cada vaga levou o mais FRACO ainda livre do papel
+    const livres = pool.map((l, i) => ({ l, i })).filter(({ l, i }) => l.role === f.role && !usados.has(i));
+    const pior = Math.min(...livres.map(({ l }) => l.forca));
+    assert.equal(pool[f.lot].forca, pior, `${f.role}: levou ${pool[f.lot].forca}, o mais fraco livre era ${pior}`);
+    usados.add(f.lot);
   }
-  assert.equal(view(a, 1, now).fills.length, 5);
+  for (const r of ROLES) assert.equal(view(a, 1, now).you.squad[r].price, 0);
+});
+
+test("o ausente não leva vantagem: com o mesmo leilão, quem não completou fica com elenco mais fraco do que levaria pelos melhores", () => {
+  const a = begun(2, 21); a.tick(T0 + 3_600_000, ALL);                    // todos passam: as 10 vagas são de graça
+  const pool = a.pool, forcaMedia = (s) => Object.values(view(a, s, T0 + 3_600_000).you.squad).reduce((x, p) => x + p.forca, 0) / 5;
+  const melhorPossivel = (role) => Math.max(...pool.filter((l) => l.role === role).map((l) => l.forca));
+  const media = ROLES.reduce((x, r) => x + melhorPossivel(r), 0) / 5;
+  assert.ok(forcaMedia(0) < media && forcaMedia(1) < media, "ninguém recebe os melhores do mercado de graça");
 });
 
 /* ------------------------------ estilo e torneio ------------------------------ */
@@ -375,4 +384,94 @@ test("partidas inteiras com robôs (2 a 5 jogadores, várias sementes): as regra
 test("a mesma partida (semente e jogadas iguais) termina exatamente igual", () => {
   assert.equal(jogaComRobos(4, 555, 9), jogaComRobos(4, 555, 9));
   assert.notEqual(jogaComRobos(4, 555, 9), jogaComRobos(4, 556, 9));
+});
+
+/* ------------------------------ desistência: quem fica offline cancela o leilão ------------------------------ */
+const OFF2 = [true, true, false];                                          // o jogador 2 (Time C) está offline
+
+test("AWAY_MS: tolerância curta para recarregar a página ou perder o sinal, bem menor que 1 minuto", () => {
+  assert.ok(AWAY_MS >= 10_000 && AWAY_MS <= 30_000, String(AWAY_MS));
+});
+
+test("jogador offline por mais que a tolerância CANCELA o leilão (e não antes)", () => {
+  const a = begun(3);
+  assert.equal(a.tick(T0, OFF2), true);                                   // anotou que o 2 saiu
+  a.tick(T0 + AWAY_MS - 1, OFF2);
+  assert.notEqual(a.phase, "cancelled", "ainda dentro da tolerância");
+  assert.equal(a.tick(T0 + AWAY_MS, OFF2), true);
+  assert.equal(a.phase, "cancelled");
+  const v = view(a, 0, T0 + AWAY_MS, OFF2);
+  assert.equal(v.phase, "cancelled");
+  assert.deepEqual(v.cancelled, { slot: 2, name: "Time C", why: "offline" });
+});
+
+test("se voltar a tempo, nada é cancelado, e uma nova queda começa a contar do zero", () => {
+  const a = begun(3);
+  a.tick(T0, OFF2);
+  a.tick(T0 + 10_000, ALL);                                                 // voltou
+  a.tick(T0 + 25_000, OFF2);                                                // caiu de novo: a contagem recomeça aqui
+  a.tick(T0 + 25_000 + AWAY_MS - 1, OFF2);
+  assert.notEqual(a.phase, "cancelled", "a queda antiga não pode somar com a nova");
+  a.tick(T0 + 25_000 + AWAY_MS, OFF2);
+  assert.equal(a.phase, "cancelled");
+});
+
+test("todos offline também cancela (ninguém para disputar) depois da tolerância", () => {
+  const a = begun(3);
+  a.tick(T0, [false, false, false]);
+  assert.notEqual(a.phase, "cancelled");
+  a.tick(T0 + AWAY_MS, [false, false, false]);
+  assert.equal(a.phase, "cancelled");
+});
+
+test("o relógio sempre acorda a tempo de cancelar: nextDeadline nunca passa do fim da tolerância", () => {
+  const a = begun(3);
+  let now = T0, guard = 0;
+  while (a.phase === "auction" && guard++ < 50) {
+    a.tick(now, OFF2);
+    const d = a.nextDeadline();
+    if (a.phase === "cancelled") break;
+    assert.ok(d !== null && d <= T0 + AWAY_MS, `próximo despertar ${d - T0} ms depois do início, passa da tolerância`);
+    now = d;
+  }
+  assert.equal(a.phase, "cancelled");
+  assert.equal(now, T0 + AWAY_MS, "cancelou exatamente no fim da tolerância");
+});
+
+test("'quit' (clicar em Sair): cancela na hora, só durante o leilão, e diz quem saiu", () => {
+  const a = begun(3);
+  apply(a, 1, { t: "quit" });
+  assert.equal(a.phase, "cancelled");
+  assert.deepEqual(view(a, 0).cancelled, { slot: 1, name: "Time B", why: "quit" });
+  const l = lobby(3);
+  throwsCode(() => apply(l, 1, { t: "quit" }), "bad-phase");               // no lobby, sair não cancela a sala
+  const e = ateOEstilo(2);
+  throwsCode(() => apply(e, 1, { t: "quit" }, T0 + 3_600_000), "bad-phase");
+});
+
+test("depois de cancelado: nenhuma ação vale, o relógio para e todos veem o aviso (sem vazar o resto)", () => {
+  const a = begun(3); apply(a, 2, { t: "quit" });
+  for (const msg of [{ t: "bid", amount: 5 }, { t: "pass" }, { t: "start" }, { t: "style", style: "rush" }, { t: "force" }, { t: "advance" }]) throwsCode(() => apply(a, 0, msg), "cancelled");
+  assert.equal(a.tick(T0 + 10 * AWAY_MS, ALL), false);
+  assert.equal(a.nextDeadline(), null);
+  for (let s = 0; s < 3; s++) {
+    const v = view(a, s);
+    assert.equal(v.phase, "cancelled"); assert.equal(v.you.slot, s); assert.equal(v.code, "ABC234");
+    assert.ok(!("lot" in v) && !("teams" in v), "só o aviso");
+  }
+  assert.deepEqual(a.join("x", a.players[1].token), { slot: 1, token: a.players[1].token, reconnected: true });   // reconectar mostra o aviso
+});
+
+test("a desistência sobrevive a guardar e restaurar a sala (o servidor pode dormir)", () => {
+  const a = begun(3); a.tick(T0, OFF2);
+  const b = roundtrip(a);
+  b.tick(T0 + AWAY_MS, OFF2);
+  assert.equal(b.phase, "cancelled", "a anotação de quem saiu foi restaurada");
+  assert.deepEqual(roundtrip(b).view(0, ALL, T0).cancelled, { slot: 2, name: "Time C", why: "offline" });
+});
+
+test("fora do leilão (estilo, torneio) quem cai NÃO cancela: aí vale o 'completar automaticamente' do dono", () => {
+  const a = ateOEstilo(3), now = T0 + 3_600_000;
+  a.tick(now, [true, false, false]); a.tick(now + 10 * AWAY_MS, [true, false, false]);
+  assert.equal(a.phase, "style");
 });

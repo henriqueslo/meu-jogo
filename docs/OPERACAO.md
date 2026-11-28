@@ -48,7 +48,7 @@ A Política de Privacidade promete remoção de uma entrada pelo contato da pág
 |---|---|---|
 | **Saúde** | `GET /api/v1/health` → `{"ok":true,"db":true}` (200) ou 503 se o D1 não responde | monitor de uptime externo |
 | **Contadores diários** (tabela `metrics`, sem dados pessoais) | `cup_created`, `auction_created`, `daily_entry`, `daily_rejected`, `daily_duplicate`, `rate_limited`, `ws_connected`, `ws_forbidden_origin`, `server_error` | consultas D1 abaixo |
-| **Logs estruturados** (JSON, `[observability]` ligado) | `player_joined`, `game_done`, `ws_rate_limited`, `ws_too_big`, `http_5xx`, `error`, `metrics_failed` | painel Cloudflare (Workers & Pages → meu-jogo → Observability/Logs) ou `wrangler tail` |
+| **Logs estruturados** (JSON, `[observability]` ligado) | `player_joined`, `game_done`, `room_cancelled` (leilão cancelado por desistência; só o motivo, nunca o nome), `ws_rate_limited`, `ws_too_big`, `http_5xx`, `error`, `metrics_failed` | painel Cloudflare (Workers & Pages → meu-jogo → Observability/Logs) ou `wrangler tail` |
 
 Privacidade: o log e os contadores **nunca** guardam IP, token, `player_id`, nome de time ou corpo de requisição (`worker/log.js` remove esses campos mesmo que alguém passe sem querer). Abuso é registrado **uma vez por conexão**.
 
