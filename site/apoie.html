@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="/js/theme-init.js"></script>
+<title>Apoie o projeto — Minha LineUp</title>
+<meta name="description" content="O Minha LineUp é gratuito e feito de forma independente. Se você curte o jogo, pode ajudar a mantê-lo no ar com um Pix de qualquer valor.">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/pagina.css">
+</head>
+<body>
+
+<header>
+  <a href="/"><h1><span class="h-t">MINHA</span> <span class="h-ct">LINEUP</span></h1></a>
+</header>
+
+<main>
+  <h1 class="page-title">Apoie o projeto</h1>
+  <p class="updated">O jogo é gratuito e vai continuar sendo</p>
+
+  <p>O <strong>Minha LineUp</strong> é um projeto independente, feito por um fã de CS. Ele não tem cadastro, não vende nada e os anúncios estão desligados. Se você se divertiu e quiser ajudar a mantê-lo no ar, pode apoiar com um Pix <strong>do valor que quiser</strong>. Quem não apoia joga exatamente o mesmo jogo.</p>
+
+  <h2>Para onde vai o apoio</h2>
+  <p>Para os custos de manter o jogo funcionando (domínio, hospedagem e serviços de servidor) e para o tempo de desenvolver novidades, como novos modos e novas lineups.</p>
+
+  <h2>Apoie com Pix</h2>
+  <div id="apoio-pix" class="apoio">
+    <p id="apoio-indisponivel" class="box" hidden>O apoio por Pix ainda não está disponível. Volte em breve!</p>
+
+    <div id="apoio-conteudo" hidden>
+      <div id="pix-qr" class="pix-qr"></div>
+      <p class="pix-passos">No app do seu banco, escolha <strong>Pix</strong> e depois <strong>Pagar com QR code</strong> (ou <strong>Pix copia e cola</strong>). <strong>Confira o nome do titular</strong> antes de confirmar e digite o valor que quiser.</p>
+
+      <label for="pix-code" class="pix-label">Pix copia e cola</label>
+      <textarea id="pix-code" class="pix-code" readonly rows="4" spellcheck="false"></textarea>
+      <div class="pix-acoes">
+        <button type="button" class="apoio-btn" id="copiar-codigo">Copiar Pix copia e cola</button>
+        <button type="button" class="apoio-btn apoio-btn-sec" id="copiar-chave">Copiar só a chave</button>
+      </div>
+      <p class="pix-chave">Chave Pix (aleatória): <code id="pix-chave"></code></p>
+      <p id="pix-status" class="pix-status" role="status"></p>
+
+      <p id="apoio-plataforma" hidden><a id="plataforma-link" rel="noopener noreferrer" target="_blank">Outra forma de apoiar</a> (abre outro site, com as regras e taxas dele)</p>
+    </div>
+  </div>
+
+  <h2>Antes de apoiar</h2>
+  <ul>
+    <li><strong>É uma doação voluntária, sem contrapartida.</strong> Apoiar não dá vantagem no jogo, no ranking nem em nada: o jogo é igual para todo mundo. Também é sem reembolso.</li>
+    <li><strong>Cuidado com golpes.</strong> Só pedimos apoio nesta página. Nunca pedimos dinheiro por mensagem, e-mail ou rede social. Confira sempre o <strong>nome do titular</strong> que o app do seu banco mostra antes de confirmar.</li>
+    <li><strong>Sua privacidade.</strong> O pagamento é feito direto no seu banco. O site <strong>não recebe nem guarda</strong> nenhum dado de quem apoia. Veja a <a href="/privacidade.html">Política de Privacidade</a>.</li>
+  </ul>
+
+  <p><a href="/" class="back-link">← Voltar ao jogo</a></p>
+</main>
+
+<footer>
+  <a href="/">Jogar</a> · <a href="/majors.html">Campeões dos Majors</a> · <a href="/funcoes.html">Funções</a> · <a href="/formato-suico.html">Formato suíço</a> · <a href="/apoie.html">Apoie o projeto</a> · <a href="/privacidade.html">Privacidade</a> · <a href="/termos.html">Termos de uso</a>
+</footer>
+
+<script type="module" src="/js/apoio.js"></script>
+</body>
+</html>

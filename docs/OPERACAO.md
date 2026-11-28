@@ -125,3 +125,12 @@ npx.cmd wrangler d1 execute minhalineup --remote --command "SELECT day, player_i
 5. Responda por e-mail confirmando a ação e anote a data (não guarde o conteúdo do pedido além do necessário).
 
 Pendências para revisão jurídica: ver `docs/PRIVACIDADE-CHECKLIST.md`.
+
+## Apoio (Pix)
+
+A página `/apoie.html` monta o QR e o "copia e cola" no navegador a partir de `site/js/apoio-config.js` (`pixKey`, `nome`, `cidade`, `plataforma`). É um **Pix estático**: sem valor e sem identificador, vale para sempre e não precisa de API nem de conta em serviço de terceiros. Quem paga vê no app do banco o nome do titular da conta (o `nome` do arquivo só vai dentro do código).
+
+- **Desligar:** deixe `pixKey` vazio. A página passa a dizer que o apoio não está disponível.
+- **Trocar a chave:** use só chave **aleatória** (o repositório é público; nada de CPF, e-mail ou telefone). Depois rode `node --test`: `test/pix.test.js` falha em "o do PIX da configuração não mudou sem querer". Confira o QR novo com um leitor de QR (ou pague R$ 0,01 para si mesmo, se o banco permitir), e atualize `GOLDEN` com o hash que o teste mostrar.
+- **Plataforma (Ko-fi etc.):** preencha `plataforma` com um endereço `https://`; qualquer outro valor é ignorado. Atualize a política de privacidade se passar a usar uma.
+- **Fiscal:** o recebimento de doações tem regras de declaração (IR e ITCMD estadual). Confirme o enquadramento com um contador.

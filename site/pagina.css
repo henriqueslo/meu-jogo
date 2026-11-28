@@ -89,3 +89,18 @@ th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-
 th{background:var(--panel); color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:1px; font-weight:600;}
 td{color:var(--dim);} td strong{color:var(--text);}
 code{font-family:'JetBrains Mono',Consolas,monospace; font-size:.88em; background:var(--panel2); padding:1px 5px; border-radius:3px;}
+
+/* Apoie o projeto (apoie.html): o QR precisa de fundo branco, mesmo no tema escuro */
+.pix-qr{width:min(100%,300px); margin:6px auto 14px; background:#fff; padding:0; line-height:0; border:1px solid var(--line-strong);}
+.pix-qr svg{display:block; width:100%; height:auto;}
+.pix-passos{font-size:15px; color:var(--dim);}
+.pix-label{display:block; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin:0 0 6px; font-weight:600;}
+.pix-code{width:100%; background:var(--panel); color:var(--text); border:1px solid var(--line-strong); padding:10px 12px; font:13px/1.45 'JetBrains Mono',Consolas,monospace; resize:none; word-break:break-all; margin:0 0 12px;}
+.pix-acoes{display:flex; flex-wrap:wrap; gap:10px; margin:0 0 12px;}
+.apoio-btn{min-height:48px; padding:10px 18px; font:700 16px 'Rajdhani','Segoe UI',sans-serif; letter-spacing:.5px; cursor:pointer; background:var(--t-fill); color:#14100A; border:1px solid var(--t-fill); clip-path:var(--chamfer);}
+.apoio-btn:hover{filter:brightness(1.08);}
+.apoio-btn:focus-visible{outline:2px solid var(--ct); outline-offset:2px;}
+.apoio-btn-sec{background:transparent; color:var(--text); border-color:var(--line-strong);}
+.pix-chave{font-size:14px; color:var(--dim); overflow-wrap:anywhere;}
+.pix-chave code{font-family:'JetBrains Mono',Consolas,monospace; color:var(--text);}
+.pix-status{min-height:1.6em; font-weight:600; color:var(--ct);}
