@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LINEUPS, ROLES } from "../site/js/data.js";
 import { Draft, GameError, actionsToLog, verifyDraft } from "../site/js/engine.js";
-import { Duel, DuelError } from "../worker/duel.js";
 import { Cup } from "../worker/cup.js";
 
 const eligible = (d) => { for (const id of d.offers) for (const p of d._byId(id).jogadores) if (!d.taken.roles.has(p.papel) && !d.taken.nicks.has(p.nick)) return [id, p.nick]; };
@@ -65,29 +64,8 @@ test("actionsToLog: refreshes contados por vaga", () => {
     [{ refreshes: 2, lineupId: "a", nick: "x" }, { refreshes: 0, lineupId: "b", nick: "y" }]);
 });
 
-test("Draft do navegador = Draft do servidor (mesma classe) e DuelError = GameError", () => {
-  assert.ok(new DuelError("x", "y") instanceof GameError);
-  assert.ok(LINEUPS.length > 0);
-});
-
 /* ----- multiplayer: mensagem 'undo' ----- */
 const ALL = [true, true, true, true, true, true, true, true];
-test("duelo: undo devolve a última escolha; bloqueado depois de fixar o estilo; canUndo na visão", () => {
-  const d = Duel.create("ABC234", 5); d.join("Alfa"); d.join("Beta");
-  assert.equal(d.view(0).you.canUndo, false);
-  const [id, nick] = eligible(d.players[0].draft);
-  d.apply(0, { t: "pick", lineupId: id, nick });
-  assert.equal(d.view(0).you.canUndo, true);
-  d.apply(0, { t: "undo" });
-  assert.equal(Object.keys(d.view(0).you.squad).length, 0);
-  assert.throws(() => d.apply(0, { t: "undo" }), (e) => e.code === "nothing-to-undo");
-  while (!d.players[0].draft.done) { const [i, n] = eligible(d.players[0].draft); d.apply(0, { t: "pick", lineupId: i, nick: n }); }
-  d.apply(0, { t: "undo" }); const [i2, n2] = eligible(d.players[0].draft); d.apply(0, { t: "pick", lineupId: i2, nick: n2 });
-  d.apply(0, { t: "style", style: "rush" });
-  assert.throws(() => d.apply(0, { t: "undo" }), (e) => e.code === "style-locked");
-  assert.equal(d.view(0).you.canUndo, false);
-});
-
 test("campeonato: undo só na fase de draft; persistência continua válida depois de desfazer", () => {
   const c = Cup.create("ABC234", 9); c.join("Alfa"); c.join("Beta");
   assert.throws(() => c.apply(0, { t: "undo" }), (e) => e.code === "bad-phase");   // ainda no lobby

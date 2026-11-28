@@ -1,5 +1,5 @@
-/* Campeonato multiplayer (Fase 3) — máquina de estados PURA, mesmo contrato do Duel
- * (join / apply / view / toJSON / fromJSON), então o mesmo Durable Object genérico a hospeda.
+/* Campeonato multiplayer (Fase 3) — máquina de estados PURA com o contrato
+ * join / apply / view / toJSON / fromJSON, então o Durable Object genérico (room-do.js) a hospeda.
  *
  *   lobby (2–8 humanos entram; dono = slot 0) --start--> draft (cada um monta o elenco; mesma seed)
  *   --todos prontos--> running (servidor simula; o dono avança rodada a rodada) --> done
@@ -9,9 +9,9 @@
  * Persistência: seed + ações do draft + estilos + nº de passos; o torneio é reconstruído por replay. */
 import { ROLES } from "../site/js/data.js";
 import {
-  STYLES, resolveSquad, sanitizeTeamName, hashSeed, createCup, advance, teamStatus, tournamentMvp,
+  STYLES, resolveSquad, sanitizeTeamName, hashSeed, createCup, advance, teamStatus, tournamentMvp, GameError, Draft,
 } from "../site/js/engine.js";
-import { DuelError, Draft, hex, str } from "./duel.js";
+import { hex, str } from "./rooms.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "../site/js/moderation.js";
 
 export const MIN_HUMANS = 2;
@@ -68,46 +68,46 @@ export class Cup {
       const slot = this.players.findIndex((p) => p.token === token);
       if (slot >= 0) return { slot, token, reconnected: true };
     }
-    if (this.started) throw new DuelError("cup-started", "O campeonato já começou.");
-    if (this.players.length >= MAX_HUMANS) throw new DuelError("room-full", "Sala cheia.");
+    if (this.started) throw new GameError("cup-started", "O campeonato já começou.");
+    if (this.players.length >= MAX_HUMANS) throw new GameError("room-full", "Sala cheia.");
     const clean = sanitizeTeamName(name);
-    if (clean.length < 2) throw new DuelError("invalid-name", "Nome do time precisa de 2–24 caracteres válidos.");
-    if (!moderateName(clean).ok) throw new DuelError("name-blocked", NAME_BLOCKED_MESSAGE);
-    if (this.players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) throw new DuelError("name-taken", "Já existe um time com esse nome na sala.");
+    if (clean.length < 2) throw new GameError("invalid-name", "Nome do time precisa de 2–24 caracteres válidos.");
+    if (!moderateName(clean).ok) throw new GameError("name-blocked", NAME_BLOCKED_MESSAGE);
+    if (this.players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) throw new GameError("name-taken", "Já existe um time com esse nome na sala.");
     const player = { name: clean, token: hex(16), style: null, actions: [], draft: new Draft(this._draftSeed()) };
     this.players.push(player);
     return { slot: this.players.length - 1, token: player.token };
   }
 
   _control(slot, connected) {                         // dono, ou qualquer jogador se o dono estiver offline
-    if (slot !== 0 && connected[0]) throw new DuelError("not-host", "Só o dono da sala pode fazer isso.");
+    if (slot !== 0 && connected[0]) throw new GameError("not-host", "Só o dono da sala pode fazer isso.");
   }
   _ready(p) { return p.draft.done && !!p.style; }
 
   apply(slot, msg, { connected = [] } = {}) {
     const p = this.players[slot];
-    if (!p) throw new DuelError("not-joined", "Entre na sala primeiro.");
+    if (!p) throw new GameError("not-joined", "Entre na sala primeiro.");
     switch (msg?.t) {
       case "start":
-        if (this.phase !== "lobby") throw new DuelError("bad-phase", "O campeonato já começou.");
-        if (slot !== 0) throw new DuelError("not-host", "Só o dono da sala pode iniciar.");
-        if (this.players.length < MIN_HUMANS) throw new DuelError("not-enough", `Precisa de pelo menos ${MIN_HUMANS} jogadores.`);
+        if (this.phase !== "lobby") throw new GameError("bad-phase", "O campeonato já começou.");
+        if (slot !== 0) throw new GameError("not-host", "Só o dono da sala pode iniciar.");
+        if (this.players.length < MIN_HUMANS) throw new GameError("not-enough", `Precisa de pelo menos ${MIN_HUMANS} jogadores.`);
         this.started = true; return;
       case "refresh":
         this._needDraft(); p.draft.refresh(); return;
       case "pick":
         this._needDraft();
-        if (!str(msg.lineupId, 64) || !str(msg.nick, 40)) throw new DuelError("bad-message", "pick inválido.");
+        if (!str(msg.lineupId, 64) || !str(msg.nick, 40)) throw new GameError("bad-message", "pick inválido.");
         p.draft.pick(msg.lineupId, msg.nick); return;
       case "undo":                                       // desfazer a última escolha (só antes de fixar o estilo)
         this._needDraft();
-        if (p.style) throw new DuelError("style-locked", "Estilo já escolhido; não dá mais para desfazer.");
+        if (p.style) throw new GameError("style-locked", "Estilo já escolhido; não dá mais para desfazer.");
         p.draft.undo(); return;
       case "style":
         this._needDraft();
-        if (!p.draft.done) throw new DuelError("draft-incomplete", "Complete o elenco antes do estilo.");
-        if (p.style) throw new DuelError("style-locked", "Estilo já escolhido.");
-        if (!STYLES.includes(msg.style)) throw new DuelError("bad-message", "Estilo inválido.");
+        if (!p.draft.done) throw new GameError("draft-incomplete", "Complete o elenco antes do estilo.");
+        if (p.style) throw new GameError("style-locked", "Estilo já escolhido.");
+        if (!STYLES.includes(msg.style)) throw new GameError("bad-message", "Estilo inválido.");
         p.style = msg.style; this._maybeBegin(); return;
       case "force":                                    // completa automaticamente quem ainda não terminou
         this._needDraft(); this._control(slot, connected);
@@ -117,15 +117,15 @@ export class Cup {
         }
         this._maybeBegin(); return;
       case "advance":
-        if (this.phase !== "running") throw new DuelError("bad-phase", "Não há rodada para avançar.");
+        if (this.phase !== "running") throw new GameError("bad-phase", "Não há rodada para avançar.");
         this._control(slot, connected);
         this._step(); return;
       default:
-        throw new DuelError("bad-message", "Mensagem desconhecida.");
+        throw new GameError("bad-message", "Mensagem desconhecida.");
     }
   }
 
-  _needDraft() { if (this.phase !== "draft") throw new DuelError("bad-phase", "Não está na fase de draft."); }
+  _needDraft() { if (this.phase !== "draft") throw new GameError("bad-phase", "Não está na fase de draft."); }
 
   _maybeBegin() {
     if (!this.players.every((p) => this._ready(p))) return;

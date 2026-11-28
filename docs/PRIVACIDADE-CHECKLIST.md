@@ -9,7 +9,7 @@
 | Nome de time, elenco, estilo, resultado, `player_id` (UUID aleatório) | Ranking do Desafio do dia | Execução do serviço (art. 7º, V) | D1 `daily_entries` | **90 dias** (job diário) | `worker/handler.js`, `worker/retention.js` |
 | Hash SHA-256 do IP (sal diário) | Limitar abuso no dia | Legítimo interesse (art. 7º, IX) | D1 `daily_entries.ip_hash` | Zerado a partir do dia seguinte | `handler.js`, `retention.js` |
 | Hash do IP (janela de 1 h) | Limitar criação/consulta de salas | Legítimo interesse | D1 `rate_limits` | 2 horas | `rooms-api.js`, `retention.js` |
-| Nome de time, escolhas, estilo | Salas de duelo/campeonato | Execução do serviço | Durable Object (SQLite) | 1 h sem atividade (alarme) | `worker/room-do.js` |
+| Nome de time, escolhas, estilo | Salas de campeonato | Execução do serviço | Durable Object (SQLite) | 1 h sem atividade (alarme) | `worker/room-do.js` |
 | Contadores agregados | Saúde/uso | Legítimo interesse | D1 `metrics` | 90 dias; sem dado pessoal | `worker/metrics.js` |
 | Logs estruturados | Operação | Legítimo interesse | Cloudflare Workers Logs | Poucos dias (Cloudflare); **sem IP, nome ou ID** | `worker/log.js` |
 | IP/UA nos logs da hospedagem | Segurança/CDN | (da Cloudflare) | Cloudflare | Política da Cloudflare | — |

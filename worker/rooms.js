@@ -38,3 +38,7 @@ export function makeBucket(cap = 12, perSec = 3, now = Date.now()) {
 }
 
 export const MAX_MESSAGE_BYTES = 2048;
+
+/* Utilitários das mensagens das salas. */
+export const hex = (n) => [...globalThis.crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
+export const str = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;

@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { moderateName } from "../site/js/moderation.js";
-import { sanitizeTeamName } from "../site/js/engine.js";
-import { Duel, DuelError } from "../worker/duel.js";
+import { sanitizeTeamName, GameError } from "../site/js/engine.js";
 import { Cup } from "../worker/cup.js";
 import { handle, memoryStore, seedForDay, dayOf } from "../worker/handler.js";
 import { createStreams, pickRandomLineups } from "../site/js/engine.js";
@@ -54,11 +53,10 @@ test("alfabetos não latinos e homóglifos são removidos na sanitização (não
   blocked("Ｆｕｃｋ");
 });
 
-test("servidor: duelo e campeonato recusam nome bloqueado com 'name-blocked'", () => {
-  const code = (fn) => assert.throws(fn, (e) => e instanceof DuelError && e.code === "name-blocked");
-  const d = Duel.create("ABC234", 1); code(() => d.join("Caralho FC")); assert.equal(d.players.length, 0);
-  const c = Cup.create("ABC234", 1); code(() => c.join("f.u.c.k")); assert.equal(c.players.length, 0);
-  d.join("Time Legal"); c.join("Time Legal");                  // nomes bons continuam entrando
+test("servidor: campeonato recusa nome bloqueado com 'name-blocked'", () => {
+  const code = (fn) => assert.throws(fn, (e) => e instanceof GameError && e.code === "name-blocked");
+  const c = Cup.create("ABC234", 1); code(() => c.join("f.u.c.k")); code(() => c.join("Caralho FC")); assert.equal(c.players.length, 0);
+  c.join("Time Legal");                                        // nomes bons continuam entrando
 });
 
 test("servidor: desafio do dia devolve 422 para nome bloqueado e não grava nada", async () => {

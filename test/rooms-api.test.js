@@ -15,7 +15,7 @@ function fakeRoomNs() {
     get: (id) => ({
       async fetch(urlOrReq, init) {
         if (typeof urlOrReq === "string" && urlOrReq.endsWith("/info")) {
-          return rooms.has(id) ? Response.json({ phase: "waiting" }) : new Response(null, { status: 404 });
+          return rooms.has(id) ? Response.json({ phase: "lobby" }) : new Response(null, { status: 404 });
         }
         if (typeof urlOrReq === "string") {            // /init interno
           if (rooms.has(id)) return new Response(null, { status: 409 });
@@ -26,17 +26,17 @@ function fakeRoomNs() {
     }),
   };
 }
-const mkEnv = () => ({ DAILY_SECRET: "test-secret-0123456789", ROOM: fakeRoomNs() });
+const mkEnv = () => ({ DAILY_SECRET: "test-secret-0123456789", CUP: fakeRoomNs() });
 const post = (env, store, ip = "1.1.1.1") =>
-  handleRooms(new Request("http://x/api/v1/rooms", { method: "POST", headers: { "cf-connecting-ip": ip } }), env, store, NOW);
+  handleRooms(new Request("http://x/api/v1/cups", { method: "POST", headers: { "cf-connecting-ip": ip } }), env, store, NOW);
 const ws = (env, store, code, headers = {}) =>
-  handleRooms(new Request(`https://minhalineup.com/api/v1/rooms/${code}/ws`, { headers }), env, store, NOW);
+  handleRooms(new Request(`https://minhalineup.com/api/v1/cups/${code}/ws`, { headers }), env, store, NOW);
 
-test("POST /rooms cria sala com código válido e seed aleatória no DO", async () => {
+test("POST /cups cria sala com código válido e seed aleatória no DO", async () => {
   const env = mkEnv(), r = await post(env, memoryStore());
   assert.equal(r.status, 201);
   const { code } = await r.json();
-  assert.ok(isCode(code)); assert.ok(env.ROOM.rooms.get(code).seed >= 0);
+  assert.ok(isCode(code)); assert.ok(env.CUP.rooms.get(code).seed >= 0);
 });
 
 test("rate limit: a 11ª sala por hora/rede dá 429; outra rede não é afetada", async () => {
@@ -45,14 +45,15 @@ test("rate limit: a 11ª sala por hora/rede dá 429; outra rede não é afetada"
   const r = await post(env, store);
   assert.equal(r.status, 429); assert.equal(r.headers.get("retry-after"), "3600");
   assert.equal((await post(env, store, "2.2.2.2")).status, 201);
-  assert.equal(env.ROOM.rooms.size, MAX_ROOMS_PER_HOUR + 1);   // a recusada não criou DO
+  assert.equal(env.CUP.rooms.size, MAX_ROOMS_PER_HOUR + 1);   // a recusada não criou DO
 });
 
-test("método errado em /rooms = 405 problem+json; rotas alheias retornam null", async () => {
+test("método errado em /cups = 405 problem+json; rotas alheias e antigas retornam null", async () => {
   const env = mkEnv(), s = memoryStore();
-  const r = await handleRooms(new Request("http://x/api/v1/rooms"), env, s, NOW);
+  const r = await handleRooms(new Request("http://x/api/v1/cups"), env, s, NOW);
   assert.equal(r.status, 405); assert.match(r.headers.get("content-type"), /problem\+json/);
   assert.equal(await handleRooms(new Request("http://x/api/v1/daily"), env, s, NOW), null);
+  assert.equal(await handleRooms(new Request("http://x/api/v1/rooms", { method: "POST" }), env, s, NOW), null);   // o duelo 1×1 não existe mais
 });
 
 test("WebSocket: código inválido 404, sem upgrade 426, origem errada 403, ok encaminha ao DO", async () => {
@@ -62,47 +63,29 @@ test("WebSocket: código inválido 404, sem upgrade 426, origem errada 403, ok e
   assert.equal((await ws(env, s, "ABC234", { origin: ok.origin })).status, 426);
   assert.equal((await ws(env, s, "ABC234", { upgrade: "websocket", origin: "https://evil.example" })).status, 403);
   assert.equal((await ws(env, s, "ABC234", { upgrade: "websocket" })).status, 403);
-  assert.equal(env.ROOM.forwarded.length, 0);
+  assert.equal(env.CUP.forwarded.length, 0);
   assert.equal((await ws(env, s, "abc234", ok)).status, 200);          // minúsculas normalizadas
-  assert.deepEqual(env.ROOM.forwarded, ["ABC234"]);
+  assert.deepEqual(env.CUP.forwarded, ["ABC234"]);
 });
 
 test("sem DAILY_SECRET a criação de sala falha fechada (500 sem detalhes)", async () => {
-  const r = await post({ ROOM: fakeRoomNs() }, memoryStore());
+  const r = await post({ CUP: fakeRoomNs() }, memoryStore());
   assert.equal(r.status, 500); assert.ok(!(await r.text()).includes("SECRET"));
 });
 
-test("campeonato: POST /cups usa o namespace CUP e tem limite próprio", async () => {
-  const env = { ...mkEnv(), CUP: fakeRoomNs() }, store = memoryStore();
-  const mk = () => handleRooms(new Request("http://x/api/v1/cups", { method: "POST", headers: { "cf-connecting-ip": "3.3.3.3" } }), env, store, NOW);
-  for (let i = 0; i < MAX_ROOMS_PER_HOUR; i++) assert.equal((await mk()).status, 201);
-  assert.equal((await mk()).status, 429);
-  assert.equal(env.CUP.rooms.size, MAX_ROOMS_PER_HOUR); assert.equal(env.ROOM.rooms.size, 0);
-  assert.equal((await post(env, store, "3.3.3.3")).status, 201);       // duelo na mesma rede não foi afetado
-});
-
-test("campeonato: WebSocket em /cups/:code/ws vai para o DO CUP (mesmas checagens)", async () => {
-  const env = { ...mkEnv(), CUP: fakeRoomNs() }, s = memoryStore();
-  const req = (h) => handleRooms(new Request("https://minhalineup.com/api/v1/cups/abc234/ws", { headers: h }), env, s, NOW);
-  assert.equal((await req({ upgrade: "websocket", origin: "https://evil.example" })).status, 403);
-  assert.equal((await req({ upgrade: "websocket", origin: "https://minhalineup.com" })).status, 200);
-  assert.deepEqual(env.CUP.forwarded, ["ABC234"]); assert.deepEqual(env.ROOM.forwarded, []);
-});
-
-test("GET /rooms/:code (info): sala existente 200; inexistente/ inválida 404; campeonato usa CUP", async () => {
-  const env = { ...mkEnv(), CUP: fakeRoomNs() }, s = memoryStore();
+test("GET /cups/:code (info): sala existente 200; inexistente ou inválida 404", async () => {
+  const env = mkEnv(), s = memoryStore();
   const { code } = await (await post(env, s)).json();
   const get = (path) => handleRooms(new Request("http://x" + path, { headers: { "cf-connecting-ip": "4.4.4.4" } }), env, s, NOW);
-  const ok = await get(`/api/v1/rooms/${code}`);
-  assert.equal(ok.status, 200); assert.deepEqual(await ok.json(), { exists: true, phase: "waiting" });
-  assert.equal((await get(`/api/v1/rooms/ZZZZZZ`)).status, 404);
-  assert.equal((await get(`/api/v1/rooms/abc`)).status, 404);
-  assert.equal((await get(`/api/v1/cups/${code}`)).status, 404);     // outro namespace: não existe como campeonato
+  const ok = await get(`/api/v1/cups/${code}`);
+  assert.equal(ok.status, 200); assert.deepEqual(await ok.json(), { exists: true, phase: "lobby" });
+  assert.equal((await get(`/api/v1/cups/ZZZZZZ`)).status, 404);
+  assert.equal((await get(`/api/v1/cups/abc`)).status, 404);
 });
 
 test("info tem rate limit por rede (anti-varredura de códigos)", async () => {
   const env = mkEnv(), s = memoryStore();
-  const get = () => handleRooms(new Request("http://x/api/v1/rooms/ZZZZZZ", { headers: { "cf-connecting-ip": "5.5.5.5" } }), env, s, NOW);
+  const get = () => handleRooms(new Request("http://x/api/v1/cups/ZZZZZZ", { headers: { "cf-connecting-ip": "5.5.5.5" } }), env, s, NOW);
   for (let i = 0; i < MAX_INFO_PER_HOUR; i++) assert.equal((await get()).status, 404);
   const r = await get();
   assert.equal(r.status, 429); assert.equal(r.headers.get("retry-after"), "3600");

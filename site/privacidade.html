@@ -20,7 +20,7 @@
   <p class="updated">Última atualização: 26 de novembro de 2026</p>
 
   <div class="box">
-    <strong>Resumo:</strong> não há cadastro, login nem e-mail. O <strong>jogo livre</strong> roda inteiramente no seu dispositivo e não envia nada a nós. Só se você usar os modos online (<strong>Desafio do dia, duelo e campeonato</strong>) enviamos o <strong>nome de time</strong> que você digitou, suas escolhas no jogo e um <strong>identificador anônimo aleatório</strong>. Isso é dado pessoal pseudonimizado, e esta página explica o que fazemos com ele, por quanto tempo e como você pode pedir a remoção. Atualmente o site <strong>não exibe anúncios</strong> e não usa ferramentas de análise de terceiros.
+    <strong>Resumo:</strong> não há cadastro, login nem e-mail. O <strong>jogo livre</strong> roda inteiramente no seu dispositivo e não envia nada a nós. Só se você usar os modos online (<strong>Desafio diário e campeonato</strong>) enviamos o <strong>nome de time</strong> que você digitou, suas escolhas no jogo e um <strong>identificador anônimo aleatório</strong>. Isso é dado pessoal pseudonimizado, e esta página explica o que fazemos com ele, por quanto tempo e como você pode pedir a remoção. Atualmente o site <strong>não exibe anúncios</strong> e não usa ferramentas de análise de terceiros.
   </div>
 
   <h2>Quem somos</h2>
@@ -30,10 +30,10 @@
   <div class="tbl"><table>
     <thead><tr><th>Dado</th><th>Quando</th><th>Onde fica</th><th>Por quanto tempo</th></tr></thead>
     <tbody>
-      <tr><td>Nome de time, jogadores escolhidos, estilo, resultado e identificador anônimo</td><td>Você participa do Desafio do dia</td><td>Servidor (banco de dados da Cloudflare)</td><td><strong>90 dias</strong>, depois é apagado automaticamente</td></tr>
-      <tr><td>Hash irreversível do seu IP (com sal diário)</td><td>Desafio do dia, para limitar abuso</td><td>Servidor</td><td>Só no próprio dia; <strong>zerado a partir do dia seguinte</strong></td></tr>
+      <tr><td>Nome de time, jogadores escolhidos, estilo, resultado e identificador anônimo</td><td>Você participa do Desafio diário</td><td>Servidor (banco de dados da Cloudflare)</td><td><strong>90 dias</strong>, depois é apagado automaticamente</td></tr>
+      <tr><td>Hash irreversível do seu IP (com sal diário)</td><td>Desafio diário, para limitar abuso</td><td>Servidor</td><td>Só no próprio dia; <strong>zerado a partir do dia seguinte</strong></td></tr>
       <tr><td>Hash irreversível do seu IP</td><td>Criar sala ou consultar uma sala, para limitar abuso</td><td>Servidor</td><td>2 horas</td></tr>
-      <tr><td>Nome de time, escolhas e estilo</td><td>Você cria ou entra em um duelo ou campeonato</td><td>Memória e armazenamento temporário da sala (Cloudflare)</td><td>Apagado após <strong>1 hora</strong> sem atividade na sala</td></tr>
+      <tr><td>Nome de time, escolhas e estilo</td><td>Você cria ou entra em um campeonato</td><td>Memória e armazenamento temporário da sala (Cloudflare)</td><td>Apagado após <strong>1 hora</strong> sem atividade na sala</td></tr>
       <tr><td>Contadores agregados de uso (ex.: “salas criadas hoje”)</td><td>Uso dos modos online</td><td>Servidor</td><td>90 dias; <strong>não contêm dados pessoais</strong></td></tr>
       <tr><td>Registros técnicos de funcionamento (ex.: “um jogador entrou”), sem IP, sem nome e sem identificador</td><td>Uso dos modos online</td><td>Registros da Cloudflare</td><td>Poucos dias, conforme a Cloudflare</td></tr>
       <tr><td>Dados técnicos de acesso (como IP e navegador)</td><td>Qualquer visita ao site</td><td>Cloudflare (hospedagem e rede de distribuição)</td><td>Conforme a política da Cloudflare</td></tr>
@@ -44,28 +44,28 @@
   <h2>Jogo livre</h2>
   <p>No jogo livre, o nome de time, as escolhas e os resultados existem apenas no seu navegador, durante a partida. Nada disso é enviado ao nosso servidor.</p>
 
-  <h2>Desafio do dia (opcional)</h2>
+  <h2>Desafio diário (opcional)</h2>
   <p>Se você escolher participar, enviamos ao servidor o <strong>nome de time</strong> (que aparece <strong>publicamente</strong> no ranking do dia), os jogadores escolhidos, o estilo de jogo e um <strong>identificador anônimo aleatório</strong> gerado no seu navegador, usado para impedir participação duplicada no mesmo dia. O servidor refaz a simulação e calcula o resultado; você não envia o resultado. Não guardamos o seu endereço IP: usamos apenas um <em>hash</em> irreversível, com sal diário, para limitar abuso, e esse hash é zerado a partir do dia seguinte.</p>
 
-  <h2>Duelo 1×1 e campeonato (opcionais)</h2>
+  <h2>Campeonato (opcional)</h2>
   <p>Ao criar ou entrar em uma sala, enviamos o <strong>nome de time</strong>, suas escolhas de jogadores e o estilo de jogo. <strong>O nome do seu time, seu elenco e o resultado ficam visíveis para as outras pessoas da mesma sala</strong>. A sala e seus dados são apagados automaticamente após 1 hora sem atividade. Para permitir que você volte à sala se a conexão cair, a página for recarregada ou a aba for fechada, guardamos no seu navegador um código aleatório de reconexão, o código da sala e o nome do time, por até 55 minutos (veja a próxima seção).</p>
 
   <h2>O que guardamos no seu navegador</h2>
   <p>O site <strong>não define cookies próprios</strong>. Ele usa o armazenamento local do navegador (<em>localStorage</em> e <em>sessionStorage</em>) para lembrar do seu nome e para os modos online:</p>
   <ul>
-    <li><code>ml_name</code> (localStorage): o último nome de time que você usou, para já vir preenchido na próxima visita. Fica só no seu navegador; é enviado ao servidor apenas se você entrar no Desafio do dia, num duelo ou num campeonato.</li>
-    <li><code>ml_player_id</code> (localStorage): identificador anônimo aleatório do Desafio do dia. Fica até você limpar os dados do site.</li>
+    <li><code>ml_name</code> (localStorage): o último nome de time que você usou, para já vir preenchido na próxima visita. Fica só no seu navegador; é enviado ao servidor apenas se você entrar no Desafio diário ou num campeonato.</li>
+    <li><code>ml_player_id</code> (localStorage): identificador anônimo aleatório do Desafio diário. Fica até você limpar os dados do site.</li>
     <li><code>ml_played</code> (localStorage): o dia em que você já participou do Desafio, para não oferecer de novo.</li>
     <li><code>ml_active</code> (localStorage): a sala em que você está (tipo, código, nome do time e código de reconexão). Expira em 55 minutos e é apagada quando você sai da sala ou clica em <strong>Descartar</strong>.</li>
     <li><code>ml_in_room</code> (sessionStorage): indica que você está numa sala, para voltar sozinho ao recarregar a página. Some ao fechar a aba.</li>
-    <li><code>ml_rooms_&lt;código&gt;</code> e <code>ml_cups_&lt;código&gt;</code> (sessionStorage): código de reconexão da sala. Some ao fechar a aba.</li>
+    <li><code>ml_cups_&lt;código&gt;</code> (sessionStorage): código de reconexão da sala. Some ao fechar a aba.</li>
   </ul>
   <p>Você pode apagar tudo isso a qualquer momento nas configurações do navegador (“limpar dados do site”). O jogo livre continua funcionando normalmente sem nenhum deles.</p>
 
   <h2>Publicidade</h2>
   <p>Atualmente este site <strong>não exibe anúncios</strong> e não carrega nenhum código de publicidade. Poderemos ativar o <strong>Google AdSense</strong> no futuro, para custear a manutenção. Se isso acontecer:</p>
   <ul>
-    <li>os anúncios aparecerão <strong>apenas nas páginas informativas</strong>, nunca no jogo, no Desafio do dia, no duelo ou no campeonato;</li>
+    <li>os anúncios aparecerão <strong>apenas nas páginas informativas</strong>, nunca no jogo, no Desafio diário ou no campeonato;</li>
     <li>você verá um <strong>aviso de consentimento</strong> (fornecido pelo Google) antes de qualquer anúncio personalizado, e poderá rever a escolha pelo link <strong>Preferências de anúncios</strong> no rodapé;</li>
     <li>se o seu navegador enviar o sinal <strong>Global Privacy Control</strong>, não carregaremos anúncios;</li>
     <li>o Google, como fornecedor independente, poderá usar cookies e coletar dados como endereço IP, tipo de dispositivo, navegador e páginas visitadas. Você pode controlar a publicidade personalizada nas <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Configurações de anúncios do Google</a> ou em <a href="https://www.aboutads.info/choices" target="_blank" rel="noopener">aboutads.info/choices</a>, e saber mais em <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Como o Google usa informações de sites ou apps que utilizam nossos serviços</a>;</li>

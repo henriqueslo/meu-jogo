@@ -5,7 +5,7 @@
  * compartilhar, barra de ações fixa): as peças compartilhadas estão em parts.js. */
 import { ROLES } from "./data.js";
 import { esc, slotHTML, offersHTML, lineupById, draftSlotsHTML } from "./render.js";
-import { connect, createRoom as createRoomOf, normalizeCode, validCode } from "./net.js";
+import { connect, createRoom as createRoomOf, normalizeCode } from "./net.js";
 import {
   styleChooserHTML, squadLineHTML, wireStyleChooser, STYLE_NAME, cupJourney, campaignPanelHTML, campaignStatusText, NEXT_AFTER,
   heroOutcome, journeyHTML, cupShare,
@@ -36,6 +36,8 @@ export function openCup({ code, name, exit }) {
 
 const send = (obj) => { notice = ""; conn && conn.send(obj); };
 const leave = () => { conn && conn.leave(); conn = null; view = null; onExit(); };
+/* Sai da tela sem encerrar a sessão da sala (o logo leva à home; a sala continua guardada para "voltar"). */
+export function closeCup() { conn && conn.detach(); conn = null; view = null; }
 const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">Sair do campeonato</button>`;
 
 /* ------------------------------ Render ------------------------------ */
@@ -215,4 +217,3 @@ function bind() {
   });
 }
 
-export { validCode, normalizeCode };

@@ -1,8 +1,8 @@
-/* Durable Object de uma sala de duelo. Cuida de sockets + persistência; as regras
- * estão em duel.js (puro/testado). Usa a WebSocket Hibernation API: o objeto pode ser
+/* Durable Object de uma sala. Cuida de sockets + persistência; as regras
+ * estão em cup.js (puro/testado). Usa a WebSocket Hibernation API: o objeto pode ser
  * descarregado da memória sem derrubar as conexões, e o estado é restaurado do storage. */
 import { DurableObject } from "cloudflare:workers";
-import { Duel, DuelError } from "./duel.js";
+import { GameError } from "../site/js/engine.js";
 import { Cup } from "./cup.js";
 import { makeBucket, MAX_MESSAGE_BYTES } from "./rooms.js";
 import { log } from "./log.js";
@@ -12,7 +12,7 @@ const MAX_SOCKETS = 16;             // até 8 jogadores + folga para reconexões
 const CLOSE = { REPLACED: 4000, BAD_HELLO: 4003, RATE: 4008, TOO_BIG: 4009, FULL: 4013 };
 
 /* Base genérica: um Durable Object hospeda UMA partida cuja lógica pura (Logic) segue o contrato
- * join/apply/view/toJSON/fromJSON. Room = duelo 1x1; CupRoom = campeonato. */
+ * join/apply/view/toJSON/fromJSON. CupRoom = campeonato. */
 class GameRoom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -20,14 +20,14 @@ class GameRoom extends DurableObject {
     this.buckets = new WeakMap();
     this.flagged = new WeakSet();       // sockets já registrados no log (1 linha por conexão, não por mensagem)
     ctx.blockConcurrencyWhile(async () => {
-      const saved = await ctx.storage.get("duel");
+      const saved = await ctx.storage.get("game");
       if (saved) this.game = this.Logic.fromJSON(saved);
     });
   }
 
   async fetch(request) {
     const url = new URL(request.url);
-    // Chamada interna do Worker (a rota pública /rooms só existe via Worker).
+    // Chamada interna do Worker (a rota pública de salas só existe via Worker).
     if (request.method === "POST" && url.pathname === "/init") {
       if (this.game) return new Response(null, { status: 409 });
       const { code, seed } = await request.json();
@@ -81,14 +81,14 @@ class GameRoom extends DurableObject {
         await this.#save();
         this.#send(ws, { t: "welcome", v: 1, slot, token: tk, code: this.game.code });
       } else {
-        if (msg?.t === "hello") throw new DuelError("bad-message", "Já identificado.");
+        if (msg?.t === "hello") throw new GameError("bad-message", "Já identificado.");
         const before = this.game.phase;
         this.game.apply(att.slot, msg, { connected: this.#connected() });
         if (before !== "done" && this.game.phase === "done") log("game_done", { kind: this.Logic.name });
         await this.#save();
       }
     } catch (e) {
-      if (e instanceof DuelError) this.#send(ws, { t: "error", code: e.code, detail: e.message });
+      if (e instanceof GameError) this.#send(ws, { t: "error", code: e.code, detail: e.message });
       else { log("error", { where: "room", kind: this.Logic.name, message: String(e?.message ?? e) }, "error"); this.#send(ws, { t: "error", code: "internal", detail: "Erro interno." }); }
       return;
     }
@@ -105,7 +105,7 @@ class GameRoom extends DurableObject {
   }
 
   async #save() {
-    await this.ctx.storage.put("duel", this.game.toJSON());
+    await this.ctx.storage.put("game", this.game.toJSON());
     await this.ctx.storage.setAlarm(Date.now() + TTL_MS);
   }
 
@@ -136,5 +136,4 @@ class GameRoom extends DurableObject {
   }
 }
 
-export class Room extends GameRoom { get Logic() { return Duel; } }
 export class CupRoom extends GameRoom { get Logic() { return Cup; } }

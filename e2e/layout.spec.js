@@ -23,7 +23,7 @@ for (const viewport of VIEWPORTS) {
       const game = new GamePage(page);
       await game.stubOnlineApi();
       await game.open();
-      await expect(page.getByRole("button", { name: /Criar duelo/ })).toBeVisible();   // modos online carregaram
+      await expect(page.getByRole("button", { name: /Criar campeonato/ })).toBeVisible();   // modos online carregaram
       await expectHealthy(page, "início");
       await game.typeName();                                                          // com o nome digitado (botões habilitados)
       await expectHealthy(page, "início com nome");

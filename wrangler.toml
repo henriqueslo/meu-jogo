@@ -15,23 +15,24 @@ binding = "DB"
 database_name = "minhalineup"
 database_id = "30ce705f-7cd4-4673-8958-dcc4778067d1"
 
-# Fase 2: salas de duelo (WebSocket + Durable Objects, com SQLite)
-[[durable_objects.bindings]]
-name = "ROOM"
-class_name = "Room"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["Room"]
-
-# Fase 3: campeonato multiplayer (outro Durable Object)
+# Salas multiplayer (WebSocket + Durable Objects, com SQLite): campeonato
 [[durable_objects.bindings]]
 name = "CUP"
 class_name = "CupRoom"
 
+# Histórico de migrações (não apagar: o Cloudflare confere a sequência).
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["CupRoom"]
+
+# O duelo 1×1 foi removido: apaga a classe Room e os dados dela.
+[[migrations]]
+tag = "v3"
+deleted_classes = ["Room"]
 
 # Logs persistidos no painel (Workers Logs) — eventos estruturados em JSON (worker/log.js)
 [observability]

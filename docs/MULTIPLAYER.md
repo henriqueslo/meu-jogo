@@ -10,12 +10,12 @@ site/js/ui.js      só DOM (escape obrigatório)
 site/js/share.js   card de compartilhamento
 ```
 
-> **Status:** Fases 1 (desafio do dia), 2 (duelo por código) e 3 (campeonato com 2–8 jogadores) implementadas — ver `docs/API.md`.
+> **Status:** Desafio diário e campeonato (2–8 jogadores) implementados — ver `docs/API.md`. O duelo 1×1 foi removido. **Próximo: Leilão** (regras abaixo).
 
 ## Modos sugeridos (do mais barato ao mais rico)
 
 1. **Desafio diário com ranking (assíncrono)** — todos recebem a mesma seed do dia. Cliente envia `{teamName, picks:{role:{lineupId,nick}}, style, refreshesUsed}`; o Worker valida com `resolveSquad`, roda `createTournament`+`playToEnd` com a seed do dia e grava `summarize()` no **D1**. O cliente nunca envia resultado. Rate limit por IP/dia. *Melhor primeiro passo: sem WebSocket, sem salas.*
-2. **Duelo por código de sala (síncrono, 2 jogadores)** — cada um draftea o próprio elenco (mesma seed de draft ⇒ mesmas ofertas, comparação justa) e o Worker simula Bo3/Bo5 entre os dois times.
+2. **Leilão (síncrono, 2 a 5 jogadores)** — em vez de draft, os jogadores disputam cada craque no lance; depois, campeonato simulado (ver “Leilão” abaixo).
 3. **Mini‑campeonato de 8–16 humanos** — suíço/playoffs com humanos no lugar das IAs (o motor já aceita times arbitrários).
 
 ## Arquitetura (modos 2 e 3)
@@ -44,3 +44,25 @@ Adicionar em `wrangler.toml`: `main = "worker/index.ts"`, binding do Durable Obj
 - [ ] Teste de desync: re-simular no servidor e comparar com o que o cliente exibiu
 - [ ] Privacidade/termos atualizados, CMP ativo
 - [ ] Monitoramento: nº de salas, erros, latência; alertas de pico
+
+## Leilão (próxima entrega — regras decididas)
+
+Substitui o antigo duelo 1×1 como segundo modo do bloco Multiplayer (na home já existe o cartão “Leilão”, desligado, “Em breve”).
+
+**Estrutura**
+- 2 a 5 jogadores humanos (sem bots no leilão). Cada um começa com **100 moedas** e precisa fechar um time de 5: AWP, IGL, Entry, Support e Rifler.
+- Um jogador histórico por vez na tela (nick, papel, país, time/ano, rating da época).
+- **Lance fechado e simultâneo (“no escuro”):** cada jogador escolhe um valor ou **passa** (ninguém é obrigado a dar lance); os lances só são revelados juntos e quem pagar mais leva. Depois da revelação todos veem quanto cada um pagou.
+- **Tempo por jogador:** ~15 s, definido pelo servidor; quem não responde conta como “passou”. Se todos já enviaram, a revelação é imediata.
+- **Todos passam / ninguém dá lance:** o jogador é descartado e vem o próximo.
+
+**Regras para o jogo não travar**
+- **Reserva:** o lance máximo é o saldo menos 1 moeda por vaga ainda vazia (depois desta), para ninguém ficar sem dinheiro para completar o time.
+- **Papel já preenchido:** não dá para dar lance (o botão explica o motivo).
+- **Desempate:** menos jogadores já conquistados; persistindo o empate, sorteio com semente do servidor.
+- **Quantidade de leilões:** 10 por jogador (5 jogadores = 50), com o mesmo número de cada papel (oferta = o dobro da demanda, para haver margem para passar).
+- **Vaga que sobrar:** recebe, de graça, o melhor descartado daquele papel; os times mais fracos escolhem primeiro.
+
+**Depois do leilão:** escolha de estilo (mesma tela de hoje), campeonato simulado completado com times históricos até 16 (reaproveita a lógica do campeonato) e resultado com herói, jornada e compartilhar (texto próprio de leilão).
+
+**Servidor autoritativo:** o cliente só envia intenções (lance, passar); o servidor valida saldo, reserva, papel e prazo. Saldo e preço nunca vêm do cliente.

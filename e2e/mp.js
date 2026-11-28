@@ -1,4 +1,4 @@
-/* Servidor de mentira para o duelo e o campeonato: o Playwright entra na sala pelo link de convite
+/* Servidor de mentira para o campeonato: o Playwright entra na sala pelo link de convite
  * e o WebSocket responde com o estado que o teste quer ver (o cliente é só um espelho do servidor). */
 import { LINEUPS } from "../site/js/data.js";
 export const ROLES = ["AWP", "IGL", "Entry", "Support", "Rifler"];
@@ -9,29 +9,6 @@ export const elenco = (forca, prefixo = "Jog") =>
 
 /* Elenco com só os primeiros `n` papéis preenchidos (draft em andamento). */
 export const parcial = (forca, n, prefixo = "Jog") => Object.fromEntries(Object.entries(elenco(forca, prefixo)).slice(0, n));
-
-/* ------------------------------ duelo ------------------------------ */
-export function duelo({ phase = "done", won = true, style = "tatico", forca = 90, draftDone = true, rematch = false, picks = 5 } = {}) {
-  const lado = (nome, f, est, pref) => ({
-    name: nome, style: est,
-    squad: Object.fromEntries(ROLES.map((r, i) => [r, { nick: `${pref}${i + 1}`, pais: "br", team: "Time X", forca: f }])),
-  });
-  const base = {
-    v: 1, phase, code: "ABC234", round: 0, best_of: 3,
-    you: { slot: 0, name: "Meu Time", offers: phase === "draft" && !draftDone ? OFFERS : [], refreshesLeft: 3, squad: parcial(forca, picks), draftDone, canUndo: false, style: phase === "done" ? style : null, rematch },
-    opp: { name: "Rival FC", connected: true, picks: 5, styleChosen: phase === "done", rematch: false },
-    result: null,
-  };
-  if (phase === "done") {
-    base.result = {
-      winner: won ? "A" : "B", winsA: won ? 2 : 1, winsB: won ? 1 : 2,
-      maps: won ? [{ map: "Mirage", a: 13, b: 9, ot: 0 }, { map: "Inferno", a: 10, b: 13, ot: 0 }, { map: "Nuke", a: 13, b: 11, ot: 0 }]
-                : [{ map: "Mirage", a: 9, b: 13, ot: 0 }, { map: "Inferno", a: 13, b: 10, ot: 0 }, { map: "Nuke", a: 8, b: 13, ot: 0 }],
-      forca: { A: forca, B: 88 }, a: lado("Meu Time", forca, style, "Jog"), b: lado("Rival FC", 88, "rush", "Riv"), stats: [],
-    };
-  }
-  return base;
-}
 
 /* ---------------------------- campeonato ---------------------------- */
 const bot = (i) => ({ name: `Bot ${i}`, human: null, forca: 80 });
@@ -87,15 +64,15 @@ export function campeonato({ phase = "running", script = ["V"], status = "active
 }
 
 /* Entra na sala pelo link de convite; o servidor de mentira devolve `view`. `enviadas` recebe o que o cliente mandar. */
-export async function abrirSala(page, { kind = "rooms", view, enviadas = [] }) {
+export async function abrirSala(page, { view, enviadas = [] }) {
   await page.addInitScript(() => {                           // captura o compartilhamento (sem abrir a folha do sistema)
     window.__shared = null;
     const definir = (nome, valor) => Object.defineProperty(navigator, nome, { value: valor, configurable: true, writable: true });   // vale mesmo se o navegador já tiver (ou não) a API
     definir("canShare", () => false);
     definir("share", async (d) => { window.__shared = d; });
   });
-  await page.route(`**/api/v1/${kind}/ABC234`, (r) => r.fulfill({ json: { exists: true } }));
-  await page.routeWebSocket(new RegExp(`/api/v1/${kind}/ABC234/ws`), (ws) => {
+  await page.route("**/api/v1/cups/ABC234", (r) => r.fulfill({ json: { exists: true } }));
+  await page.routeWebSocket("**/api/v1/cups/ABC234/ws", (ws) => {
     ws.onMessage((m) => {
       const msg = JSON.parse(String(m));
       if (msg.t === "hello") {
@@ -104,7 +81,7 @@ export async function abrirSala(page, { kind = "rooms", view, enviadas = [] }) {
       } else enviadas.push(msg);
     });
   });
-  await page.goto(kind === "rooms" ? "/?duelo=ABC234" : "/?campeonato=ABC234");
+  await page.goto("/?campeonato=ABC234");
   await page.getByLabel(/Seu nome de time/).fill("Meu Time");
   await page.getByRole("button", { name: /^Entrar no/ }).click();
 }

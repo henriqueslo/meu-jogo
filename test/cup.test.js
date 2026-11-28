@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LINEUPS, ROLES } from "../site/js/data.js";
-import { DuelError } from "../worker/duel.js";
+import { GameError } from "../site/js/engine.js";
 import { Cup, MAX_HUMANS } from "../worker/cup.js";
 
 const lu = (id) => LINEUPS.find((l) => l.id === id);
 const ALL = [true, true, true, true, true, true, true, true];
-const throwsCode = (fn, c) => assert.throws(fn, (e) => e instanceof DuelError && e.code === c, `esperava ${c}`);
+const throwsCode = (fn, c) => assert.throws(fn, (e) => e instanceof GameError && e.code === c, `esperava ${c}`);
 
 function cup(n = 4, seed = 2024) {
   const c = Cup.create("ABC234", seed);

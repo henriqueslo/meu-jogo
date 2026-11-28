@@ -10,12 +10,11 @@ import {
   campaignStatusText, campaignPanelHTML, heroOutcome, journeyHTML,
 } from "./parts.js";
 import { shareResult } from "./share.js";
-import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML } from "./daily.js";
+import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML, topFiveHTML } from "./daily.js";
 import { esc, flagEmoji, slotHTML, draftSlotsHTML, offersHTML, lineupById } from "./render.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
-import { openDuel, createRoom, validCode, normalizeCode } from "./duel.js";
-import { openCup, createCup } from "./cup.js";
-import { adoptActive, inRoomFlag, roomExists, resolveRoomKind } from "./net.js";
+import { openCup, createCup, closeCup } from "./cup.js";
+import { adoptActive, inRoomFlag, roomExists, resolveRoomKind, validCode, normalizeCode } from "./net.js";
 import { loadActive, clearActive, kindLabel } from "./session.js";
 
 const DEFAULT_STYLE = "tatico";           // já vem selecionado: o jogador só decide se quiser mudar
@@ -104,11 +103,18 @@ function requireName({ online, field = nameInput, errId = "name-error" }) {
   return clean;
 }
 
-/* Só o que depende do estado: o Desafio do dia concluído hoje. */
+/* Só o que depende do estado: o Desafio diário concluído hoje. */
 function refreshStartControls() {
   const played = !!state.daily && playedToday(state.daily.day);
   $("btn-daily").disabled = played;
-  $("btn-daily").textContent = played ? "📅 Desafio de hoje concluído · volta amanhã" : "📅 Desafio do dia · todos jogam o mesmo baralho";
+  $("btn-daily").textContent = played ? "Concluído · volta amanhã" : "Jogar o desafio";
+}
+
+/* Mostra a home e atualiza o que muda com o tempo: o Desafio (já feito hoje?) e o Top 5 (alguém acabou de entrar?). */
+function showHome() {
+  showScreen("screen-start");
+  refreshStartControls();
+  refreshTop5();
 }
 
 function beginGame(mode = "free") {
@@ -139,7 +145,7 @@ function selectStyle(style) {
   });
 }
 
-/* Força do time, cartas de estilo e sugestão: site/js/parts.js (as mesmas telas do duelo e do campeonato). */
+/* Força do time, cartas de estilo e sugestão: site/js/parts.js (as mesmas telas do campeonato). */
 
 function goToTeamScreen() {
   showScreen("screen-team");
@@ -197,7 +203,7 @@ function advanceTournament() {
   return ev;
 }
 
-/* O painel e as frases da campanha são os mesmos do duelo e do campeonato (site/js/parts.js). */
+/* O painel e as frases da campanha são os mesmos do campeonato (site/js/parts.js). */
 function campaignHTML() {
   const t = state.tournament, you = t.teams.find((x) => x.isUser);
   const next = { qf: "quartas de final", sf: "semifinal", final: "grande final" }[t.phase];
@@ -341,10 +347,10 @@ function nextStepsHTML() {
   const daily = state.mode !== "daily" && !playedToday(state.daily.day);
   return `<section class="next-steps" role="region" aria-label="E agora?">
     <h3>E agora?</h3>
-    <p>Chame um amigo para um duelo${daily ? " ou entre no desafio de hoje, em que todos jogam o mesmo baralho" : ""}.</p>
+    <p>Chame amigos para um campeonato${daily ? " ou entre no desafio de hoje, em que todos jogam o mesmo baralho" : ""}.</p>
     <div class="next-actions">
-      <button class="secondary" id="btn-next-duel" type="button">⚔️ Desafiar um amigo</button>
-      ${daily ? '<button class="secondary" id="btn-next-daily" type="button">📅 Desafio do dia</button>' : ""}
+      <button class="secondary" id="btn-next-cup" type="button">🏆 Criar campeonato</button>
+      ${daily ? '<button class="secondary" id="btn-next-daily" type="button">📅 Desafio diário</button>' : ""}
     </div></section>`;
 }
 
@@ -393,9 +399,9 @@ function renderResults() {
   $("btn-submit-daily")?.remove();
   if (daily) dailySection();
 
-  $("btn-next-duel")?.addEventListener("click", async (e) => {
+  $("btn-next-cup")?.addEventListener("click", async (e) => {
     e.currentTarget.disabled = true;
-    const r = await createAndOpenDuel(state.teamName);
+    const r = await createAndOpenCup(state.teamName);
     if (!r.ok) { e.currentTarget.disabled = false; document.querySelector(".next-steps p").textContent = r.detail; }
   });
   $("btn-next-daily")?.addEventListener("click", () => { nameInput.value = state.teamName; beginGame("daily"); });
@@ -411,28 +417,33 @@ $("btn-retry").addEventListener("click", () => {
 
 $("btn-restart").addEventListener("click", () => {
   state.tournament = null; state.draft = null; state.style = DEFAULT_STYLE;
-  showScreen("screen-start");
-  refreshStartControls();
+  showHome();
 });
 
-/* ------------------------ Desafio do dia (Fase 1) ------------------------ */
-/* O botão só aparece se a API responder; sem backend o jogo livre segue normal. */
+/* ------------------------ Desafio diário (Fase 1) ------------------------ */
+/* O Desafio, o Top 5 e o Multiplayer só aparecem se a API responder; sem backend o Modo rápido segue normal. */
 async function initDaily() {
   state.daily = await fetchDaily();
   if (!state.daily) return;
-  $("btn-daily").hidden = false;
-  $("duel-box").hidden = false;
+  $("daily-card").hidden = false;
+  $("multi-block").hidden = false;
   refreshStartControls();
-  const rows = await fetchBoard(state.daily.day, 5);
+  refreshTop5();
+}
+
+/* O Top 5 só aparece se houver gente (e ocupa pouco espaço). Recarrega a cada volta à home. */
+async function refreshTop5() {
+  if (!state.daily) return;
+  const rows = await fetchBoard(state.daily.day, 5, { fresh: true });
   if (rows && rows.length) {
-    $("daily-board-start").innerHTML = `<div class="stage-label">Ranking de hoje</div>${boardHTML(rows, esc)}`;
+    $("top5-list").innerHTML = topFiveHTML(rows, esc);
     $("daily-board-start").hidden = false;
   }
 }
 
 function dailySection() {
   const box = document.createElement("div");
-  box.innerHTML = `<div class="stage-label">Desafio do dia · ${esc(state.daily.day)}</div>
+  box.innerHTML = `<div class="stage-label">Desafio diário · ${esc(state.daily.day)}</div>
     <p id="daily-msg" style="color:var(--dim); font-size:13px;">Envie sua lineup ao ranking. O servidor refaz o draft e a simulação — o resultado vale para todos.</p>
     <div id="daily-board"></div>`;
   $("results-content").appendChild(box);
@@ -457,44 +468,36 @@ function dailySection() {
 
 initDaily();
 
-/* ------------------------- Salas: duelo e campeonato ------------------------- */
-const backToStart = () => { showScreen("screen-start"); refreshStartControls(); };
-$("duel-code-input").addEventListener("input", (e) => {
+/* ------------------------- Salas (campeonato) ------------------------- */
+/* Cada tipo de sala tem o seu abridor, o seu parâmetro de convite (INVITES) e o seu tipo em net.js. */
+const OPEN = { cups: openCup };
+const backToStart = showHome;
+$("room-code-input").addEventListener("input", (e) => {
   e.target.value = normalizeCode(e.target.value).replace(/[^A-Z0-9]/g, "");
   $("join-error").textContent = "";
 });
 
 /* Cria a sala e entra nela. Usado pelo botão da tela inicial e pelo convite do fim do jogo. */
-async function createAndOpenDuel(name) {
-  const r = await createRoom();
-  if (r.ok) openDuel({ code: r.code, name, exit: backToStart });
+async function createAndOpenCup(name) {
+  const r = await createCup();
+  if (r.ok) openCup({ code: r.code, name, exit: backToStart });
   return r;
 }
-
-$("btn-duel-create").addEventListener("click", async () => {
-  const name = requireName({ online: true });
-  if (!name) return;
-  const btn = $("btn-duel-create"); btn.disabled = true;
-  const r = await createAndOpenDuel(name);
-  btn.disabled = false;
-  if (!r.ok) $("name-error").textContent = r.detail;
-});
 
 $("btn-cup-create").addEventListener("click", async () => {
   const name = requireName({ online: true });
   if (!name) return;
   const btn = $("btn-cup-create"); btn.disabled = true;
-  const r = await createCup();
+  const r = await createAndOpenCup(name);
   btn.disabled = false;
-  if (!r.ok) { $("name-error").textContent = r.detail; return; }
-  openCup({ code: r.code, name, exit: backToStart });
+  if (!r.ok) $("name-error").textContent = r.detail;
 });
 
-/* Entrar com um código só: o servidor diz se a sala é de duelo ou de campeonato. */
+/* Entrar com um código só: o servidor diz que tipo de sala é. */
 $("btn-join").addEventListener("click", async () => {
   const name = requireName({ online: true });
   if (!name) return;
-  const err = $("join-error"), input = $("duel-code-input"), code = normalizeCode(input.value);
+  const err = $("join-error"), input = $("room-code-input"), code = normalizeCode(input.value);
   err.textContent = "";
   if (!validCode(code)) {
     err.textContent = "O código tem 6 letras e números (sem I, L, O, 0 e 1). Confira com quem convidou você.";
@@ -505,26 +508,25 @@ $("btn-join").addEventListener("click", async () => {
   btn.disabled = true; btn.textContent = "Procurando…";
   const kind = await resolveRoomKind(code);
   btn.disabled = false; btn.textContent = label;
-  if (kind === "rooms") openDuel({ code, name, exit: backToStart });
-  else if (kind === "cups") openCup({ code, name, exit: backToStart });
+  if (OPEN[kind]) OPEN[kind]({ code, name, exit: backToStart });
   else if (kind === null) err.textContent = "Não encontramos essa sala. Confira o código ou peça um novo (as salas somem após 1 hora sem atividade).";
   else err.textContent = "Não deu para consultar agora. Verifique sua conexão e tente de novo.";
 });
 
 /* ------------------------------- Reentrada ------------------------------- */
-/* Sala guardada de uma sessão anterior: F5 volta sozinho; aba fechada mostra o botão "voltar". */
+/* Sala guardada de uma sessão anterior: F5 volta sozinho; aba fechada ou logo clicado mostra o botão "voltar". */
 function resumeRoom(a) {
   adoptActive(a);
-  (a.kind === "cups" ? openCup : openDuel)({ code: a.code, name: a.name, exit: backToStart });
+  OPEN[a.kind]({ code: a.code, name: a.name, exit: backToStart });
 }
 
-async function initResume() {
+async function offerResume({ auto = false } = {}) {
   let store; try { store = localStorage; } catch { return; }
   const a = loadActive(store);
   if (!a) return;
   const exists = await roomExists(a.kind, a.code);
   if (exists === false) { clearActive(store); return; }               // sala já foi apagada no servidor
-  if (inRoomFlag() === `${a.kind}:${a.code}`) { resumeRoom(a); return; }   // recarregou a página dentro da sala
+  if (auto && inRoomFlag() === `${a.kind}:${a.code}`) { resumeRoom(a); return; }   // recarregou a página dentro da sala
   $("resume-text").textContent = `Você tem um ${kindLabel(a.kind)} em andamento: sala ${a.code}, como “${a.name}”.`;
   $("resume-box").hidden = false;
   $("btn-resume").onclick = () => { $("resume-box").hidden = true; resumeRoom(a); };
@@ -532,24 +534,25 @@ async function initResume() {
 }
 
 /* ------------------------- Convite por link ------------------------- */
-/* ?duelo=CÓDIGO ou ?campeonato=CÓDIGO levam direto à página do convite: só falta o nome.
+/* ?campeonato=CÓDIGO leva direto à página do convite: só falta o nome.
  * (Antes caía na home, e o botão principal de lá começa uma partida solo.) Não depende da API do Desafio. */
+const INVITES = { campeonato: { kind: "cups", nome: "campeonato", titulo: "Você foi convidado para um campeonato" } };
+
 function initInvite() {
   const qs = new URLSearchParams(location.search);
-  const dq = qs.get("duelo"), cq = qs.get("campeonato");
-  const kind = dq && validCode(dq) ? "rooms" : cq && validCode(cq) ? "cups" : null;
-  if (!kind) return false;
-  const code = normalizeCode(kind === "rooms" ? dq : cq);
-  const open = kind === "rooms" ? openDuel : openCup;
-  const nomeDaSala = kind === "rooms" ? "duelo" : "campeonato";
+  const param = Object.keys(INVITES).find((p) => validCode(qs.get(p) ?? ""));
+  if (!param) return false;
+  const { kind, nome, titulo } = INVITES[param];
+  const code = normalizeCode(qs.get(param));
+  const open = OPEN[kind];
 
   let store; try { store = localStorage; } catch { store = null; }
   const a = store && loadActive(store);
   if (a && a.kind === kind && a.code === code) { resumeRoom(a); return true; }   // já estava nessa sala: volta sem pedir nome
 
-  $("invite-title").textContent = kind === "rooms" ? "Você foi convidado para um duelo 1×1" : "Você foi convidado para um campeonato";
+  $("invite-title").textContent = titulo;
   $("invite-code").textContent = code;
-  $("btn-invite-join").textContent = `Entrar no ${nomeDaSala} →`;
+  $("btn-invite-join").textContent = `Entrar no ${nome} →`;
   const field = $("invite-name-input");
   field.value = loadName();
   field.addEventListener("input", () => { $("invite-error").textContent = ""; });
@@ -573,4 +576,19 @@ function initInvite() {
   return true;
 }
 
-if (!initInvite()) initResume();
+/* ------------------------------- Logo = home ------------------------------- */
+/* Num jogo solo em andamento pergunta antes (perderia o jogo). Numa sala só sai da tela: a sala continua
+ * guardada e a home oferece "Voltar à sala". */
+const SOLO_SCREENS = ["screen-draft", "screen-team", "screen-sim"];
+function goHome() {
+  const ativa = document.querySelector(".screen.active")?.id;
+  if (SOLO_SCREENS.includes(ativa) && !window.confirm("Voltar ao início? Você perde este jogo.")) return;
+  closeCup();
+  state.tournament = null; state.draft = null; state.style = DEFAULT_STYLE; state.journey = [];
+  if (location.search) history.replaceState(null, "", location.pathname);
+  backToStart();
+  offerResume();
+}
+$("logo-home").addEventListener("click", (e) => { e.preventDefault(); goHome(); });
+
+if (!initInvite()) offerResume({ auto: true });

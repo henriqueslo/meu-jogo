@@ -3,7 +3,7 @@ export class GamePage {
   constructor(page) {
     this.page = page;
     this.nameInput = page.getByLabel(/Nome do seu time/);
-    this.begin = page.getByRole("button", { name: /^Jogar · montar minha lineup/ });
+    this.begin = page.getByRole("button", { name: /^Jogar agora/ });
     this.next = page.getByRole("button", { name: /→/ });                  // “Próxima rodada →”, “Semifinal →”…
     this.offers = page.locator("#lineup-offers button:not([disabled])");  // jogadores escolhíveis do draft
     this.undo = page.getByRole("button", { name: /Desfazer última escolha/ });
@@ -12,10 +12,10 @@ export class GamePage {
     this.retry = page.getByRole("button", { name: /Tentar de novo com este time/ });
   }
 
-  /* Simula o backend online (o botão de modos só aparece se /api/v1/daily responder). */
-  async stubOnlineApi() {
+  /* Simula o backend online (o Desafio, o Top 5 e o Multiplayer só aparecem se /api/v1/daily responder). `board` = linhas do ranking. */
+  async stubOnlineApi({ board = [] } = {}) {
     await this.page.route("**/api/v1/daily", (r) => r.fulfill({ json: { day: "2026-11-26", seed: 123456, max_refreshes: 3 } }));
-    await this.page.route("**/api/v1/daily/leaderboard**", (r) => r.fulfill({ json: { day: "2026-11-26", data: [] } }));
+    await this.page.route("**/api/v1/daily/leaderboard**", (r) => r.fulfill({ json: { day: "2026-11-26", data: board } }));
   }
 
   /* Fixa a seed do jogo livre (o jogo a sorteia com crypto.getRandomValues num Uint32Array de 1 posição):

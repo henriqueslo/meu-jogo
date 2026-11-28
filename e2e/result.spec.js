@@ -1,6 +1,6 @@
 /* Fase C4 (docs/UX-AUDIT.md, U-13 e U-14): o resultado conta a HISTÓRIA do torneio e convida a continuar.
  *   herói à altura do desfecho · jornada rodada a rodada · compartilhar como ação principal ·
- *   “tentar de novo com este time” (só no jogo livre) · convites para duelo e Desafio do dia. */
+ *   “tentar de novo com este time” (só no jogo livre) · convites para campeonato e Desafio diário. */
 import { test, expect } from "@playwright/test";
 import { GamePage } from "./pages/game.js";
 import { SEEDS } from "./seeds.js";
@@ -101,40 +101,40 @@ test("'Montar outro time' começa um draft novo", async ({ page }) => {
 });
 
 /* ----------------------------- convites (só com os modos online) ----------------------------- */
-test("sem modos online (API fora do ar) não há convites nem botão de rejogar duelo", async ({ page }) => {
+test("sem modos online (API fora do ar) não há convites", async ({ page }) => {
   const game = new GamePage(page);
   await ateOResultado(game, SEEDS.campeao);
   await expect(page.getByRole("region", { name: /E agora/ })).toHaveCount(0);
 });
 
-test("com modos online: 'E agora?' convida para duelo e Desafio do dia", async ({ page }) => {
+test("com modos online: 'E agora?' convida para campeonato e Desafio diário", async ({ page }) => {
   const game = new GamePage(page);
   await game.stubOnlineApi();
-  await page.route("**/api/v1/rooms", (r) => r.fulfill({ status: 201, json: { code: "ABC234" } }));
-  await page.routeWebSocket(/\/api\/v1\/rooms\/ABC234\/ws/, () => {});
+  await page.route("**/api/v1/cups", (r) => r.fulfill({ status: 201, json: { code: "ABC234" } }));
+  await page.routeWebSocket(/\/api\/v1\/cups\/ABC234\/ws/, () => {});
   await ateOResultado(game, SEEDS.campeao);
   const agora = page.getByRole("region", { name: /E agora/ });
   await expect(agora).toBeVisible();
-  await expect(agora.getByRole("button", { name: /Desafiar um amigo/ })).toBeVisible();
-  await expect(agora.getByRole("button", { name: /Desafio do dia/ })).toBeVisible();
-  await agora.getByRole("button", { name: /Desafiar um amigo/ }).click();
-  await expect(page.getByText(/Duelo · sala ABC234/)).toBeVisible();
+  await expect(agora.getByRole("button", { name: /Criar campeonato/ })).toBeVisible();
+  await expect(agora.getByRole("button", { name: /Desafio diário/ })).toBeVisible();
+  await agora.getByRole("button", { name: /Criar campeonato/ }).click();
+  await expect(page.getByText(/Campeonato · sala ABC234/)).toBeVisible();
 });
 
-test("o convite para o Desafio do dia leva ao draft do desafio", async ({ page }) => {
+test("o convite para o Desafio diário leva ao draft do desafio", async ({ page }) => {
   const game = new GamePage(page);
   await game.stubOnlineApi();
   await ateOResultado(game, SEEDS.campeao);
-  await page.getByRole("region", { name: /E agora/ }).getByRole("button", { name: /Desafio do dia/ }).click();
+  await page.getByRole("region", { name: /E agora/ }).getByRole("button", { name: /Desafio diário/ }).click();
   await expect(page.getByText(/Escolha 1 de 5/)).toBeVisible();
 });
 
-/* ----------------------------- Desafio do dia: sem rejogar ----------------------------- */
-test("no Desafio do dia NÃO há 'tentar de novo' (cada um joga uma vez)", async ({ page }) => {
+/* ----------------------------- Desafio diário: sem rejogar ----------------------------- */
+test("no Desafio diário NÃO há 'tentar de novo' (cada um joga uma vez)", async ({ page }) => {
   const game = new GamePage(page);
   await game.stubOnlineApi();
   await game.open(); await game.typeName("Time Teste");
-  await page.getByRole("button", { name: /Desafio do dia/ }).first().click();
+  await page.getByRole("button", { name: /Jogar o desafio/ }).click();
   await game.draftAll();
   await page.getByRole("button", { name: /Disputar o Major/ }).click();
   await page.getByRole("button", { name: /Simular até o fim/ }).click();
@@ -147,7 +147,7 @@ test("no Desafio do dia NÃO há 'tentar de novo' (cada um joga uma vez)", async
 test("resultado: sem rolagem lateral, alvos ≥ 44px e texto ≥ 12px", async ({ page }) => {
   const game = new GamePage(page);
   await game.stubOnlineApi();
-  await page.route("**/api/v1/rooms", (r) => r.fulfill({ status: 201, json: { code: "ABC234" } }));
+  await page.route("**/api/v1/cups", (r) => r.fulfill({ status: 201, json: { code: "ABC234" } }));
   await ateOResultado(game, SEEDS.campeao);
   const m = await page.evaluate(() => {
     const vis = (e) => e.getClientRects().length > 0;
