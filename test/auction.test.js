@@ -148,18 +148,60 @@ test("papel já preenchido: não dá para dar lance (com o motivo) e a revelaç�
   assert.equal(view(a, 1, now).step, "reveal"); assert.equal(view(a, 1, now).last.winner, 1);
 });
 
-test("empate: quem tem menos jogadores leva; com o mesmo número, sorteio determinístico pela semente", () => {
-  const vencedor = (seed) => { const a = begun(2, seed); apply(a, 0, { t: "bid", amount: 10 }); apply(a, 1, { t: "bid", amount: 10 }); return view(a, 0).last.winner; };
-  assert.equal(vencedor(5), vencedor(5));                                          // determinístico
-  assert.deepEqual(new Set([...Array(30).keys()].map((s) => vencedor(s + 1))), new Set([0, 1]));   // e os dois lados ganham
-  // 0 já tem 1 jogador: num empate o 1 (com zero) leva
+/* ---- desempate: quem deu o lance primeiro (pelo relógio do servidor) leva ---- */
+test("empate: quem deu o lance primeiro leva (nos dois sentidos) e a revelação diz que foi por velocidade", () => {
+  const a = begun(2, 5);
+  apply(a, 1, { t: "bid", amount: 10 }, T0 + 800); apply(a, 0, { t: "bid", amount: 10 }, T0 + 1200);
+  const v = view(a, 0, T0 + 1200);
+  assert.equal(v.last.winner, 1); assert.equal(v.last.price, 10); assert.equal(v.last.tie, "speed");
+  const b = begun(2, 5);
+  apply(b, 0, { t: "bid", amount: 10 }, T0 + 300); apply(b, 1, { t: "bid", amount: 10 }, T0 + 2500);
+  assert.equal(view(b, 0, T0 + 2500).last.winner, 0);
+});
+
+test("a ordem em que os jogadores aparecem na sala não decide o empate (nem a quantidade de jogadores que já têm)", () => {
+  // o jogador 0 já tem um jogador no elenco; no empate quem foi mais rápido leva, mesmo sendo o que tem mais jogadores
   const a = begun(2, 11);
   const r0 = view(a, 0).lot.role;
   apply(a, 0, { t: "bid", amount: 10 }); apply(a, 1, { t: "pass" });
   let now = proximo(a, T0);
   for (let i = 0; i < 20 && !(view(a, 0, now).step === "bidding" && view(a, 0, now).lot?.role !== r0); i++) { todosPassam(a, now, 2); now = proximo(a, now); }
-  apply(a, 0, { t: "bid", amount: 7 }, now); apply(a, 1, { t: "bid", amount: 7 }, now);
-  assert.equal(view(a, 0, now).last.winner, 1);
+  apply(a, 0, { t: "bid", amount: 7 }, now + 100); apply(a, 1, { t: "bid", amount: 7 }, now + 900);
+  assert.equal(view(a, 0, now + 900).last.winner, 0);
+});
+
+test("empate no mesmíssimo instante: sorteio determinístico pela semente, e a revelação diz que foi sorteio", () => {
+  const vencedor = (seed) => { const a = begun(2, seed); apply(a, 0, { t: "bid", amount: 10 }); apply(a, 1, { t: "bid", amount: 10 }); return view(a, 0).last; };
+  assert.equal(vencedor(5).winner, vencedor(5).winner);                            // determinístico
+  assert.equal(vencedor(5).tie, "draw");
+  assert.deepEqual(new Set([...Array(30).keys()].map((s) => vencedor(s + 1).winner)), new Set([0, 1]));   // e os dois lados ganham
+});
+
+test("sem empate, nada é dito sobre desempate; passar não entra na disputa", () => {
+  const a = begun(3, 9);
+  apply(a, 0, { t: "bid", amount: 10 }, T0 + 100); apply(a, 1, { t: "bid", amount: 12 }, T0 + 200); apply(a, 2, { t: "pass" }, T0 + 50);
+  const v = view(a, 0, T0 + 200);
+  assert.equal(v.last.winner, 1); assert.equal(v.last.tie, null);
+  const b = begun(3, 9);                                                           // três empatados: o mais rápido dos três
+  apply(b, 2, { t: "bid", amount: 9 }, T0 + 400); apply(b, 0, { t: "bid", amount: 9 }, T0 + 700); apply(b, 1, { t: "bid", amount: 9 }, T0 + 100);
+  assert.equal(view(b, 0, T0 + 700).last.winner, 1); assert.equal(view(b, 0, T0 + 700).last.tie, "speed");
+});
+
+test("o horário de cada lance não vaza antes da revelação, mas sobrevive a guardar e restaurar a sala", () => {
+  const a = begun(3, 4);
+  apply(a, 2, { t: "bid", amount: 8 }, T0 + 500);
+  assert.ok(!JSON.stringify(view(a, 0, T0 + 600)).includes(String(T0 + 500)), "o instante do lance de outro jogador não pode aparecer");
+  const b = roundtrip(a);                                                           // reinício do servidor no meio do leilão
+  apply(a, 0, { t: "bid", amount: 8 }, T0 + 900); apply(b, 0, { t: "bid", amount: 8 }, T0 + 900);
+  apply(a, 1, { t: "pass" }, T0 + 950); apply(b, 1, { t: "pass" }, T0 + 950);
+  assert.equal(view(a, 0, T0 + 950).last.winner, 2);                                // o 2 foi mais rápido
+  assert.deepEqual(view(b, 0, T0 + 950).last, view(a, 0, T0 + 950).last);
+});
+
+/* ---- o prazo do lance é de 15 segundos (e a revelação, 5) ---- */
+test("tempo: 15 s para dar o lance e 5 s de revelação", () => {
+  assert.equal(BID_MS, 15_000); assert.equal(REVEAL_MS, 5_000);
+  const a = begun(2); assert.equal(view(a, 0).msLeft, 15_000);
 });
 
 /* ------------------------------ tempo ------------------------------ */

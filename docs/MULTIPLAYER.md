@@ -59,7 +59,7 @@ Substituiu o antigo duelo 1×1 como segundo modo do bloco Multiplayer (cartão �
 **Regras para o jogo não travar**
 - **Reserva:** o lance máximo é o saldo menos 1 moeda por vaga ainda vazia (depois desta), para ninguém ficar sem dinheiro para completar o time.
 - **Papel já preenchido:** não dá para dar lance (o botão explica o motivo).
-- **Desempate:** menos jogadores já conquistados; persistindo o empate, sorteio com semente do servidor.
+- **Desempate:** leva quem deu o lance **primeiro**, pelo relógio do servidor (a hora em que o lance chegou); só se dois lances chegarem no mesmíssimo milissegundo há sorteio, com a semente do servidor. A revelação diz como o empate foi decidido. (Quem tem conexão mais lenta sai em desvantagem: é o preço de uma regra simples de explicar.)
 - **Quantidade de leilões:** 10 por jogador (5 jogadores = 50), com o mesmo número de cada papel (oferta = o dobro da demanda, para haver margem para passar).
 - **Vaga que sobrar:** recebe, de graça, o melhor descartado daquele papel; os times mais fracos escolhem primeiro.
 

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="/js/theme-init.js"></script>
 <meta name="google-adsense-account" content="ca-pub-5654800185992965">
 <title>Política de Privacidade — Minha LineUp</title>
 <meta name="description" content="Política de privacidade do Minha LineUp: quais dados são tratados, por quanto tempo, onde ficam e como exercer seus direitos.">
@@ -51,9 +52,10 @@
   <p>Ao criar ou entrar em uma sala, enviamos o <strong>nome de time</strong>, suas escolhas de jogadores e o estilo de jogo. <strong>O nome do seu time, seu elenco e o resultado ficam visíveis para as outras pessoas da mesma sala</strong>. A sala e seus dados são apagados automaticamente após 1 hora sem atividade. Para permitir que você volte à sala se a conexão cair, a página for recarregada ou a aba for fechada, guardamos no seu navegador um código aleatório de reconexão, o código da sala e o nome do time, por até 55 minutos (veja a próxima seção).</p>
 
   <h2>O que guardamos no seu navegador</h2>
-  <p>O site <strong>não define cookies próprios</strong>. Ele usa o armazenamento local do navegador (<em>localStorage</em> e <em>sessionStorage</em>) para lembrar do seu nome e para os modos online:</p>
+  <p>O site <strong>não define cookies próprios</strong>. Ele usa o armazenamento local do navegador (<em>localStorage</em> e <em>sessionStorage</em>) para lembrar do seu nome, da sua escolha de tema e para os modos online:</p>
   <ul>
     <li><code>ml_name</code> (localStorage): o último nome de time que você usou, para já vir preenchido na próxima visita. Fica só no seu navegador; é enviado ao servidor apenas se você entrar no Desafio diário, num campeonato ou num leilão.</li>
+    <li><code>ml_theme</code> (localStorage): a sua escolha de modo claro ou escuro (“light” ou “dark”). Fica só no seu navegador e nunca é enviada ao servidor.</li>
     <li><code>ml_player_id</code> (localStorage): identificador anônimo aleatório do Desafio diário. Fica até você limpar os dados do site.</li>
     <li><code>ml_played</code> (localStorage): o dia em que você já participou do Desafio, para não oferecer de novo.</li>
     <li><code>ml_active</code> (localStorage): a sala em que você está (tipo, código, nome do time e código de reconexão). Expira em 55 minutos e é apagada quando você sai da sala ou clica em <strong>Descartar</strong>.</li>

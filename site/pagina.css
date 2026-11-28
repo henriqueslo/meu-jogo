@@ -4,7 +4,20 @@
   --text:#EAF0F3; --dim:#8DA0AB;
   --ct:#6EA8DC; --t:#E0953A; --gold:#D9B44A;
   --chamfer: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  --bg-rgb:13,17,20; --panel-rgb:21,27,31; --overlay:rgba(13,17,20,.95);
+  --t-fill:#E0953A; --gold-fill:#D9B44A;      /* preenchimentos com texto escuro por cima: iguais nos dois temas */
+  color-scheme:dark;
 }
+/* ===== Modo claro: só troca os valores das variáveis. Os acentos (azul, laranja, dourado) ficam mais escuros
+ * para o TEXTO ter contraste AA; os preenchimentos de botões e etiquetas (--t-fill, --gold-fill) não mudam. ===== */
+:root[data-theme="light"]{
+  --bg:#F3F5F7; --panel:#FFFFFF; --panel2:#E9EEF2; --line:#D3DBE1; --line-strong:#B4C0C9;
+  --text:#141C23; --dim:#52646F;
+  --ct:#1B6AAE; --t:#9A5207; --gold:#7D6100; --danger:#B3261E;
+  --bg-rgb:243,245,247; --panel-rgb:255,255,255; --overlay:rgba(243,245,247,.95);
+  color-scheme:light;
+}
+
 *{box-sizing:border-box;}
 body{
   margin:0; color:var(--text);
@@ -14,7 +27,7 @@ body{
 }
 header{
   border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg, rgba(21,27,31,.9), rgba(13,17,20,.4));
+  background:linear-gradient(180deg, rgba(var(--panel-rgb),.9), rgba(var(--bg-rgb),.4));
   padding:14px 20px 12px; position:relative;
 }
 header::after{
