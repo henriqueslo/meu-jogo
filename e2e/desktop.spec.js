@@ -1,4 +1,4 @@
-/* Fase D1 (docs/UX-AUDIT.md): o desktop aproveita a largura (duelo e campeonato: ver desktop-mp.spec.js). Em telas largas (≥1024px) o conteúdo deixa de ser uma
+/* Fase D1 (docs/UX-AUDIT.md): o desktop aproveita a largura (o campeonato: ver desktop-mp.spec.js). Em telas largas (≥1024px) o conteúdo deixa de ser uma
  * única coluna de 640px: início em 2 colunas, draft com o elenco ao lado, campanha ao lado dos jogos, resultado em 2
  * colunas. O celular não muda (coberto pelos outros specs). */
 import { test, expect } from "@playwright/test";
@@ -19,15 +19,6 @@ const medir = (page) => page.evaluate(() => {
 for (const viewport of [{ width: 1024, height: 768 }, { width: 1280, height: 800 }]) {
   test.describe(`desktop ${viewport.width}px`, () => {
     test.use({ viewport });
-
-    test("início: 'Jogar' à esquerda e 'Jogar com amigos' à direita, lado a lado", async ({ page }) => {
-      const g = new GamePage(page);
-      await g.stubOnlineApi(); await g.open();
-      const jogar = await box(g.begin), amigos = await box(page.locator("#duel-box"));
-      expect(amigos.x, "modos à direita do botão Jogar").toBeGreaterThanOrEqual(jogar.right);
-      expect(amigos.y, "mesma altura (não empilhados)").toBeLessThan(jogar.bottom);
-      await expect(page.getByRole("button", { name: /Desafio do dia/ })).toBeVisible();
-    });
 
     test("início sem os modos online: a coluna única fica centrada", async ({ page }) => {
       const g = new GamePage(page);
@@ -144,7 +135,7 @@ test.describe("celular não muda", () => {
   test("início e draft continuam em coluna única (nada lado a lado)", async ({ page }) => {
     const g = new GamePage(page);
     await g.stubOnlineApi(); await g.useSeed(SEEDS.campeao); await g.open();
-    const jogar = await box(g.begin), amigos = await box(page.locator("#duel-box"));
+    const jogar = await box(g.begin), amigos = await box(page.locator("#multi-block"));
     expect(amigos.y).toBeGreaterThan(jogar.bottom - 1);
     await g.startFreePlay(); await g.offers.first().click();
     const lateral = await box(page.locator("#slots")), ofertas = await box(page.locator("#lineup-offers"));

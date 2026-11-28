@@ -38,14 +38,20 @@ export async function submitEntry({ teamName, style, draft }) {
   } catch { return { ok: false, status: 0, detail: "Sem conexão com o servidor." }; }
 }
 
-export async function fetchBoard(day, limit = 10) {
+/* `fresh`: ignora o cache do navegador (a API deixa a resposta 30 s em cache; quem acabou de enviar quer se ver já). */
+export async function fetchBoard(day, limit = 10, { fresh = false } = {}) {
   try {
-    const r = await fetch(`${API}/leaderboard?day=${encodeURIComponent(day)}&limit=${limit}`, { headers: { accept: "application/json" } });
+    const r = await fetch(`${API}/leaderboard?day=${encodeURIComponent(day)}&limit=${limit}`, { headers: { accept: "application/json" }, ...(fresh ? { cache: "no-store" } : {}) });
     return r.ok ? (await r.json()).data : null;
   } catch { return null; }
 }
 
 const TIER = { 4: "💎 Perfeito", 3: "🏆 Campeão", 2: "Playoffs", 1: "Suíço" };
+
+/* Itens compactos do Top 5 da home (uma linha cada). `esc`: nomes de outros jogadores são dado não confiável. */
+export function topFiveHTML(rows, esc) {
+  return rows.slice(0, 5).map((r) => `<li><b class="mono">#${r.rank}</b><span class="t5-name">${esc(r.team_name)}</span><small>${esc(TIER[r.tier] ?? "")} · ${r.wins}-${r.losses}</small></li>`).join("");
+}
 
 /* `esc` vem do ui.js: nomes de outros jogadores são dado não confiável. */
 export function boardHTML(rows, esc) {

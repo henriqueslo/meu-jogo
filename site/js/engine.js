@@ -120,7 +120,7 @@ export function pickRandomLineups(draftRand, taken = { roles: new Set(), nicks: 
   return picks;
 }
 
-/* Erro de regra do jogo (código estável + mensagem). O servidor reexporta como DuelError. */
+/* Erro de regra do jogo (código estável + mensagem). */
 export class GameError extends Error {
   constructor(code, detail) { super(detail); this.code = code; }
 }
@@ -128,7 +128,7 @@ export class GameError extends Error {
 /* Draft de UM jogador, como máquina de estados pura e REPRODUZÍVEL: o estado inteiro é função de
  * (seed, actions). Por isso desfazer é trivial e seguro: descarta a última escolha e refaz o
  * resto — o gerador volta exatamente ao ponto certo, e o log continua válido para o servidor.
- * Usada pelo navegador (jogo livre/desafio) e pelo servidor (duelo/campeonato). */
+ * Usada pelo navegador (jogo livre/desafio) e pelo servidor (campeonato). */
 export class Draft {
   constructor(seed) {
     this.seed = seed >>> 0;
@@ -179,7 +179,7 @@ export class Draft {
   }
 }
 
-/* actions de um Draft -> log do Desafio do dia: [{ refreshes, lineupId, nick }] (o que verifyDraft confere). */
+/* actions de um Draft -> log do Desafio diário: [{ refreshes, lineupId, nick }] (o que verifyDraft confere). */
 export function actionsToLog(actions) {
   const log = [];
   let refreshes = 0;
@@ -476,23 +476,6 @@ export function tournamentMvp(t) {
   const arr = Object.values(t.playerStats);
   if (!arr.length) return null;
   return arr.reduce((best, p) => (p.impact > best.impact ? p : best));
-}
-
-/* Duelo 1v1 (Fase 2): simula UMA série entre dois times de humanos.
- * a/b = { teamName, squad (de resolveSquad), style }. Determinístico em (seed, a, b, bo). */
-export function duelMatch({ a, b, seed, bo = 3 }) {
-  if (![1, 3, 5].includes(bo)) throw new Error("bo inválido");
-  const mk = (id, p) => ({ ...buildUserTeam(p), id, isUser: false });
-  const teamA = mk("duel-a", a), teamB = mk("duel-b", b);
-  const t = { rand: createStreams(seed).simRand, playerStats: {} };
-  const res = simulateMatch(t.rand, teamA, teamB, bo);
-  recordMatchStats(t, teamA, teamB, res);
-  return {
-    winner: res.winner === teamA ? "A" : "B",
-    winsA: res.winsA, winsB: res.winsB, maps: res.maps,
-    forca: { A: teamA.forca, B: teamB.forca },
-    stats: res.matchStats,
-  };
 }
 
 /* Resumo canônico do resultado do usuário — o que um ranking/servidor guardaria. */

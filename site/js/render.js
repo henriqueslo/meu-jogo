@@ -1,4 +1,4 @@
-/* Helpers de HTML compartilhados (jogo livre, desafio e duelo).
+/* Helpers de HTML compartilhados (jogo livre, desafio e campeonato).
  * REGRA: todo texto dinâmico passa por esc(); nomes de outros jogadores são dado não confiável. */
 import { LINEUPS, ROLES } from "./data.js";
 

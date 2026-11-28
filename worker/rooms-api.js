@@ -1,18 +1,17 @@
-/* Rotas HTTP/WebSocket das salas de duelo (Fase 2).
- *   POST /api/v1/rooms              -> 201 { code }   (cria a sala; rate limit por rede)
- *   GET  /api/v1/rooms/:code/ws     -> upgrade WebSocket (mesma origem obrigatória)
+/* Rotas HTTP/WebSocket das salas de campeonato.
+ *   POST /api/v1/cups               -> 201 { code }   (cria a sala; rate limit por rede)
+ *   GET  /api/v1/cups/:code/ws      -> upgrade WebSocket (mesma origem obrigatória)
  * Protocolo das mensagens: docs/API.md. */
 import { ApiError, json, problem, secretOf, sha256Hex } from "./handler.js";
 import { newCode, isCode, normalizeCode, originAllowed } from "./rooms.js";
 import { log } from "./log.js";
 
 export const MAX_ROOMS_PER_HOUR = 10;
-/* Dois tipos de sala: duelo (ROOM) e campeonato (CUP). Limites de criação são independentes. */
-const KINDS = { rooms: { ns: "ROOM", key: "room" }, cups: { ns: "CUP", key: "cup" } };
+const KINDS = { cups: { ns: "CUP", key: "cup" } };
 
 const randomSeed = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
 
-export async function createRoom(request, env, store, now = new Date(), kind = KINDS.rooms) {
+export async function createRoom(request, env, store, now = new Date(), kind = KINDS.cups) {
   const ip = request.headers.get("cf-connecting-ip") ?? "0.0.0.0";
   const hour = now.toISOString().slice(0, 13);                       // janela de 1 h
   const key = kind.key + ":" + (await sha256Hex(`${secretOf(env)}|${hour}|${ip}`));
@@ -32,7 +31,7 @@ export async function createRoom(request, env, store, now = new Date(), kind = K
 
 /* Existe? (usado para validar a sala guardada antes de oferecer "voltar"). Não revela mais que a fase. */
 export const MAX_INFO_PER_HOUR = 60;
-export async function roomInfo(request, env, store, rawCode, kind = KINDS.rooms, now = new Date()) {
+export async function roomInfo(request, env, store, rawCode, kind = KINDS.cups, now = new Date()) {
   const code = normalizeCode(rawCode);
   if (!isCode(code)) throw new ApiError(404, "not-found", "Not found", "Sala inexistente.");
   // limite por rede: impede varrer códigos para descobrir salas existentes
@@ -46,7 +45,7 @@ export async function roomInfo(request, env, store, rawCode, kind = KINDS.rooms,
   return json({ exists: true, ...(await res.json()) });
 }
 
-export async function roomSocket(request, env, rawCode, kind = KINDS.rooms) {
+export async function roomSocket(request, env, rawCode, kind = KINDS.cups) {
   const code = normalizeCode(rawCode);
   if (!isCode(code)) throw new ApiError(404, "not-found", "Not found", "Sala inexistente.");
   if (request.headers.get("upgrade") !== "websocket") throw new ApiError(426, "upgrade-required", "Upgrade required", "Use WebSocket.");
@@ -59,14 +58,14 @@ export async function handleRooms(request, env, store, now = new Date()) {
   const { pathname } = new URL(request.url);
   const path = pathname.replace(/\/+$/, "");
   try {
-    const c = path.match(/^\/api\/v1\/(rooms|cups)$/);
+    const c = path.match(/^\/api\/v1\/(cups)$/);
     if (c) {
       if (request.method !== "POST") throw new ApiError(405, "method-not-allowed", "Method not allowed", "Use POST.");
       return await createRoom(request, env, store, now, KINDS[c[1]]);
     }
-    const m = path.match(/^\/api\/v1\/(rooms|cups)\/([^/]+)\/ws$/);
+    const m = path.match(/^\/api\/v1\/(cups)\/([^/]+)\/ws$/);
     if (m && request.method === "GET") return await roomSocket(request, env, m[2], KINDS[m[1]]);
-    const i = path.match(/^\/api\/v1\/(rooms|cups)\/([^/]+)$/);
+    const i = path.match(/^\/api\/v1\/(cups)\/([^/]+)$/);
     if (i && request.method === "GET") return await roomInfo(request, env, store, i[2], KINDS[i[1]], now);
     return null;
   } catch (e) {

@@ -128,3 +128,12 @@ Em telas ≥ 1024 px (o celular não muda; os blocos novos são contêineres com
 - **Campeonato, resultado:** herói em largura total; jornada de um lado, campeão e MVP do outro; jogadores humanos e classificação final embaixo.
 - **Salas de espera e convite:** cards estreitos e centrados (não esticam).
 - **Testes:** `e2e/desktop-mp.spec.js` (em 1024 e 1280 px, mais a ordem no celular) com o servidor de mentira estendido (`e2e/mp.js`: draft em andamento com ofertas reais). Duelo e campeonato foram também jogados por dois navegadores contra o Worker local, no desktop e no celular. O teste da D1 que fixava o duelo em 680 px foi removido: é o que a D2 muda de propósito.
+
+### Home nova e fim do 1×1 ✅ (esqueleto do usuário)
+- **Estrutura:** logo clicável (volta à home) · nome obrigatório · bloco **Single player** (Modo rápido + Desafio diário, lado a lado) · **Top 5** do ranking (só se houver gente, compacto, com “Ver mais”) · bloco **Multiplayer** (Campeonato + Leilão, lado a lado) · “Entrar com um código” · “Como jogar” (como era). Em 320 px os cartões empilham; no desktop, Single à esquerda e Multiplayer à direita.
+- **Logo = home:** num jogo solo em andamento pergunta antes (perderia o jogo); numa sala só sai da tela e a home oferece “Voltar à sala”; no convite limpa o link.
+- **Ranking completo:** `/ranking` (`site/ranking.html` + `site/js/ranking.js`) lista as 50 primeiras posições do dia; o Top 5 e a página ignoram o cache de 30 s da API (quem acabou de enviar se vê na hora) e o Top 5 é recarregado a cada volta à home.
+- **Desafio do dia → Desafio diário** em toda a interface e nos textos legais.
+- **Duelo 1×1 removido por completo** (cliente, servidor, rotas, métrica `room_created`, testes, textos de privacidade/termos e docs). `wrangler.toml` ganha a migration `v3` (`deleted_classes = ["Room"]`). Links antigos `?duelo=` caem na home. O código compartilhado do campeonato foi separado do `duel.js` (`GameError` vem do motor; `hex`/`str` foram para `worker/rooms.js`).
+- **Leilão:** cartão “Em breve” (desligado); as regras decididas estão em `docs/MULTIPLAYER.md`. Tipos de sala e convites ficam em tabelas (`OPEN`, `INVITES`, `ROOM_KINDS`, `KINDS`), para o Leilão entrar sem reescrever o fluxo.
+- **Testes:** `e2e/home.spec.js` (26), `e2e/ranking.spec.js` (7), `test/daily-client.test.js` (4); o jogo real foi jogado com dois navegadores contra o Worker local (campeonato, logo dentro da sala, voltar à sala, convite, compartilhar, Desafio → Top 5 → `/ranking`), no desktop e no celular.

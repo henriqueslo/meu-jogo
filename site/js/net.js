@@ -1,4 +1,4 @@
-/* Conexão WebSocket compartilhada por duelo e campeonato: hello, token de reconexão,
+/* Conexão WebSocket das salas multiplayer: hello, token de reconexão,
  * recuo exponencial, mensagens tipadas e REENTRADA.
  *
  * Dois níveis de memória do jogador:
@@ -24,7 +24,7 @@ export const inRoomFlag = () => ss((s) => s.getItem(IN_ROOM), null);
 /* Reentrada: devolve ao token da aba o que estava guardado na "sala ativa". */
 export const adoptActive = (a) => setToken(a.kind, a.code, a.token);
 
-/* kind: "rooms" (duelo) | "cups" (campeonato) */
+/* kind: "cups" (campeonato) */
 export async function createRoom(kind) {
   try {
     const r = await fetch(`/api/v1/${kind}`, { method: "POST", headers: { accept: "application/json" } });
@@ -42,7 +42,10 @@ export async function roomExists(kind, code) {
   } catch { return null; }
 }
 
-/* Descobre se o código é de duelo ou de campeonato. "rooms" | "cups" | null (não existe) | "error" (não deu para saber). */
+/* Tipos de sala (um novo tipo entra aqui, em session.js, em ui.js e no servidor). */
+export const ROOM_KINDS = ["cups"];
+
+/* Descobre de que tipo é o código. Um tipo de ROOM_KINDS | null (não existe) | "error" (não deu para saber). */
 export async function resolveRoomKind(code) {
   const probe = async (kind) => {
     try {
@@ -50,10 +53,10 @@ export async function resolveRoomKind(code) {
       return r.status === 404 ? false : r.ok ? true : null;
     } catch { return null; }
   };
-  const [rooms, cups] = await Promise.all([probe("rooms"), probe("cups")]);
-  if (rooms === true) return "rooms";
-  if (cups === true) return "cups";
-  return rooms === false && cups === false ? null : "error";
+  const found = await Promise.all(ROOM_KINDS.map(probe));
+  const i = found.indexOf(true);
+  if (i >= 0) return ROOM_KINDS[i];
+  return found.every((f) => f === false) ? null : "error";
 }
 
 export function connect({ kind, code, name, onState, onNotice, onStatus }) {
@@ -102,5 +105,7 @@ export function connect({ kind, code, name, onState, onNotice, onStatus }) {
   return {
     send,
     leave() { leaving = true; clearTimeout(timer); try { sock && sock.close(); } catch { /* ok */ } forget(); },
+    /* Fecha a conexão mas guarda token e sala ativa: dá para voltar depois ("Voltar à sala"). */
+    detach() { leaving = true; clearTimeout(timer); try { sock && sock.close(); } catch { /* ok */ } ss((s) => s.removeItem(IN_ROOM)); },
   };
 }

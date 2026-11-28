@@ -6,7 +6,7 @@ import { dayOf } from "./handler.js";
 import { log } from "./log.js";
 
 /* Rota "genérica" (sem códigos de sala) para rótulos de log. */
-export const routeOf = (pathname) => pathname.replace(/\/+$/, "").replace(/^\/api\/v1\/(rooms|cups)\/[^/]+/, "/api/v1/$1/:code");
+export const routeOf = (pathname) => pathname.replace(/\/+$/, "").replace(/^\/api\/v1\/(cups)\/[^/]+/, "/api/v1/$1/:code");
 
 /* Que contador esta resposta incrementa? (null = nenhum) */
 export function metricFor(method, pathname, status) {
@@ -14,7 +14,6 @@ export function metricFor(method, pathname, status) {
   if (status >= 500) return "server_error";
   if (status === 429) return "rate_limited";
   if (method === "POST" && status === 201) {
-    if (route === "/api/v1/rooms") return "room_created";
     if (route === "/api/v1/cups") return "cup_created";
     if (route === "/api/v1/daily/entries") return "daily_entry";
   }

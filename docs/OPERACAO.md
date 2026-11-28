@@ -7,14 +7,14 @@ Guia de rotina para quem mantém o site. Rode os comandos no PowerShell, na past
 ### Como funciona
 - **Alfabeto:** só letras latinas (com acento), dígitos 0–9, espaço, `.` `_` `-`. Outros alfabetos são removidos (`sanitizeTeamName`, `site/js/engine.js`).
 - **Filtro:** `site/js/moderation.js` bloqueia palavrões/ódio, links, contatos (9+ dígitos), nomes que se passam pela equipe (admin, oficial…) e nomes só de pontuação. Trata burlas comuns (acentos, letras repetidas, l33t, separadores `f.u.c.k`).
-- **Onde vale:** desafio do dia (HTTP 422), duelo e campeonato (erro `name-blocked`). O **servidor sempre decide**; o navegador só dá o aviso antes. No **jogo livre** o nome nunca sai do dispositivo e não é filtrado.
+- **Onde vale:** Desafio diário (HTTP 422) e campeonato (erro `name-blocked`). O **servidor sempre decide**; o navegador só dá o aviso antes. No **jogo livre** o nome nunca sai do dispositivo e não é filtrado.
 - **Termos curtos/ambíguos** só valem como palavra inteira (evita bloquear “Assassinos”, “Enviado”, “Niger Delta”).
 
 ### Ajustar a lista
 Edite as listas no topo de `site/js/moderation.js` (`WORDS`, `SUBSTRINGS`, `RESERVED`…), adicione um caso em `test/moderation.test.js`, rode `npm.cmd test`, abra PR e faça deploy. Nenhuma lista pega tudo: revise os nomes do ranking de vez em quando.
 
 ### Remover uma entrada ofensiva do ranking do dia
-Salas de duelo e campeonato somem sozinhas em 1 h; só o ranking do dia fica gravado.
+Salas de campeonato somem sozinhas em 1 h; só o ranking do dia fica gravado.
 
 1. Listar as entradas recentes:
 ```bash
@@ -47,7 +47,7 @@ A Política de Privacidade promete remoção de uma entrada pelo contato da pág
 | Camada | O que mostra | Onde ver |
 |---|---|---|
 | **Saúde** | `GET /api/v1/health` → `{"ok":true,"db":true}` (200) ou 503 se o D1 não responde | monitor de uptime externo |
-| **Contadores diários** (tabela `metrics`, sem dados pessoais) | `room_created`, `cup_created`, `daily_entry`, `daily_rejected`, `daily_duplicate`, `rate_limited`, `ws_connected`, `ws_forbidden_origin`, `server_error` | consultas D1 abaixo |
+| **Contadores diários** (tabela `metrics`, sem dados pessoais) | `cup_created`, `daily_entry`, `daily_rejected`, `daily_duplicate`, `rate_limited`, `ws_connected`, `ws_forbidden_origin`, `server_error` | consultas D1 abaixo |
 | **Logs estruturados** (JSON, `[observability]` ligado) | `player_joined`, `game_done`, `ws_rate_limited`, `ws_too_big`, `http_5xx`, `error`, `metrics_failed` | painel Cloudflare (Workers & Pages → meu-jogo → Observability/Logs) ou `wrangler tail` |
 
 Privacidade: o log e os contadores **nunca** guardam IP, token, `player_id`, nome de time ou corpo de requisição (`worker/log.js` remove esses campos mesmo que alguém passe sem querer). Abuso é registrado **uma vez por conexão**.
@@ -73,7 +73,7 @@ Como ler:
 - `server_error` **> 0** → investigar (logs `http_5xx` / `error`).
 - `rate_limited` ou `ws_forbidden_origin` subindo de repente → alguém testando/abusando; veja os logs.
 - `daily_rejected` alto → muitos nomes bloqueados ou drafts inválidos (veja `docs/OPERACAO.md` → moderação).
-- `room_created` / `cup_created` vs `game_done` (nos logs) → quantas partidas são concluídas.
+- `cup_created` vs `game_done` (nos logs) → quantas partidas são concluídas.
 
 Logs ao vivo (erros e abuso):
 ```bash
@@ -106,7 +106,7 @@ A Política de Privacidade (`site/privacidade.html`) descreve exatamente o que o
 Um Cron Trigger diário (03:17 UTC, `wrangler.toml` → `[triggers]`) executa `worker/retention.js`:
 - ranking do dia: apagado após **90 dias**; hash do IP: zerado a partir do dia seguinte;
 - contadores agregados (`metrics`): 90 dias; limites de abuso (`rate_limits`): 2 horas;
-- salas de duelo/campeonato: somem sozinhas após 1 h sem atividade (alarme do Durable Object).
+- salas de campeonato: somem sozinhas após 1 h sem atividade (alarme do Durable Object).
 
 Conferir que o job está rodando (aparece como `purge_done` nos logs, e o resultado fica visível nos dados):
 ```bash

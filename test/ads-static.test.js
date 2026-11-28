@@ -24,7 +24,7 @@ test("ads.js só nas páginas de conteúdo — nunca no jogo, nas salas nem nas 
   const withAds = pages.filter((p) => read(p).includes("/js/ads.js")).sort();
   assert.deepEqual(withAds, ["formato-suico.html", "funcoes.html", "majors.html", "sobre.html"]);
   for (const p of ["index.html", "privacidade.html", "termos.html"]) assert.ok(!read(p).includes("ads.js"), p);
-  for (const f of ["ui.js", "net.js", "duel.js", "cup.js"]) assert.ok(!read("js/" + f).includes("ads"), `${f} não deve tocar em anúncios`);
+  for (const f of ["ui.js", "net.js", "cup.js"]) assert.ok(!read("js/" + f).includes("ads"), `${f} não deve tocar em anúncios`);
 });
 
 test("ads.txt e meta do AdSense continuam consistentes com o publisherId", () => {

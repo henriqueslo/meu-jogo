@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  cupJourney, campaignStatusText, heroOutcome, duelShare, cupShare, squadStrength, styleChooserHTML, journeyHTML, SITE_URL,
+  cupJourney, campaignStatusText, heroOutcome, cupShare, squadStrength, styleChooserHTML, journeyHTML, SITE_URL,
 } from "../site/js/parts.js";
 
 const t = (nome, human = null) => ({ name: nome, human, forca: 80 });
@@ -59,17 +59,6 @@ test("heroOutcome: perfeito, campeão, vice, caiu nos playoffs e eliminado no su
   assert.match(heroOutcome({ ...base, wins: 2, losses: 3 }).sub, /a 1 vitória dos playoffs/);
   assert.match(heroOutcome({ ...base, wins: 1, losses: 3 }).sub, /Faltaram 2 vitórias/);
   assert.match(heroOutcome({ ...base, wins: 0, losses: 3 }).sub, /outro estilo ou outro time/);
-});
-
-test("duelShare: texto com resultado, rival, placar, lineup e endereço; card com a série", () => {
-  const lineup = [{ papel: "AWP", nick: "a" }, { papel: "IGL", nick: "b" }];
-  const w = duelShare({ won: true, team: "Meu Time", rival: "Rival FC", mine: 2, other: 1, bestOf: 3, lineup });
-  assert.match(w.text, /Venci/); assert.match(w.text, /Rival FC/); assert.match(w.text, /2×1/); assert.match(w.text, /a, b/);
-  assert.ok(w.text.includes(SITE_URL));
-  assert.equal(w.data.isChampion, true); assert.equal(w.data.rotulo, "SÉRIE Bo3");
-  assert.equal(w.data.wins + w.data.losses, 3);
-  const l = duelShare({ won: false, team: "Meu Time", rival: "Rival FC", mine: 1, other: 2, bestOf: 3, lineup });
-  assert.match(l.text, /Perdi/); assert.equal(l.data.isChampion, false); assert.equal(l.data.resultadoCurto, "DERROTA");
 });
 
 test("cupShare: abertura por desfecho, linha do suíço, lineup e endereço", () => {

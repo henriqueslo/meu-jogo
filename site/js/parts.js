@@ -1,4 +1,4 @@
-/* Peças de tela compartilhadas entre o jogo solo, o duelo 1×1 e o campeonato.
+/* Peças de tela compartilhadas entre o jogo solo e o campeonato.
  * Funções puras: recebem dados e devolvem HTML/objetos — nada de DOM nem de estado global. Assim os três
  * modos contam a mesma história (força, estilo, campanha, herói, jornada, compartilhar) e não divergem. */
 import { ROLES } from "./data.js";
@@ -52,7 +52,7 @@ export function squadLineHTML(squad) {
   return `<div class="squad-line" aria-label="Seu elenco">${ROLES.filter((r) => squad[r]).map((r) => `<span><b>${esc(r)}</b> ${esc(squad[r].nick)}</span>`).join("")}</div>`;
 }
 
-/* Escolha do estilo no duelo e no campeonato: o mesmo conteúdo da tela do time do jogo solo. */
+/* Escolha do estilo no campeonato: o mesmo conteúdo da tela do time do jogo solo. */
 export function styleChooserHTML(squad, selected) {
   const st = squadStrength(squad), sug = styleAdvice(st.nivel);
   return `${strengthHTML(st)}
@@ -143,19 +143,6 @@ export function journeyHTML(journey) {
 const hoje = () => { const d = new Date(); return [d.getDate(), d.getMonth() + 1, d.getFullYear()].map((x, i) => String(x).padStart(i < 2 ? 2 : 4, "0")).join("/"); };
 const nicks = (lineup) => lineup.map((p) => p.nick).join(", ");
 const linhaSuico = (w, l) => `Primeira Fase: ${"🟩".repeat(w)}${"🟥".repeat(l)} (${w}-${l})`;
-
-/* Duelo: `mine`/`other` = mapas ganhos por cada lado; `lineup` = [{papel, nick}] do jogador. */
-export function duelShare({ won, team, rival, mine, other, bestOf, lineup }) {
-  const placar = `${mine}×${other}`;
-  const text = won
-    ? `⚔️🏆 Venci o duelo 1×1 contra ${rival} por ${placar}!\nDuvido você me vencer. 😏\n\nLineUp do ${team}: ${nicks(lineup)}\n\n🎮 Monte o seu: ${SITE_URL}`
-    : `⚔️ Perdi o duelo 1×1 para ${rival} (${placar}).\nVou pedir revanche. 😤\n\nLineUp do ${team}: ${nicks(lineup)}\n\n🎮 Monte o seu: ${SITE_URL}`;
-  const data = {
-    nome: team, modo: `Duelo 1×1 · ${hoje()}`, rotulo: `SÉRIE Bo${bestOf}`, wins: mine, losses: other,
-    perfeito: false, isChampion: won, resultadoCurto: won ? "🏆 VITÓRIA" : "DERROTA", resultadoSub: `contra ${rival} · ${placar}`, lineup,
-  };
-  return { text, data };
-}
 
 /* Campeonato: `me` = {name, wins, losses, status, perfeito}; `lineup` = [{papel, nick}]. */
 export function cupShare({ team, wins, losses, perfeito, champion, vice = false, playoffs, lineup, cleanPlayoffs, players }) {

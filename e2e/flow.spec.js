@@ -83,10 +83,9 @@ test("jogador indisponível diz o motivo (papel já preenchido ou já escalado)"
 });
 
 /* ----------------------------- U-07: entrar com um código só ----------------------------- */
-test("entrar com código: um único botão; o servidor diz se é duelo ou campeonato", async ({ page }) => {
+test("entrar com código: um único botão; o servidor diz que tipo de sala é", async ({ page }) => {
   const game = new GamePage(page);
   await game.stubOnlineApi();
-  await page.route("**/api/v1/rooms/ABC234", (r) => r.fulfill({ status: 404, json: { type: "x", title: "Not found", status: 404 } }));
   await page.route("**/api/v1/cups/ABC234", (r) => r.fulfill({ json: { exists: true, phase: "lobby" } }));
   await page.routeWebSocket("**/api/v1/cups/ABC234/ws", (ws) => {
     ws.onMessage((m) => {
@@ -100,8 +99,6 @@ test("entrar com código: um único botão; o servidor diz se é duelo ou campeo
     });
   });
   await game.open();
-  await expect(page.getByRole("button", { name: "Duelo", exact: true })).toHaveCount(0);       // acabaram os dois botões
-  await expect(page.getByRole("button", { name: "Campeonato", exact: true })).toHaveCount(0);
   await game.typeName("Convidado");
   await page.getByLabel("Código da sala").fill("abc234");
   await page.getByRole("button", { name: /^Entrar/ }).click();
@@ -111,7 +108,6 @@ test("entrar com código: um único botão; o servidor diz se é duelo ou campeo
 test("entrar com código inexistente: mensagem clara, sem travar", async ({ page }) => {
   const game = new GamePage(page);
   await game.stubOnlineApi();
-  await page.route("**/api/v1/rooms/ZZZZZZ", (r) => r.fulfill({ status: 404, json: {} }));
   await page.route("**/api/v1/cups/ZZZZZZ", (r) => r.fulfill({ status: 404, json: {} }));
   await game.open(); await game.typeName("Convidado");
   await page.getByLabel("Código da sala").fill("ZZZZZZ");

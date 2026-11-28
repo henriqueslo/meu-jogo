@@ -14,7 +14,7 @@
 <body>
 
 <header>
-  <h1><span class="h-t">MINHA</span> <span class="h-ct">LINEUP</span></h1>
+  <a href="/" id="logo-home" class="logo-link"><h1><span class="h-t">MINHA</span> <span class="h-ct">LINEUP</span></h1></a>
   <span class="tag">monte sua lineup · simule o Major · seja campeão invicto</span>
 </header>
 
@@ -22,46 +22,68 @@
 
   <!-- START SCREEN: nome do time (obrigatório) + modo + regras -->
   <section id="screen-start" class="screen active">
-    <label for="team-name-input" style="color:var(--dim); font-size:13px; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:1.2px; font-weight:600;">Nome do seu time <span style="color:var(--t);">*</span></label>
-    <input type="text" id="team-name-input" maxlength="24" required placeholder="Ex: Falcons BR"
-      style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
-    <p class="name-hint" id="name-hint">Escolha um nome: é ele que aparece no placar, no card de compartilhar e no ranking.</p>
-    <p id="name-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
-    <button class="primary" id="btn-begin" style="width:100%; margin:6px 0 0;">Jogar · montar minha lineup →</button>
-    <button class="secondary daily-cta" id="btn-daily" hidden style="width:100%; margin:6px 0 0;">📅 Desafio do dia · todos jogam o mesmo baralho</button>
-    <div id="daily-board-start" hidden></div>
+    <div class="home-name">
+      <label for="team-name-input" class="home-label">Nome do seu time <span style="color:var(--t);">*</span></label>
+      <input type="text" id="team-name-input" maxlength="24" required placeholder="Ex: Falcons BR"
+        style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
+      <p class="name-hint" id="name-hint">Escolha um nome: é ele que aparece no placar, no card de compartilhar e no ranking.</p>
+      <p id="name-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
+    </div>
     <div id="resume-box" class="card" hidden style="margin-top:10px;">
       <div id="resume-text" style="font-size:14px;"></div>
       <button class="primary" id="btn-resume" type="button" style="margin-top:8px;">↩ Voltar à sala</button>
       <button class="secondary" id="btn-resume-drop" type="button" style="margin-top:8px;">Descartar</button>
     </div>
-    <div id="duel-box" class="modes" hidden>
-      <div class="stage-label">Jogar com amigos</div>
-      <div class="mode-grid">
-        <section class="mode-card mode-duel" role="group" aria-labelledby="mode-duel-title">
-          <h3 id="mode-duel-title">⚔️ Duelo 1×1</h3>
-          <p>Dois jogadores: cada um monta o próprio time e o servidor decide a série, melhor de 3 mapas.</p>
-          <button class="secondary" id="btn-duel-create" type="button">Criar duelo</button>
-        </section>
 
-        <section class="mode-card mode-cup" role="group" aria-labelledby="mode-cup-title">
-          <h3 id="mode-cup-title">🏆 Campeonato</h3>
-          <p>De 2 a 8 jogadores, completado com times históricos até 16. Formato suíço e playoffs, como no Major.</p>
-          <button class="secondary" id="btn-cup-create" type="button">Criar campeonato</button>
-        </section>
-
-        <section class="mode-card mode-join" role="group" aria-labelledby="mode-join-title">
-          <h3 id="mode-join-title">Entrar com um código</h3>
-          <p>Recebeu um código de um amigo? Vale para duelo ou campeonato.</p>
-          <div class="join-row">
-            <input type="text" id="duel-code-input" maxlength="6" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Código da sala"
-              style="padding:11px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px; text-transform:uppercase; letter-spacing:4px;">
-            <button class="secondary" id="btn-join" type="button">Entrar</button>
+    <div class="home-primary">
+      <section class="mode-block" aria-labelledby="sp-title">
+        <h2 id="sp-title" class="stage-label">Single player</h2>
+        <div class="mode-row">
+          <div class="mode-card mode-quick" role="group" aria-labelledby="mode-quick-title">
+            <h3 id="mode-quick-title">⚡ Modo rápido</h3>
+            <p>Monte sua lineup e dispute o Major agora.</p>
+            <button class="primary" id="btn-begin" type="button">Jogar agora</button>
           </div>
-          <p id="join-error" role="alert" style="color:var(--danger); font-size:13px; min-height:18px; margin:6px 0 0;"></p>
-        </section>
-      </div>
+          <div class="mode-card mode-daily" id="daily-card" role="group" aria-labelledby="mode-daily-title" hidden>
+            <h3 id="mode-daily-title">📅 Desafio diário</h3>
+            <p>Todos jogam o mesmo baralho. Uma tentativa por dia.</p>
+            <button class="secondary" id="btn-daily" type="button">Jogar o desafio</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="daily-board-start" class="home-ranking" aria-labelledby="rk-title" hidden>
+        <h2 id="rk-title" class="stage-label">Ranking do desafio diário · Top 5</h2>
+        <ol class="top5" id="top5-list"></ol>
+        <a class="btn-link" href="/ranking">Ver mais →</a>
+      </section>
     </div>
+
+    <section id="multi-block" class="mode-block" aria-labelledby="mp-title" hidden>
+      <h2 id="mp-title" class="stage-label">Multiplayer</h2>
+      <div class="mode-row">
+        <div class="mode-card mode-cup" role="group" aria-labelledby="mode-cup-title">
+          <h3 id="mode-cup-title">🏆 Campeonato</h3>
+          <p>De 2 a 8 jogadores, completado com times históricos até 16. Suíço e playoffs.</p>
+          <button class="secondary" id="btn-cup-create" type="button">Criar campeonato</button>
+        </div>
+        <div class="mode-card mode-auction" role="group" aria-labelledby="mode-auction-title">
+          <h3 id="mode-auction-title">🔨 Leilão</h3>
+          <p>Até 5 jogadores disputam cada craque no lance. Em breve.</p>
+          <button class="secondary" id="btn-auction-create" type="button" disabled>Em breve</button>
+        </div>
+      </div>
+      <div class="mode-card mode-join" role="group" aria-labelledby="mode-join-title">
+        <h3 id="mode-join-title">Entrar com um código</h3>
+        <p>Recebeu um código de um amigo? Digite aqui.</p>
+        <div class="join-row">
+          <input type="text" id="room-code-input" maxlength="6" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Código da sala"
+            style="padding:11px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px; text-transform:uppercase; letter-spacing:4px;">
+          <button class="secondary" id="btn-join" type="button">Entrar</button>
+        </div>
+        <p id="join-error" role="alert" style="color:var(--danger); font-size:13px; min-height:18px; margin:6px 0 0;"></p>
+      </div>
+    </section>
 
     <div class="stage-label">Como jogar</div>
     <ol class="steps" aria-label="Como jogar">
@@ -84,9 +106,9 @@
     </details>
   </section>
 
-  <!-- CONVITE por link (?duelo= / ?campeonato=): cai direto aqui, sem passar pela home -->
+  <!-- CONVITE por link (?campeonato=): cai direto aqui, sem passar pela home -->
   <section id="screen-invite" class="screen">
-    <h2 id="invite-title" class="invite-title">Você foi convidado para um duelo 1×1</h2>
+    <h2 id="invite-title" class="invite-title">Você foi convidado para um campeonato</h2>
     <p class="invite-code">Sala <span class="mono" id="invite-code"></span></p>
     <div id="invite-form">
       <label for="invite-name-input" class="invite-label">Seu nome de time <span style="color:var(--t);">*</span></label>
@@ -94,14 +116,13 @@
         style="width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-size:16px;">
       <p class="name-hint">Escolha um nome: é ele que a outra pessoa vai ver na sala.</p>
       <p id="invite-error" role="alert" style="color:var(--danger); font-size:12.5px; min-height:18px; margin:5px 0 0;"></p>
-      <button class="primary" id="btn-invite-join" type="button" style="width:100%; margin:6px 0 0;">Entrar no duelo →</button>
+      <button class="primary" id="btn-invite-join" type="button" style="width:100%; margin:6px 0 0;">Entrar no campeonato →</button>
     </div>
     <p id="invite-gone" role="status" hidden>Essa sala já foi encerrada: elas somem depois de 1 hora sem atividade. Peça um link novo a quem convidou você.</p>
     <button class="secondary" id="btn-invite-home" type="button" style="width:100%; margin:14px 0 0;">Ir para o início</button>
   </section>
 
-  <!-- DUELO (Fase 2) -->
-  <section id="screen-duel" class="screen"><div id="duel-content"></div></section>
+  <!-- CAMPEONATO -->
   <section id="screen-cup" class="screen"><div id="cup-content"></div></section>
 
   <!-- DRAFT SCREEN -->
