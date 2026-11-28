@@ -10,7 +10,7 @@ site/js/ui.js      só DOM (escape obrigatório)
 site/js/share.js   card de compartilhamento
 ```
 
-> **Status:** Desafio diário e campeonato (2–8 jogadores) implementados — ver `docs/API.md`. O duelo 1×1 foi removido. **Próximo: Leilão** (regras abaixo).
+> **Status:** Desafio diário e campeonato (2–8 jogadores) implementados — ver `docs/API.md`. O duelo 1×1 foi removido. **Leilão implementado** (regras abaixo; protocolo em `docs/API.md`).
 
 ## Modos sugeridos (do mais barato ao mais rico)
 
@@ -45,9 +45,9 @@ Adicionar em `wrangler.toml`: `main = "worker/index.ts"`, binding do Durable Obj
 - [ ] Privacidade/termos atualizados, CMP ativo
 - [ ] Monitoramento: nº de salas, erros, latência; alertas de pico
 
-## Leilão (próxima entrega — regras decididas)
+## Leilão (implementado)
 
-Substitui o antigo duelo 1×1 como segundo modo do bloco Multiplayer (na home já existe o cartão “Leilão”, desligado, “Em breve”).
+Substituiu o antigo duelo 1×1 como segundo modo do bloco Multiplayer (cartão “Leilão” na home; convite `?leilao=CÓDIGO`). A lógica é pura e determinística em `worker/auction.js` (tempo injetado, testada em `test/auction.test.js`, inclusive com partidas inteiras de robôs); o relógio roda no alarme do Durable Object.
 
 **Estrutura**
 - 2 a 5 jogadores humanos (sem bots no leilão). Cada um começa com **100 moedas** e precisa fechar um time de 5: AWP, IGL, Entry, Support e Rifler.

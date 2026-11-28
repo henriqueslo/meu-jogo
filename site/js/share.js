@@ -91,6 +91,31 @@ function canvasToFile(cv){
     }, 'image/png');
   });
 }
+/* A imagem do card é preparada ANTES do toque (quando o resultado aparece): gerar o PNG (canvas.toBlob) chega a
+ * levar vários segundos em aparelhos lentos, e o navegador só aceita navigator.share logo depois do toque. No toque
+ * espera-se no máximo ESPERA_IMAGEM_MS; se a imagem ainda não está pronta, compartilha só o texto. */
+const ESPERA_IMAGEM_MS = 1500;
+let preparada = null;                                    // { chave, promessa }
+function gerarImagem(data){
+  return (async ()=>{
+    try{
+      if(document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r, 1500))]);
+      return await canvasToFile(drawShareCard(data));
+    }catch(_){ return null; }                            // se o card falhar, o texto ainda é compartilhado
+  })();
+}
+export function prepareShare(data){
+  if(!data) return;
+  const chave = JSON.stringify(data);
+  if(preparada && preparada.chave === chave) return;
+  preparada = { chave, promessa: gerarImagem(data) };
+}
+async function imagemParaCompartilhar(data){
+  if(!data) return null;                                 // sem dados da lineup em memória (ex: recarregou a página): só texto
+  prepareShare(data);
+  return Promise.race([preparada.promessa, new Promise(r=>setTimeout(()=>r(null), ESPERA_IMAGEM_MS))]);
+}
+
 export async function shareResult(btn, lastShareData, lastShareText){
   const setLabel = (txt, ms)=>{
     if(!btn) return;
@@ -101,15 +126,7 @@ export async function shareResult(btn, lastShareData, lastShareText){
   };
 
   try{
-    // fonte lenta não pode travar o compartilhar: espera no máximo 1,5 s
-    if(document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r, 1500))]);
-    // sem dados da lineup em memória (ex: recarregou a página) -> compartilha só texto.
-    // Se o card falhar por qualquer motivo, o texto ainda é compartilhado.
-    let file = null;
-    try{
-      const cv = lastShareData ? drawShareCard(lastShareData) : null;
-      file = cv ? await canvasToFile(cv) : null;
-    }catch(_){ file = null; }
+    const file = await imagemParaCompartilhar(lastShareData);
 
     // 1) share nativo com imagem
     if(file && navigator.canShare && navigator.canShare({files:[file]})){

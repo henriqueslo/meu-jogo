@@ -47,7 +47,7 @@ A Política de Privacidade promete remoção de uma entrada pelo contato da pág
 | Camada | O que mostra | Onde ver |
 |---|---|---|
 | **Saúde** | `GET /api/v1/health` → `{"ok":true,"db":true}` (200) ou 503 se o D1 não responde | monitor de uptime externo |
-| **Contadores diários** (tabela `metrics`, sem dados pessoais) | `cup_created`, `daily_entry`, `daily_rejected`, `daily_duplicate`, `rate_limited`, `ws_connected`, `ws_forbidden_origin`, `server_error` | consultas D1 abaixo |
+| **Contadores diários** (tabela `metrics`, sem dados pessoais) | `cup_created`, `auction_created`, `daily_entry`, `daily_rejected`, `daily_duplicate`, `rate_limited`, `ws_connected`, `ws_forbidden_origin`, `server_error` | consultas D1 abaixo |
 | **Logs estruturados** (JSON, `[observability]` ligado) | `player_joined`, `game_done`, `ws_rate_limited`, `ws_too_big`, `http_5xx`, `error`, `metrics_failed` | painel Cloudflare (Workers & Pages → meu-jogo → Observability/Logs) ou `wrangler tail` |
 
 Privacidade: o log e os contadores **nunca** guardam IP, token, `player_id`, nome de time ou corpo de requisição (`worker/log.js` remove esses campos mesmo que alguém passe sem querer). Abuso é registrado **uma vez por conexão**.
@@ -73,7 +73,7 @@ Como ler:
 - `server_error` **> 0** → investigar (logs `http_5xx` / `error`).
 - `rate_limited` ou `ws_forbidden_origin` subindo de repente → alguém testando/abusando; veja os logs.
 - `daily_rejected` alto → muitos nomes bloqueados ou drafts inválidos (veja `docs/OPERACAO.md` → moderação).
-- `cup_created` vs `game_done` (nos logs) → quantas partidas são concluídas.
+- `cup_created` / `auction_created` vs `game_done` (nos logs) → quantas partidas são concluídas.
 
 Logs ao vivo (erros e abuso):
 ```bash

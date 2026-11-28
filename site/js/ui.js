@@ -9,11 +9,11 @@ import {
   SITE_URL, squadStrength, strengthHTML, styleCardHTML, ADVICE,
   campaignStatusText, campaignPanelHTML, heroOutcome, journeyHTML,
 } from "./parts.js";
-import { shareResult } from "./share.js";
+import { shareResult, prepareShare } from "./share.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML, topFiveHTML } from "./daily.js";
 import { esc, flagEmoji, slotHTML, draftSlotsHTML, offersHTML, lineupById } from "./render.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
-import { openCup, createCup, closeCup } from "./cup.js";
+import { openCup, openAuction, createCup, createAuction, closeCup } from "./cup.js";
 import { adoptActive, inRoomFlag, roomExists, resolveRoomKind, validCode, normalizeCode } from "./net.js";
 import { loadActive, clearActive, kindLabel } from "./session.js";
 
@@ -394,6 +394,7 @@ function renderResults() {
   // Ações na barra fixa: Compartilhar é a principal (no desafio, a principal é enviar ao ranking).
   const daily = state.mode === "daily";
   $("btn-share").className = daily ? "secondary" : "primary";
+  prepareShare(state.shareData);                           // a imagem do card já fica pronta antes do toque
   $("btn-share").onclick = (e) => shareResult(e.currentTarget, state.shareData, state.shareText);
   $("btn-retry").hidden = daily;                           // no desafio cada um joga uma vez
   $("btn-submit-daily")?.remove();
@@ -470,7 +471,7 @@ initDaily();
 
 /* ------------------------- Salas (campeonato) ------------------------- */
 /* Cada tipo de sala tem o seu abridor, o seu parâmetro de convite (INVITES) e o seu tipo em net.js. */
-const OPEN = { cups: openCup };
+const OPEN = { cups: openCup, auctions: openAuction };
 const backToStart = showHome;
 $("room-code-input").addEventListener("input", (e) => {
   e.target.value = normalizeCode(e.target.value).replace(/[^A-Z0-9]/g, "");
@@ -478,20 +479,24 @@ $("room-code-input").addEventListener("input", (e) => {
 });
 
 /* Cria a sala e entra nela. Usado pelo botão da tela inicial e pelo convite do fim do jogo. */
-async function createAndOpenCup(name) {
-  const r = await createCup();
-  if (r.ok) openCup({ code: r.code, name, exit: backToStart });
+const CRIAR = { cups: createCup, auctions: createAuction };
+async function createAndOpen(kind, name) {
+  const r = await CRIAR[kind]();
+  if (r.ok) OPEN[kind]({ code: r.code, name, exit: backToStart });
   return r;
 }
+const createAndOpenCup = (name) => createAndOpen("cups", name);
 
-$("btn-cup-create").addEventListener("click", async () => {
-  const name = requireName({ online: true });
-  if (!name) return;
-  const btn = $("btn-cup-create"); btn.disabled = true;
-  const r = await createAndOpenCup(name);
-  btn.disabled = false;
-  if (!r.ok) $("name-error").textContent = r.detail;
-});
+for (const [id, kind] of [["btn-cup-create", "cups"], ["btn-auction-create", "auctions"]]) {
+  $(id).addEventListener("click", async () => {
+    const name = requireName({ online: true });
+    if (!name) return;
+    const btn = $(id); btn.disabled = true;
+    const r = await createAndOpen(kind, name);
+    btn.disabled = false;
+    if (!r.ok) $("name-error").textContent = r.detail;
+  });
+}
 
 /* Entrar com um código só: o servidor diz que tipo de sala é. */
 $("btn-join").addEventListener("click", async () => {
@@ -534,9 +539,12 @@ async function offerResume({ auto = false } = {}) {
 }
 
 /* ------------------------- Convite por link ------------------------- */
-/* ?campeonato=CÓDIGO leva direto à página do convite: só falta o nome.
+/* ?campeonato=CÓDIGO e ?leilao=CÓDIGO levam direto à página do convite: só falta o nome.
  * (Antes caía na home, e o botão principal de lá começa uma partida solo.) Não depende da API do Desafio. */
-const INVITES = { campeonato: { kind: "cups", nome: "campeonato", titulo: "Você foi convidado para um campeonato" } };
+const INVITES = {
+  campeonato: { kind: "cups", nome: "campeonato", titulo: "Você foi convidado para um campeonato" },
+  leilao: { kind: "auctions", nome: "leilão", titulo: "Você foi convidado para um leilão" },
+};
 
 function initInvite() {
   const qs = new URLSearchParams(location.search);

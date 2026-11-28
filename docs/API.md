@@ -74,9 +74,29 @@ Uma sala = um Durable Object `CupRoom` (SQLite). Persistido: seed + ações do d
 
 ---
 
+# Leilão multiplayer
+
+2–5 jogadores (sem bots). Mesmas rotas e protocolo base das salas, em `/api/v1/auctions` (Durable Object `AuctionRoom`, lógica pura em `worker/auction.js`): `POST /api/v1/auctions`, `GET /api/v1/auctions/{code}` e `GET /api/v1/auctions/{code}/ws`, com os mesmos limites. Fases: `lobby` → `auction` → `style` → `running` → `done` (as duas últimas são o mesmo campeonato simulado, `worker/run.js`). Regras: `docs/MULTIPLAYER.md`.
+
+**Mensagens** (além de `hello`, `start`, `style`, `force` e `advance`, iguais às do campeonato)
+| `t` | Efeito |
+|---|---|
+| `bid` `{amount}` | Lance fechado: inteiro de 1 até o máximo (saldo − 1 moeda por vaga que ainda falta depois desta). Um por leilão |
+| `pass` | Passa. Conta como lance enviado |
+
+Erros novos: `bid-too-high`, `already-bid`, `role-filled` (e `bad-message` para lance não inteiro ou < 1).
+
+**`state`** (`kind: "auction"`): `phase`, `step` (`bidding` | `reveal`), `msLeft` (quanto falta; o cliente só conta a partir daí), `lot` (o jogador em leilão), `idx`/`total`, `remaining` (leilões que ainda vão aparecer, por papel), `last` (o último leilão resolvido, com o lance de **todos**), `fills` (vagas completadas de graça), `you` (`coins`, `squad`, `maxBid`, `canBid`, `why`, `submitted`, `bid`) e `players[]` (moedas, vagas, `submitted`, `eligible`). **Durante o lance ninguém recebe o valor do lance de outro jogador**: só se ele já enviou. Depois da revelação os lances são públicos.
+
+**Relógio.** Prazo de **15 s** por lance e **5 s** de revelação (`BID_MS`, `REVEAL_MS`). O servidor fecha o leilão quando todos os que podem dar lance **e estão conectados** já enviaram (quem caiu conta como passou; se ninguém está conectado, segue o prazo normal). O Durable Object usa **um só alarme**, no que vier primeiro entre o prazo do jogo e o fim da sala (1 h sem atividade de um jogador; os prazos do jogo não renovam esse TTL). Depois de uma pausa longa (hibernação) o relógio põe tudo em dia. Lógica em `worker/rooms.js` (`nextAlarm`, `decideAlarm`).
+
+**Colocar no ar:** `npx wrangler deploy` — binding `AUCTION` e migration `v4` (`new_sqlite_classes = ["AuctionRoom"]`). Sem mudança de banco.
+
+---
+
 # Reentrada (voltar à sala)
 
-`GET /api/v1/cups/{code}` → **200** `{ exists: true, phase }` ou **404** (`not-found`). Só diz se a sala existe; não expõe jogadores. Limite: 60 consultas/hora por rede (429), para impedir varredura de códigos.
+`GET /api/v1/cups/{code}` e `GET /api/v1/auctions/{code}` → **200** `{ exists: true, phase }` ou **404** (`not-found`). Só diz se a sala existe; não expõe jogadores. Limite: 60 consultas/hora por rede (429), para impedir varredura de códigos.
 
 Cliente (`site/js/session.js`, `net.js`):
 - **F5:** o token e a flag `ml_in_room` ficam em `sessionStorage` → a página volta sozinha para a sala.
@@ -91,7 +111,7 @@ Cliente (`site/js/session.js`, `net.js`):
 
 Nomes passam por `sanitizeTeamName` (alfabeto latino) e `moderateName` (palavrões/ódio, links, contatos, nomes reservados). Quando bloqueado:
 - `POST /api/v1/daily/entries` → **422** `validation-error` com `errors:[{field:"team_name"}]`;
-- WebSocket (campeonato) → `error` com `code: "name-blocked"` (a sala não é afetada; o registro de reentrada é apagado).
+- WebSocket (campeonato e leilão) → `error` com `code: "name-blocked"` (a sala não é afetada; o registro de reentrada é apagado).
 O detalhe do motivo (qual termo) não é devolvido, para não ensinar a burlar a lista. Ver `docs/OPERACAO.md`.
 
 ---
@@ -104,7 +124,7 @@ O detalhe do motivo (qual termo) não é devolvido, para não ensinar a burlar a
 
 # Retenção e privacidade
 
-Um Cron Trigger diário (`[triggers] crons` em `wrangler.toml`) chama `scheduled()` → `runPurge()` (`worker/retention.js`): apaga entradas do ranking com mais de **90 dias**, zera `ip_hash` de dias anteriores, apaga `metrics` com mais de 90 dias e `rate_limits` com mais de 2 h, e registra `purge_done` com as contagens. Salas de campeonato expiram sozinhas após 1 h sem atividade. A Política de Privacidade (`site/privacidade.html`) descreve exatamente isso; `test/privacy.test.js` mantém texto e código alinhados.
+Um Cron Trigger diário (`[triggers] crons` em `wrangler.toml`) chama `scheduled()` → `runPurge()` (`worker/retention.js`): apaga entradas do ranking com mais de **90 dias**, zera `ip_hash` de dias anteriores, apaga `metrics` com mais de 90 dias e `rate_limits` com mais de 2 h, e registra `purge_done` com as contagens. Salas de campeonato e de leilão expiram sozinhas após 1 h sem atividade. A Política de Privacidade (`site/privacidade.html`) descreve exatamente isso; `test/privacy.test.js` mantém texto e código alinhados.
 
 ---
 

@@ -1,5 +1,6 @@
-/* Servidor de mentira para o campeonato: o Playwright entra na sala pelo link de convite
+/* Servidor de mentira para o campeonato e o leilão: o Playwright entra na sala pelo link de convite
  * e o WebSocket responde com o estado que o teste quer ver (o cliente é só um espelho do servidor). */
+import { expect } from "@playwright/test";
 import { LINEUPS } from "../site/js/data.js";
 export const ROLES = ["AWP", "IGL", "Entry", "Support", "Rifler"];
 export const OFFERS = LINEUPS.slice(0, 3).map((l) => l.id);          // 3 lineups reais para o draft aparecer
@@ -63,16 +64,60 @@ export function campeonato({ phase = "running", script = ["V"], status = "active
   return v;
 }
 
-/* Entra na sala pelo link de convite; o servidor de mentira devolve `view`. `enviadas` recebe o que o cliente mandar. */
-export async function abrirSala(page, { view, enviadas = [] }) {
+/* ------------------------------ leilão ------------------------------ */
+const LOTE = { id: "navi-2021|s1mple", lineupId: "navi-2021", nick: "s1mple", role: "AWP", pais: "UA", team: "Natus Vincere", ano: 2021, forca: 99 };
+const RESTAM = { AWP: 3, IGL: 2, Entry: 4, Support: 2, Rifler: 1 };
+export const comprado = (nick, price, forca = 85) => ({ nick, pais: "BR", forca, team: "Time X", ano: 2020, lineupId: "x", price });
+const nomes = ["Meu Time", "Rival FC", "Terceiro FC"];
+
+/* Visão do leilão como o servidor a manda. `squad`: o que EU já tenho ({ papel: comprado() }). */
+export function leilao({
+  phase = "auction", step = "bidding", msLeft = 15000, idx = 12, total = 50, coins = 100, squad = {}, canBid = true, why = null,
+  submitted = false, bid = null, last = null, lot = LOTE, host = true, jogadores = 3, fills = [], style = null, maxBid,
+} = {}) {
+  const vagas = ROLES.length - Object.keys(squad).length;
+  const emAndamento = phase === "auction";
+  const players = nomes.slice(0, jogadores).map((name, i) => ({
+    name, host: i === 0, connected: true, coins: i === 0 ? coins : 72 - i * 10, filled: i === 0 ? Object.keys(squad).length : 2,
+    squad: i === 0 ? squad : { AWP: comprado("Zywoo", 30, 97) }, submitted: emAndamento && step === "bidding" ? (i === 0 ? submitted : i === 1) : false,
+    eligible: emAndamento && step === "bidding", ready: phase === "style" && i === 1,
+  }));
+  return {
+    v: 1, kind: "auction", phase, code: "ABC234", min_players: 2, max_players: 5,
+    step: emAndamento ? step : null, msLeft: emAndamento ? msLeft : 0,
+    lot: emAndamento ? lot : null, idx: emAndamento ? idx : phase === "lobby" ? 0 : total, total: phase === "lobby" ? 0 : total,
+    remaining: RESTAM, last, fills,
+    you: {
+      slot: 0, name: "Meu Time", host, canControl: host, style, coins, squad,
+      maxBid: emAndamento && step === "bidding" ? (maxBid ?? coins - (vagas - 1)) : 0,
+      canBid: emAndamento && step === "bidding" && canBid, why: emAndamento && step === "bidding" ? why : null,
+      submitted: emAndamento && step === "bidding" ? submitted : false, bid: emAndamento && step === "bidding" ? bid : null,
+    },
+    players, teams: null, events: [], result: null,
+  };
+}
+
+export const REVELACAO = {
+  lot: LOTE, winner: 1, price: 41,
+  bids: [{ slot: 0, name: "Meu Time", amount: 30 }, { slot: 1, name: "Rival FC", amount: 41 }, { slot: 2, name: "Terceiro FC", amount: 0 }],
+};
+
+/* Elenco completo (fase de estilo): 5 papéis, cada um com o preço pago (0 = completado de graça). */
+export const elencoLeilao = (forca = 90) => Object.fromEntries(ROLES.map((r, i) => [r, comprado(`Jog${i + 1}`, i < 3 ? 20 + i : 0, forca)]));
+
+/* Entra na sala pelo link de convite; o servidor de mentira devolve `view`. `enviadas` recebe o que o cliente mandar.
+ * Devolve { enviar(view) } para o "servidor" empurrar um estado novo depois. */
+export async function abrirSala(page, { view, enviadas = [], kind = "cups" }) {
+  let sala = null;
   await page.addInitScript(() => {                           // captura o compartilhamento (sem abrir a folha do sistema)
     window.__shared = null;
     const definir = (nome, valor) => Object.defineProperty(navigator, nome, { value: valor, configurable: true, writable: true });   // vale mesmo se o navegador já tiver (ou não) a API
     definir("canShare", () => false);
     definir("share", async (d) => { window.__shared = d; });
   });
-  await page.route("**/api/v1/cups/ABC234", (r) => r.fulfill({ json: { exists: true } }));
-  await page.routeWebSocket("**/api/v1/cups/ABC234/ws", (ws) => {
+  await page.route(`**/api/v1/${kind}/ABC234`, (r) => r.fulfill({ json: { exists: true } }));
+  await page.routeWebSocket(`**/api/v1/${kind}/ABC234/ws`, (ws) => {
+    sala = ws;
     ws.onMessage((m) => {
       const msg = JSON.parse(String(m));
       if (msg.t === "hello") {
@@ -81,7 +126,24 @@ export async function abrirSala(page, { view, enviadas = [] }) {
       } else enviadas.push(msg);
     });
   });
-  await page.goto("/?campeonato=ABC234");
+  await page.goto(kind === "auctions" ? "/?leilao=ABC234" : "/?campeonato=ABC234");
   await page.getByLabel(/Seu nome de time/).fill("Meu Time");
   await page.getByRole("button", { name: /^Entrar no/ }).click();
+  return { enviar: (v) => sala.send(JSON.stringify({ t: "state", ...v })) };
+}
+
+/* Clica em Compartilhar e espera o texto que o navegador teria compartilhado. Se não vier, a falha diz o que o botão
+ * mostra e quais erros a página teve (o compartilhar já falhou uma vez só no CI). */
+export async function textoCompartilhado(page) {
+  const botao = page.getByRole("button", { name: /Compartilhar/ });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(e.message));
+  page.on("console", (m) => { if (m.type() === "error") erros.push(m.text()); });
+  await botao.click();
+  try {
+    await expect.poll(() => page.evaluate(() => window.__shared), { timeout: 10000 }).not.toBeNull();
+  } catch (e) {
+    throw new Error(`${e.message}\nrótulo do botão: ${JSON.stringify(await botao.innerText().catch(() => "?"))}\nerros da página: ${JSON.stringify(erros)}`);
+  }
+  return page.evaluate(() => window.__shared);
 }

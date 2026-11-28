@@ -30,18 +30,21 @@ test("log: objetos/arrays são descartados e strings longas truncadas; níveis u
 test("routeOf generaliza códigos de sala (sem cardinalidade nem códigos no log)", () => {
   assert.equal(routeOf("/api/v1/cups/ABC234/ws"), "/api/v1/cups/:code/ws");
   assert.equal(routeOf("/api/v1/cups/ABC234"), "/api/v1/cups/:code");
+  assert.equal(routeOf("/api/v1/auctions/ABC234/ws"), "/api/v1/auctions/:code/ws");
   assert.equal(routeOf("/api/v1/daily/"), "/api/v1/daily");
 });
 
 test("metricFor: mapeia respostas para contadores", () => {
   const m = metricFor;
   assert.equal(m("POST", "/api/v1/cups", 201), "cup_created");
+  assert.equal(m("POST", "/api/v1/auctions", 201), "auction_created");
   assert.equal(m("POST", "/api/v1/daily/entries", 201), "daily_entry");
   assert.equal(m("POST", "/api/v1/daily/entries", 422), "daily_rejected");
   assert.equal(m("POST", "/api/v1/daily/entries", 409), "daily_duplicate");
   assert.equal(m("POST", "/api/v1/cups", 429), "rate_limited");
   assert.equal(m("GET", "/api/v1/cups/ABC234", 429), "rate_limited");
   assert.equal(m("GET", "/api/v1/cups/ABC234/ws", 101), "ws_connected");
+  assert.equal(m("GET", "/api/v1/auctions/ABC234/ws", 101), "ws_connected");
   assert.equal(m("GET", "/api/v1/cups/ABC234/ws", 403), "ws_forbidden_origin");
   assert.equal(m("GET", "/api/v1/daily", 500), "server_error");
   for (const [me, p, s] of [["GET", "/api/v1/daily", 200], ["GET", "/api/v1/health", 200], ["GET", "/api/v1/daily/leaderboard", 200], ["GET", "/api/v1/cups/ZZZZZZ", 404]]) assert.equal(m(me, p, s), null);

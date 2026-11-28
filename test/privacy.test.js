@@ -21,7 +21,7 @@ test("toda chave do navegador (ml_*) usada pelo código está descrita na polít
   for (const f of jsFiles) for (const m of read("site/js/" + f).matchAll(/["'`](ml_[A-Za-z0-9_${}.]*)/g)) keys.add(m[1]);
   assert.ok(keys.size >= 5, "esperava achar as chaves ml_*; achou " + [...keys]);
   for (const k of keys) {
-    if (k.includes("${")) { assert.ok(policy.includes("ml_cups_"), "token de sala (ml_cups_) não descrito"); continue; }
+    if (k.includes("${")) { assert.ok(policy.includes("ml_cups_") && policy.includes("ml_auctions_"), "token de sala (ml_cups_/ml_auctions_) não descrito"); continue; }
     assert.ok(policy.includes(k), `a chave ${k} é usada no código mas não está na política`);
   }
 });

@@ -167,10 +167,10 @@ test.describe("celular 375px", () => {
     await expect(page.getByRole("button", { name: /Criar duelo/ })).toHaveCount(0);
   });
 
-  test("Leilão aparece como 'Em breve', com botão desligado", async ({ page }) => {
+  test("Leilão: cartão com resumo e o botão 'Criar leilão' ativo", async ({ page }) => {
     const g = new GamePage(page); await g.stubOnlineApi(); await g.open();
-    await expect(leilao(page)).toContainText(/Em breve/i);
-    await expect(leilao(page).getByRole("button")).toBeDisabled();
+    await expect(leilao(page)).toContainText(/lance fechado/i);
+    await expect(leilao(page).getByRole("button", { name: /Criar leilão/ })).toBeEnabled();
   });
 
   test("Criar campeonato sem nome explica o motivo (o nome é obrigatório)", async ({ page }) => {

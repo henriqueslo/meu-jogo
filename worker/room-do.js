@@ -4,7 +4,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { GameError } from "../site/js/engine.js";
 import { Cup } from "./cup.js";
-import { makeBucket, MAX_MESSAGE_BYTES } from "./rooms.js";
+import { Auction } from "./auction.js";
+import { makeBucket, MAX_MESSAGE_BYTES, nextAlarm, decideAlarm } from "./rooms.js";
 import { log } from "./log.js";
 
 const TTL_MS = 60 * 60 * 1000;      // sala some após 1 h sem atividade
@@ -12,16 +13,19 @@ const MAX_SOCKETS = 16;             // até 8 jogadores + folga para reconexões
 const CLOSE = { REPLACED: 4000, BAD_HELLO: 4003, RATE: 4008, TOO_BIG: 4009, FULL: 4013 };
 
 /* Base genérica: um Durable Object hospeda UMA partida cuja lógica pura (Logic) segue o contrato
- * join/apply/view/toJSON/fromJSON. CupRoom = campeonato. */
+ * join/apply/view/toJSON/fromJSON. CupRoom = campeonato; AuctionRoom = leilão (que também tem relógio:
+ * tick(now, connected) e nextDeadline(), servidos pelo alarme do Durable Object). */
 class GameRoom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.game = null;
+    this.ttlAt = null;                  // quando a sala expira (1 h depois da última atividade de um jogador)
     this.buckets = new WeakMap();
     this.flagged = new WeakSet();       // sockets já registrados no log (1 linha por conexão, não por mensagem)
     ctx.blockConcurrencyWhile(async () => {
       const saved = await ctx.storage.get("game");
       if (saved) this.game = this.Logic.fromJSON(saved);
+      this.ttlAt = (await ctx.storage.get("ttlAt")) ?? null;
     });
   }
 
@@ -83,7 +87,7 @@ class GameRoom extends DurableObject {
       } else {
         if (msg?.t === "hello") throw new GameError("bad-message", "Já identificado.");
         const before = this.game.phase;
-        this.game.apply(att.slot, msg, { connected: this.#connected() });
+        this.game.apply(att.slot, msg, { connected: this.#connected(), now: Date.now() });
         if (before !== "done" && this.game.phase === "done") log("game_done", { kind: this.Logic.name });
         await this.#save();
       }
@@ -95,18 +99,42 @@ class GameRoom extends DurableObject {
     this.#broadcast();
   }
 
-  async webSocketClose(ws) { try { ws.close(); } catch { /* já fechado */ } this.#broadcast(); }
+  async webSocketClose(ws) {
+    try { ws.close(); } catch { /* já fechado */ }
+    await this.#clock();                 // quem caiu não pode segurar o leilão
+    this.#broadcast();
+  }
   async webSocketError() { this.#broadcast(); }
 
-  async alarm() {            // TTL: apaga a sala
-    for (const s of this.ctx.getWebSockets()) s.close(1000, "sala encerrada");
-    await this.ctx.storage.deleteAll();
-    this.game = null;
+  async alarm() {
+    if (!this.game) return;
+    const what = decideAlarm({ now: Date.now(), ttlAt: this.ttlAt, deadline: this.game.nextDeadline?.() ?? null });
+    if (what === "expire") {            // TTL: apaga a sala
+      for (const s of this.ctx.getWebSockets()) s.close(1000, "sala encerrada");
+      await this.ctx.storage.deleteAll();
+      this.game = null; this.ttlAt = null;
+      return;
+    }
+    if (what === "tick") { await this.#clock(); this.#broadcast(); return; }
+    await this.#schedule();             // acordou cedo
   }
 
-  async #save() {
+  /* Deixa o relógio do jogo andar (prazos vencidos, quem caiu) e guarda se algo mudou. Não renova o TTL:
+   * só a atividade de um jogador mantém a sala viva. */
+  async #clock() {
+    if (!this.game?.tick) return;
+    if (this.game.tick(Date.now(), this.#connected())) await this.#save({ activity: false });
+    else await this.#schedule();
+  }
+
+  async #save({ activity = true } = {}) {
     await this.ctx.storage.put("game", this.game.toJSON());
-    await this.ctx.storage.setAlarm(Date.now() + TTL_MS);
+    if (activity || this.ttlAt == null) { this.ttlAt = Date.now() + TTL_MS; await this.ctx.storage.put("ttlAt", this.ttlAt); }
+    await this.#schedule();
+  }
+
+  async #schedule() {
+    await this.ctx.storage.setAlarm(nextAlarm({ ttlAt: this.ttlAt, deadline: this.game?.nextDeadline?.() ?? null }));
   }
 
   /* Abuso: registra UMA vez por conexão. Depois de fechada, a fila de mensagens já enviadas
@@ -132,8 +160,9 @@ class GameRoom extends DurableObject {
     if (!this.game) return;
     const live = this.ctx.getWebSockets().filter((s) => s.deserializeAttachment()?.slot != null && s.readyState === 1);
     const connected = this.#connected();
-    for (const s of live) this.#send(s, { t: "state", ...this.game.view(s.deserializeAttachment().slot, connected) });
+    for (const s of live) this.#send(s, { t: "state", ...this.game.view(s.deserializeAttachment().slot, connected, Date.now()) });
   }
 }
 
 export class CupRoom extends GameRoom { get Logic() { return Cup; } }
+export class AuctionRoom extends GameRoom { get Logic() { return Auction; } }

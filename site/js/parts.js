@@ -145,16 +145,16 @@ const nicks = (lineup) => lineup.map((p) => p.nick).join(", ");
 const linhaSuico = (w, l) => `Primeira Fase: ${"🟩".repeat(w)}${"🟥".repeat(l)} (${w}-${l})`;
 
 /* Campeonato: `me` = {name, wins, losses, status, perfeito}; `lineup` = [{papel, nick}]. */
-export function cupShare({ team, wins, losses, perfeito, champion, vice = false, playoffs, lineup, cleanPlayoffs, players }) {
+export function cupShare({ team, wins, losses, perfeito, champion, vice = false, playoffs, lineup, cleanPlayoffs, players, nome = "campeonato" }) {
   let abertura, desafio;
-  if (perfeito) { abertura = `💎🏆 FIZ O MAJOR PERFEITO no campeonato com o ${team}!`; desafio = "Campeão sem perder UM único mapa. Duvido você repetir essa. 😏"; }
-  else if (champion) { abertura = `🏆 Fui CAMPEÃO do campeonato com o ${team}!`; desafio = "Olha onde eu cheguei — será que você consegue fazer melhor? 👀"; }
-  else if (vice) { abertura = `🥈 Fui VICE-CAMPEÃO do campeonato com o ${team}!`; desafio = "Perdi a final por pouco. Bora ver se você chega tão longe? 😤"; }
-  else if (playoffs) { abertura = `🎯 Cheguei aos playoffs do campeonato com o ${team}.`; desafio = "Parei antes do título. Aposto que você não passa daí também. 😅"; }
-  else { abertura = `❌ Meu ${team} caiu na Primeira Fase do campeonato (${wins}-${losses}).`; desafio = "Monta um time melhor que o meu, então. Duvido. 🤨"; }
+  if (perfeito) { abertura = `💎🏆 FIZ O MAJOR PERFEITO no ${nome} com o ${team}!`; desafio = "Campeão sem perder UM único mapa. Duvido você repetir essa. 😏"; }
+  else if (champion) { abertura = `🏆 Fui CAMPEÃO do ${nome} com o ${team}!`; desafio = "Olha onde eu cheguei — será que você consegue fazer melhor? 👀"; }
+  else if (vice) { abertura = `🥈 Fui VICE-CAMPEÃO do ${nome} com o ${team}!`; desafio = "Perdi a final por pouco. Bora ver se você chega tão longe? 😤"; }
+  else if (playoffs) { abertura = `🎯 Cheguei aos playoffs do ${nome} com o ${team}.`; desafio = "Parei antes do título. Aposto que você não passa daí também. 😅"; }
+  else { abertura = `❌ Meu ${team} caiu na Primeira Fase do ${nome} (${wins}-${losses}).`; desafio = "Monta um time melhor que o meu, então. Duvido. 🤨"; }
   const text = `${abertura}\n${desafio}\n\n${linhaSuico(wins, losses)}\nLineUp: ${nicks(lineup)}\n\n🎮 Monte o seu: ${SITE_URL}`;
   const data = {
-    nome: team, modo: `Campeonato · ${players} jogadores · ${hoje()}`, wins, losses, perfeito, isChampion: champion,
+    nome: team, modo: `${nome[0].toUpperCase() + nome.slice(1)} · ${players} jogadores · ${hoje()}`, wins, losses, perfeito, isChampion: champion,
     resultadoCurto: perfeito ? "💎 MAJOR PERFEITO" : champion ? "🏆 CAMPEÃO" : vice ? "🥈 VICE-CAMPEÃO" : playoffs ? "PLAYOFFS" : "ELIMINADO NO SUÍÇO",
     resultadoSub: perfeito ? "campeão sem perder um único mapa" : champion ? (cleanPlayoffs ? "invicto nos playoffs" : "") : vice ? "perdeu a grande final" : playoffs ? "eliminado antes da final" : "",
     lineup,

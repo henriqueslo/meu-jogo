@@ -1,5 +1,5 @@
 /* Entrada do Cloudflare Worker.
- *   /api/v1/cups*                  -> salas de campeonato (Durable Objects)
+ *   /api/v1/cups*, /api/v1/auctions* -> salas de campeonato e de leilão (Durable Objects)
  *   /api/*                         -> desafio do dia, saúde (D1)
  *   resto                          -> arquivos estáticos
  * Cada resposta de API é contada em segundo plano (metrics.js) sem atrasar o jogador. */
@@ -9,7 +9,7 @@ import { d1Store } from "./d1store.js";
 import { observe } from "./metrics.js";
 import { runPurge } from "./retention.js";
 
-export { CupRoom } from "./room-do.js";
+export { CupRoom, AuctionRoom } from "./room-do.js";
 
 export default {
   async fetch(request, env, ctx) {
