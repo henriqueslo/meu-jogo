@@ -277,6 +277,7 @@ test("'Sair do leilão' em cada fase leva à home", async ({ browser }) => {
   for (const view of [leilao({ phase: "lobby" }), leilao(), leilao({ step: "reveal", last: REVELACAO, canBid: false }), leilao({ phase: "style", squad: elencoLeilao() })]) {
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
     const page = await ctx.newPage();
+    page.on("dialog", (d) => d.accept());                                    // durante o leilão, sair pede confirmação
     await sala(page, view);
     await page.getByRole("button", { name: /Sair do leilão/ }).click();
     await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
@@ -318,4 +319,88 @@ test.describe("desktop 1280px", () => {
     const m = await medir(page);
     expect(m.overflowX).toBeLessThanOrEqual(0); expect(m.small).toEqual([]); expect(m.tiny).toEqual([]);
   });
+});
+
+/* ------------------------------ desistência: o leilão é cancelado e todos voltam à home ------------------------------ */
+import { cancelado } from "./mp.js";
+const aviso = (page) => page.getByRole("alert").filter({ hasText: /desistiu do Leilão/ });
+
+test("outro jogador ficou offline: aparece o aviso e você volta à home, sem continuar o leilão", async ({ page }) => {
+  const { enviar } = await sala(page, leilao());
+  await expect(page.getByRole("region", { name: /Jogador em leilão/ })).toBeVisible();
+  await enviar(cancelado({ slot: 2, name: "Time C", why: "offline", voce: 0 }));
+  await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
+  await expect(aviso(page)).toBeVisible();
+  await expect(aviso(page)).toContainText("Jogador desistiu do Leilão");
+  await expect(aviso(page)).toContainText("Time C");
+  await expect(page.locator("#screen-cup")).not.toHaveClass(/active/);
+});
+
+test("o aviso mostra o nome só como texto (sem HTML) e não deixa 'Voltar à sala' para uma sala cancelada", async ({ page }) => {
+  const { enviar } = await sala(page, leilao());
+  await enviar(cancelado({ name: "<img src=x onerror=alert(1)>", why: "quit" }));
+  await expect(aviso(page)).toBeVisible();
+  await expect(aviso(page).locator("img")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("ml_active"))).toBeNull();
+  await expect(page.getByRole("button", { name: /Voltar à sala/ })).toHaveCount(0);
+});
+
+test("quem caiu e volta depois vê o aviso na primeira tela (e some o rastro da sala)", async ({ page }) => {
+  const { enviar } = await sala(page, leilao());
+  await enviar(cancelado({ slot: 0, name: "Meu Time", why: "offline", voce: 0 }));
+  await expect(aviso(page)).toContainText(/Você/);
+  await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
+});
+
+test("o aviso some ao começar outra coisa (não fica preso na home)", async ({ page }) => {
+  page.on("dialog", (d) => d.accept());
+  const { enviar } = await sala(page, leilao());
+  await enviar(cancelado());
+  await expect(aviso(page)).toBeVisible();
+  await page.getByLabel(/Nome do seu time/).fill("Outro");
+  await page.getByRole("button", { name: /^Jogar agora/ }).click();
+  await expect(page.getByRole("button", { name: /Atualizar Lineups/ })).toBeVisible();
+  await page.locator("#logo-home").click();
+  await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
+  await expect(aviso(page)).toHaveCount(0);
+});
+
+test("'Sair do leilão' durante o leilão pede confirmação, avisa que cancela para todos e manda 'quit'", async ({ page }) => {
+  const enviadas = [], mensagens = [];
+  page.on("dialog", (d) => { mensagens.push(d.message()); d.dismiss(); });
+  await sala(page, leilao(), { enviadas });
+  await page.getByRole("button", { name: /Sair do leilão/ }).click();
+  expect(mensagens[0]).toMatch(/cancela.*todos/i);
+  await expect(page.getByRole("region", { name: /Jogador em leilão/ })).toBeVisible();          // recusou: continua no leilão
+  expect(enviadas.find((m) => m.t === "quit")).toBeUndefined();
+  page.removeAllListeners("dialog"); page.on("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: /Sair do leilão/ }).click();
+  await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
+  await expect.poll(() => enviadas.find((m) => m.t === "quit")).toBeTruthy();
+});
+
+test("no lobby e depois do leilão, 'Sair' não pergunta nada (não cancela ninguém)", async ({ page }) => {
+  let perguntou = false; page.on("dialog", (d) => { perguntou = true; d.dismiss(); });
+  await sala(page, leilao({ phase: "lobby" }));
+  await page.getByRole("button", { name: /Sair do leilão/ }).click();
+  await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
+  expect(perguntou).toBe(false);
+});
+
+test("durante o leilão, quem está offline aparece com aviso de que o leilão pode ser cancelado", async ({ page }) => {
+  const v = leilao(); v.players[2].connected = false;
+  await sala(page, v);
+  await expect(page.getByText(/offline/i).first()).toBeVisible();
+  await expect(page.getByText(/será cancelado|cancela/i).first()).toBeVisible();
+});
+
+test("o 'Sair' em cada fase continua levando à home (agora confirmando só durante o leilão)", async ({ browser }) => {
+  for (const view of [leilao({ phase: "lobby" }), leilao({ phase: "style", squad: elencoLeilao() })]) {
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const page = await ctx.newPage();
+    await sala(page, view);
+    await page.getByRole("button", { name: /Sair do leilão/ }).click();
+    await expect(page.getByRole("button", { name: /^Jogar agora/ })).toBeVisible();
+    await ctx.close();
+  }
 });

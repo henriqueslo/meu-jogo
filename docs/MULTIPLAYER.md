@@ -61,7 +61,8 @@ Substituiu o antigo duelo 1×1 como segundo modo do bloco Multiplayer (cartão �
 - **Papel já preenchido:** não dá para dar lance (o botão explica o motivo).
 - **Desempate:** leva quem deu o lance **primeiro**, pelo relógio do servidor (a hora em que o lance chegou); só se dois lances chegarem no mesmíssimo milissegundo há sorteio, com a semente do servidor. A revelação diz como o empate foi decidido. (Quem tem conexão mais lenta sai em desvantagem: é o preço de uma regra simples de explicar.)
 - **Quantidade de leilões:** 10 por jogador (5 jogadores = 50), com o mesmo número de cada papel (oferta = o dobro da demanda, para haver margem para passar).
-- **Vaga que sobrar:** recebe, de graça, o melhor descartado daquele papel; os times mais fracos escolhem primeiro.
+- **Vaga que sobrar:** recebe, de graça, o **pior** jogador livre daquele papel (o de menor rating entre os que ninguém levou). Assim quem não completou o elenco — desistiu, passou tudo ou ficou sem moedas — nunca sai favorecido.
+- **Desistência:** se um jogador fica **offline por mais de 20 s** durante o leilão, ou clica em **Sair**, o leilão é **cancelado para todos**: todos voltam à home com o aviso “Jogador desistiu do Leilão” (e a sala é esquecida). Recarregar a página ou perder o sinal por menos que isso não cancela. Sair no meio do leilão pede confirmação, porque cancela para todos. Na escolha de estilo e no torneio isso não vale (o dono pode usar “completar automaticamente”). Enquanto alguém está offline (dentro dos 20 s) o leilão segue sem esperar por ele: conta como “passou”.
 
 **Depois do leilão:** escolha de estilo (mesma tela de hoje), campeonato simulado completado com times históricos até 16 (reaproveita a lógica do campeonato) e resultado com herói, jornada e compartilhar (texto próprio de leilão).
 

@@ -26,6 +26,9 @@ export const START_COINS = 100;
 export const LOTS_PER_PLAYER = 10;
 export const BID_MS = 15_000;          // prazo para dar o lance
 export const REVEAL_MS = 5_000;        // tempo para ler a revelação antes do próximo leilão
+/* Quanto tempo um jogador pode ficar offline durante o leilão antes de o leilão ser CANCELADO para todos. Dá para
+ * recarregar a página ou perder o sinal por um instante; passou disso, ninguém fica esperando quem desistiu. */
+export const AWAY_MS = 20_000;
 
 /* A fila de leilões: determinística em (seed, n). Um jogador por nick (nenhum se repete), `2n` por papel, embaralhados. */
 export function buildPool(seed, n) {
@@ -47,12 +50,14 @@ export function buildPool(seed, n) {
 const isInt = (v) => Number.isInteger(v);
 
 export class Auction {
-  constructor({ code, seed, started = false, n = 0, players = [], idx = 0, step = null, deadline = null, bids = {}, bidTimes = {}, history = [], fills = [], over = false, steps = 0 }) {
+  constructor({ code, seed, started = false, n = 0, players = [], idx = 0, step = null, deadline = null, bids = {}, bidTimes = {}, history = [], fills = [], over = false, steps = 0, away = {}, cancelled = null }) {
     this.code = code; this.seed = seed >>> 0; this.started = started; this.n = n;
     this.players = players.map((p) => ({ name: p.name, token: p.token, style: p.style ?? null }));
     this.idx = idx; this.step = step; this.deadline = deadline; this.bids = { ...bids }; this.bidTimes = { ...bidTimes };   // bidTimes: quando cada lance chegou (desempate)
     this.history = history.map((h) => ({ ...h, bids: [...h.bids] })); this.fills = fills.map((f) => ({ ...f }));
     this.over = over; this.steps = steps;
+    this.away = { ...away };                                                 // slot -> desde quando está offline (só durante o leilão)
+    this.cancelled = cancelled ? { ...cancelled } : null;                    // { slot, name, why: "offline" | "quit" }
     this._pool = null; this.run = null;
     if (this.over && this.players.length && this.players.every((p) => p.style)) this.run = buildRun(this._humans(), this._runSeed(), this.steps);
   }
@@ -62,6 +67,7 @@ export class Auction {
   _runSeed() { return hashSeed(`${this.seed}|auction|run`); }
 
   get phase() {
+    if (this.cancelled) return "cancelled";
     if (!this.started) return "lobby";
     if (!this.over) return "auction";
     if (!this.run) return "style";
@@ -72,6 +78,7 @@ export class Auction {
     return {
       code: this.code, seed: this.seed, started: this.started, n: this.n, idx: this.idx, step: this.step, deadline: this.deadline,
       bids: this.bids, bidTimes: this.bidTimes, history: this.history, fills: this.fills, over: this.over, steps: this.steps,
+      away: this.away, cancelled: this.cancelled,
       players: this.players.map((p) => ({ name: p.name, token: p.token, style: p.style })),
     };
   }
@@ -152,16 +159,15 @@ export class Auction {
     this.step = "reveal"; this.deadline = at + REVEAL_MS;
   }
 
-  /* Acabaram os leilões: vagas que sobraram recebem de graça o melhor descartado do papel, os mais fracos primeiro. */
+  /* Acabaram os leilões: vagas que sobraram recebem de graça o PIOR jogador livre do papel. Assim quem não completou o
+   * elenco (desistiu, passou tudo, ficou sem moedas) nunca sai favorecido. */
   _finish() {
     this.step = null; this.deadline = null; this.over = true;
     const sq = this._squads(), pool = this.pool;
     const usados = new Set(this.history.filter((h) => h.winner !== null).map((h) => h.lot));
-    const forca = (s) => Object.values(sq[s]).reduce((sum, c) => sum + pool[c.lot].forca, 0);
-    const ordem = this.players.map((_, s) => s).sort((a, b) => forca(a) - forca(b) || a - b);
-    for (const slot of ordem) for (const role of ROLES) {
+    for (let slot = 0; slot < this.players.length; slot++) for (const role of ROLES) {
       if (sq[slot][role]) continue;
-      const livres = pool.map((l, i) => ({ l, i })).filter(({ l, i }) => l.role === role && !usados.has(i)).sort((a, b) => b.l.forca - a.l.forca || a.i - b.i);
+      const livres = pool.map((l, i) => ({ l, i })).filter(({ l, i }) => l.role === role && !usados.has(i)).sort((a, b) => a.l.forca - b.l.forca || a.i - b.i);
       if (!livres.length) throw new GameError("internal", "Sem jogador livre para completar o elenco.");
       usados.add(livres[0].i); this.fills.push({ slot, role, lot: livres[0].i }); sq[slot][role] = { lot: livres[0].i, price: 0 };
     }
@@ -174,7 +180,11 @@ export class Auction {
   apply(slot, msg, { now = Date.now(), connected = [] } = {}) {
     const p = this.players[slot];
     if (!p) throw new GameError("not-joined", "Entre na sala primeiro.");
+    if (this.cancelled) throw new GameError("cancelled", "O leilão foi cancelado.");
     switch (msg?.t) {
+      case "quit":                                     // clicou em "Sair": desistir cancela o leilão para todos
+        if (this.phase !== "auction") throw new GameError("bad-phase", "Só dá para desistir durante o leilão.");
+        this._cancel(slot, "quit"); return;
       case "start":
         if (this.phase !== "lobby") throw new GameError("bad-phase", "O leilão já começou.");
         if (slot !== 0) throw new GameError("not-host", "Só o dono da sala pode iniciar.");
@@ -216,11 +226,22 @@ export class Auction {
     }
   }
 
+  _cancel(slot, why) {
+    this.cancelled = { slot, name: this.players[slot].name, why };
+    this.step = null; this.deadline = null; this.bids = {}; this.bidTimes = {}; this.away = {};
+  }
+
   /* O relógio: fecha leilões vencidos, passa da revelação para o próximo (pode andar vários, depois de uma pausa
    * longa) e fecha cedo quando só falta quem está desconectado. Devolve true se algo mudou. */
   tick(now, connected = []) {
     if (this.phase !== "auction") return false;
     let changed = false;
+    for (let s = 0; s < this.players.length; s++) {                          // quem está offline começa a contar; quem voltou zera
+      if (connected[s]) { if (s in this.away) { delete this.away[s]; changed = true; } }
+      else if (!(s in this.away)) { this.away[s] = now; changed = true; }
+    }
+    const saiu = Object.entries(this.away).filter(([, desde]) => now - desde >= AWAY_MS).sort((a, b) => a[1] - b[1] || a[0] - b[0])[0];
+    if (saiu) { this._cancel(Number(saiu[0]), "offline"); return true; }
     for (let guard = 0; guard < 1000 && this.phase === "auction"; guard++) {
       if (this.step === "bidding") {
         if (now >= this.deadline) { this._reveal(this.deadline); changed = true; continue; }
@@ -234,7 +255,11 @@ export class Auction {
   }
 
   /* Quando o relógio precisa acordar (ms desde a época) ou null. */
-  nextDeadline() { return this.phase === "auction" ? this.deadline : null; }
+  nextDeadline() {
+    if (this.phase !== "auction") return null;
+    const desde = Object.values(this.away);                                  // o relógio também acorda para cancelar a tempo
+    return desde.length ? Math.min(this.deadline, Math.min(...desde) + AWAY_MS) : this.deadline;
+  }
 
   _maybeBegin() {
     if (!this.players.every((p) => p.style)) return;
@@ -252,6 +277,7 @@ export class Auction {
 
   /* ------------------------------ visão de um jogador ------------------------------ */
   view(slot, connected = [], now = Date.now()) {
+    if (this.cancelled) return { v: 1, kind: "auction", phase: "cancelled", code: this.code, cancelled: { ...this.cancelled }, you: { slot } };
     const me = this.players[slot], phase = this.phase, pool = this.started ? this.pool : [];
     const sq = this.started ? this._squads() : this.players.map(() => ({}));
     const squadView = (s) => Object.fromEntries(Object.entries(sq[s]).map(([role, c]) => {

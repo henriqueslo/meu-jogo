@@ -114,8 +114,16 @@ function refreshStartControls() {
 }
 
 /* Mostra a home e atualiza o que muda com o tempo: o Desafio (já feito hoje?) e o Top 5 (alguém acabou de entrar?). */
-function showHome() {
+/* Aviso no topo da home (ex.: leilão cancelado). Texto puro: nada vira HTML. */
+function mostrarAviso(a) {
+  const box = $("home-notice"); if (!box) return;
+  const ok = a && typeof a.titulo === "string";
+  box.hidden = !ok;
+  if (ok) { box.querySelector("b").textContent = a.titulo; box.querySelector("span").textContent = a.detalhe ?? ""; }
+}
+function showHome(aviso) {
   showScreen("screen-start");
+  mostrarAviso(aviso);
   refreshStartControls();
   refreshTop5();
 }

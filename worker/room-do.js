@@ -83,12 +83,14 @@ class GameRoom extends DurableObject {
         ws.serializeAttachment({ slot });
         log("player_joined", { kind: this.Logic.name, slot, reconnected: tk === token });
         await this.#save();
+        await this.#clock();                                     // quem voltou deixa de contar como offline
         this.#send(ws, { t: "welcome", v: 1, slot, token: tk, code: this.game.code });
       } else {
         if (msg?.t === "hello") throw new GameError("bad-message", "Já identificado.");
         const before = this.game.phase;
         this.game.apply(att.slot, msg, { connected: this.#connected(), now: Date.now() });
         if (before !== "done" && this.game.phase === "done") log("game_done", { kind: this.Logic.name });
+        this.#logCancel(before);
         await this.#save();
       }
     } catch (e) {
@@ -123,8 +125,14 @@ class GameRoom extends DurableObject {
    * só a atividade de um jogador mantém a sala viva. */
   async #clock() {
     if (!this.game?.tick) return;
-    if (this.game.tick(Date.now(), this.#connected())) await this.#save({ activity: false });
+    const before = this.game.phase;
+    if (this.game.tick(Date.now(), this.#connected())) { this.#logCancel(before); await this.#save({ activity: false }); }
     else await this.#schedule();
+  }
+
+  /* Leilão cancelado por desistência: uma linha de log (só o motivo, nunca o nome de quem saiu). */
+  #logCancel(before) {
+    if (before !== "cancelled" && this.game.phase === "cancelled") log("room_cancelled", { kind: this.Logic.name, why: this.game.cancelled?.why ?? "" });
   }
 
   async #save({ activity = true } = {}) {

@@ -730,3 +730,9 @@ button.player-chip:disabled{cursor:not-allowed;}
 .auction-timer.urgent{color:var(--urgent); transform-origin:right center; animation:tick 1s ease-in-out infinite;}
 @keyframes tick{50%{transform:scale(1.14);}}
 .timer-bar.urgent span{background:var(--urgent);}
+
+/* Aviso na home (leilão cancelado) e aviso de jogador offline no leilão */
+.home-notice{background:var(--panel); border-left:4px solid var(--danger); padding:12px 14px; margin:0 0 14px; font-size:15px; line-height:1.45;}
+.home-notice b{display:block; font-size:17px; margin-bottom:2px;}
+.home-notice span{color:var(--dim);}
+.away-warn{margin:0 0 8px; padding:8px 10px; background:var(--panel2); border-left:3px solid var(--urgent); font-size:13px; line-height:1.4;}

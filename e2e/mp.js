@@ -147,3 +147,8 @@ export async function textoCompartilhado(page) {
   }
   return page.evaluate(() => window.__shared);
 }
+
+/* Leilão cancelado porque alguém saiu: o que o servidor manda a todos. */
+export const cancelado = ({ slot = 2, name = "Time C", why = "offline", voce = 0 } = {}) => ({
+  v: 1, kind: "auction", phase: "cancelled", code: "ABC234", cancelled: { slot, name, why }, you: { slot: voce },
+});

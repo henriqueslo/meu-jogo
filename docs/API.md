@@ -83,6 +83,7 @@ Uma sala = um Durable Object `CupRoom` (SQLite). Persistido: seed + ações do d
 |---|---|
 | `bid` `{amount}` | Lance fechado: inteiro de 1 até o máximo (saldo − 1 moeda por vaga que ainda falta depois desta). Um por leilão |
 | `pass` | Passa. Conta como lance enviado |
+| `quit` | Desiste: cancela o leilão para todos (só durante o leilão; no lobby, estilo e torneio responde `bad-phase`) |
 
 Erros novos: `bid-too-high`, `already-bid`, `role-filled` (e `bad-message` para lance não inteiro ou < 1).
 
@@ -131,3 +132,5 @@ Um Cron Trigger diário (`[triggers] crons` em `wrangler.toml`) chama `scheduled
 # Desfazer no draft (campeonato)
 
 Nova mensagem do cliente: `{ "t": "undo" }`. Desfaz a última escolha (e as atualizações feitas depois dela); as ofertas voltam **iguais** às de antes. Permitida só na fase `draft` e **antes de o estilo ser fixado** (depois: erro `style-locked`; sem escolhas: `nothing-to-undo`). A visão do jogador (`you`) ganhou `canUndo: boolean`.
+
+**Leilão cancelado** (`phase: "cancelled"`): quando alguém clica em Sair (`quit`) ou fica offline por mais de 20 s (`AWAY_MS` em `worker/auction.js`), todos recebem `{ phase: "cancelled", code, you: { slot }, cancelled: { slot, name, why } }` (`why`: `"quit"` ou `"offline"`) e qualquer mensagem seguinte responde o erro `cancelled`. O cliente apaga a sala guardada e volta à home mostrando o aviso.
