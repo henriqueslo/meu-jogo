@@ -46,14 +46,15 @@ function squadHTML(v) {
 }
 
 function headHTML(v) {
+  const urgente = v.step === "bidding" && v.msLeft <= 5000;
   return `<div class="auction-head"><span class="auction-count">Leilão ${v.idx} de ${v.total}</span>
-    <span class="auction-timer" id="auction-timer" role="timer">${Math.ceil(v.msLeft / 1000)}s</span></div>
-    <div class="timer-bar" aria-hidden="true"><span id="timer-fill"></span></div>`;
+    <span class="auction-timer${urgente ? " urgent" : ""}" id="auction-timer" role="timer">${Math.ceil(v.msLeft / 1000)}s</span></div>
+    <div class="timer-bar${urgente ? " urgent" : ""}" aria-hidden="true"><span id="timer-fill"></span></div>`;
 }
 
 function lotHTML(v) {
-  const l = v.lot;
-  return `<section class="lot-card" aria-label="Jogador em leilão">
+  const l = v.lot, entra = v.step === "bidding" && !v.you.submitted;       // só o lote novo desliza; enviar o lance não repete
+  return `<section class="lot-card${entra ? " enter" : ""}" aria-label="Jogador em leilão">
     <div><h3>${slotText(l)}</h3>
       <div class="lot-meta"><span class="role-pill">${esc(l.role)}</span> ${esc(l.team)} · ${l.ano}</div></div>
     <span class="lot-rating" aria-label="Rating ${l.forca}">${l.forca}</span></section>`;

@@ -143,9 +143,11 @@
     padding:7px 11px; font-size:12px; cursor:pointer; text-align:left;
     transition:transform .12s ease, box-shadow .12s ease;
   }
-  .player-chip:hover{
-    box-shadow:inset 0 0 0 1px var(--t);
-    transform:translateY(-1px);
+  @media (hover:hover){
+    .player-chip:hover{
+      box-shadow:inset 0 0 0 1px var(--t);
+      transform:translateY(-1px);
+    }
   }
   .player-chip.disabled{opacity:.28; cursor:not-allowed; text-decoration:line-through;}
   .player-chip b{display:block; font-size:14px; letter-spacing:.3px;}
@@ -154,7 +156,7 @@
     font-family:'JetBrains Mono',monospace; font-weight:700;
     color:var(--ct); font-size:13px; letter-spacing:0;
   }
-  .player-chip:hover .rating{color:var(--t);}
+  @media (hover:hover){ .player-chip:hover .rating{color:var(--t);} }
 
   /* ============ BADGES: acabamentos de sticker de Major ============ */
   .badge{
@@ -684,3 +686,47 @@ button.player-chip:disabled{cursor:not-allowed;}
 .apoio-banner:hover{filter:brightness(.92);}
 .apoio-banner:focus-visible{outline:3px solid var(--ct); outline-offset:-6px;}
 .apoio-banner + footer{margin-top:0; border-top:0;}
+
+/* ============ D3 · MOVIMENTO (mobile primeiro) ============
+ * Tudo aqui vale já no celular; o desktop só herda. Só transform e opacity (leve), durações curtas, e o bloco
+ * "prefers-reduced-motion" lá em cima desliga TUDO isto. O que importa (slot novo, relógio em alerta) continua
+ * visível sem o movimento: a cor e a classe ficam. */
+:root{--urgent:#FF7A6B;}
+:root[data-theme="light"]{--urgent:#B3261E;}
+
+/* toque: no celular não existe "passar o mouse", então a resposta é ao apertar */
+.player-chip:active{transform:scale(.97);}
+.secondary:active:not(:disabled){transform:scale(.98); filter:brightness(1.2);}
+.rollbtn:active:not(:disabled){transform:scale(.98);}
+
+/* draft: a ficha que acabou de entrar no elenco salta; as lineups oferecidas entram em sequência */
+.slot.fresh{animation:slotPop .38s cubic-bezier(.2,.9,.3,1.25) backwards;}
+@keyframes slotPop{from{opacity:0; transform:scale(.88);}}
+.lineup-card{animation:cardIn .34s ease backwards;}
+.lineup-card:nth-child(2){animation-delay:.06s;}
+.lineup-card:nth-child(3){animation-delay:.12s;}
+
+/* rodadas e resultado: cartões em sequência, placar com um "pop", título do resultado em destaque */
+.card:nth-child(2){animation-delay:.05s;}
+.card:nth-child(3){animation-delay:.1s;}
+.card:nth-child(n+4){animation-delay:.15s;}
+.score{animation:scoreIn .4s .12s cubic-bezier(.2,.9,.3,1.25) backwards;}
+@keyframes scoreIn{from{opacity:0; transform:scale(.6);}}
+.result-hero{animation:heroIn .5s cubic-bezier(.2,.9,.3,1.2) backwards;}
+@keyframes heroIn{from{opacity:0; transform:translateY(12px) scale(.95);}}
+.result-hero.gold h2{animation:trophy .55s .45s ease 2;}
+@keyframes trophy{40%{transform:translateY(-6px) scale(1.05);}}
+
+/* leilão: lote novo desliza (sem passar da borda da tela), revelação em sequência, relógio em alerta */
+.lot-card.enter{animation:lotIn .32s cubic-bezier(.2,.9,.3,1.1) backwards;}
+@keyframes lotIn{from{opacity:0; transform:translateY(14px) scale(.97);}}
+.reveal{animation:cardIn .3s ease backwards;}
+.reveal-bids li{animation:cardIn .3s ease backwards;}
+.reveal-bids li:nth-child(2){animation-delay:.08s;}
+.reveal-bids li:nth-child(3){animation-delay:.16s;}
+.reveal-bids li:nth-child(n+4){animation-delay:.24s;}
+.reveal-bids li.win b{display:inline-block; animation:winPop .5s .3s ease backwards;}
+@keyframes winPop{45%{transform:scale(1.12);}}
+.auction-timer.urgent{color:var(--urgent); transform-origin:right center; animation:tick 1s ease-in-out infinite;}
+@keyframes tick{50%{transform:scale(1.14);}}
+.timer-bar.urgent span{background:var(--urgent);}
