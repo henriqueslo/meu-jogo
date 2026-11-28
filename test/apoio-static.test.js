@@ -56,3 +56,11 @@ test("a política de privacidade e os termos explicam o apoio (Pix com o banco, 
 test("o mapa do site lista a página de apoio", () => {
   assert.match(read("sitemap.xml"), /https:\/\/minhalineup\.com\/apoie\.html/);
 });
+
+test("o banner 'APOIE O PROJETO ❤️' fica logo acima do rodapé em toda página (menos na de apoio)", () => {
+  for (const p of pages) {
+    const html = read(p);
+    const tem = /<a class="apoio-banner" href="\/apoie\.html">APOIE O PROJETO <span aria-hidden="true">❤️<\/span><\/a>\s*<footer/.test(html);
+    assert.equal(tem, p !== "apoie.html", `${p}: banner ${p === "apoie.html" ? "não deveria estar" : "ausente"}`);
+  }
+});

@@ -677,3 +677,10 @@ button.player-chip:disabled{cursor:not-allowed;}
   .theme-toggle{top:50%; transform:translateY(-50%); right:max(12px, calc((100% - 1120px) / 2 + 12px));}
 }
 :root[data-theme="light"] .score.loser{opacity:1;}     /* o placar de quem perdeu já é a cor "apagada": sem opacidade extra (contraste) */
+
+/* Banner "APOIE O PROJETO ❤️" acima do rodapé: faixa de largura total, com as cores INVERTIDAS do tema
+ * (tema escuro → faixa branca; tema claro → faixa preta). Usa só as variáveis do tema, então troca sozinho. */
+.apoio-banner{display:flex; align-items:center; justify-content:center; gap:.45em; width:100%; min-height:56px; margin:28px 0 0; padding:14px 16px; background:var(--text); color:var(--bg); font-weight:700; font-size:19px; letter-spacing:2px; text-transform:uppercase; text-decoration:none; text-align:center; line-height:1.2;}
+.apoio-banner:hover{filter:brightness(.92);}
+.apoio-banner:focus-visible{outline:3px solid var(--ct); outline-offset:-6px;}
+.apoio-banner + footer{margin-top:0; border-top:0;}
