@@ -7,10 +7,8 @@
  * Autoridade total do servidor: o cliente manda intenções (refresh, pick, style, start, force,
  * advance). Dono sumiu? Qualquer jogador conectado pode `force`/`advance` (sem timers).
  * Persistência: seed + ações do draft + estilos + nº de passos; o torneio é reconstruído por replay. */
-import { ROLES } from "../site/js/data.js";
-import {
-  STYLES, resolveSquad, sanitizeTeamName, hashSeed, createCup, advance, teamStatus, tournamentMvp, GameError, Draft,
-} from "../site/js/engine.js";
+import { STYLES, resolveSquad, sanitizeTeamName, hashSeed, GameError, Draft } from "../site/js/engine.js";
+import { buildRun, stepRun, runPhase, runView } from "./run.js";
 import { hex, str } from "./rooms.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "../site/js/moderation.js";
 
@@ -25,24 +23,12 @@ const eligibleFirst = (d) => {                       // autopick: 1º jogador es
   return null;
 };
 
-const tm = (x) => ({ name: x.nome, human: x.isHuman ? x.slot : null, forca: x.forca });
-function serializeEvent(ev) {
-  if (ev.type === "seed") return { type: "seed", seeds: ev.seeds.map(tm) };
-  return {
-    type: ev.type, round: ev.round ?? null,
-    matches: ev.results.map(({ a, b, res, bo }) => ({
-      a: tm(a), b: tm(b), bo, winsA: res.winsA, winsB: res.winsB, winner: res.winner === a ? "A" : "B",
-      maps: res.maps.map((m) => [m.map, m.a, m.b, m.ot]),
-    })),
-  };
-}
-
 export class Cup {
   constructor({ code, seed, started = false, running = false, steps = 0, players = [] }) {
     this.code = code; this.seed = seed >>> 0; this.started = started; this.running = running; this.steps = steps;
     this.players = players.map((p) => ({ ...p, draft: Draft.replay(this._draftSeed(), p.actions ?? []) }));
-    this.t = null; this.events = [];
-    if (this.running) this._build(this.steps);
+    this.run = null;
+    if (this.running) this.run = buildRun(this._humans(), this._runSeed(), this.steps);
   }
   static create(code, seed) { return new Cup({ code, seed }); }
 
@@ -52,7 +38,7 @@ export class Cup {
   get phase() {
     if (!this.started) return "lobby";
     if (!this.running) return "draft";
-    return this.t.phase === "done" ? "done" : "running";
+    return runPhase(this.run);
   }
 
   toJSON() {
@@ -130,24 +116,12 @@ export class Cup {
   _maybeBegin() {
     if (!this.players.every((p) => this._ready(p))) return;
     this.running = true; this.steps = 0;
-    this._build(0);
+    this.run = buildRun(this._humans(), this._runSeed(), 0);
   }
 
-  _build(steps) {
-    this.t = createCup({
-      humans: this.players.map((p) => ({ teamName: p.name, squad: resolveSquad(p.draft.picks), style: p.style })),
-      seed: this._runSeed(),
-    });
-    this.events = [];
-    for (let i = 0; i < steps; i++) this._step(false);
-  }
+  _humans() { return this.players.map((p) => ({ teamName: p.name, squad: resolveSquad(p.draft.picks), style: p.style })); }
 
-  _step(count = true) {
-    const ev = advance(this.t);
-    if (!ev) return;
-    if (count) this.steps++;
-    this.events.push(serializeEvent(ev));
-  }
+  _step() { if (stepRun(this.run)) this.steps++; }
 
   view(slot, connected = []) {
     const me = this.players[slot];
@@ -160,22 +134,7 @@ export class Cup {
       players: this.players.map((p, i) => ({ name: p.name, host: i === 0, connected: !!connected[i], picks: Object.keys(p.draft.picks).length, ready: this._ready(p) })),
       teams: null, events: [], result: null,
     };
-    if (this.running) {
-      out.teams = this.t.teams.map((x) => ({ name: x.nome, human: x.isHuman ? x.slot : null, forca: x.forca, wins: x.wins, losses: x.losses, status: teamStatus(this.t, x) }));
-      out.events = this.events;
-    }
-    if (phase === "done") {
-      const mvp = tournamentMvp(this.t);
-      out.result = {
-        champion: tm(this.t.champion),
-        humans: this.t.teams.filter((x) => x.isHuman).map((x) => ({
-          slot: x.slot, name: x.nome, wins: x.wins, losses: x.losses, status: teamStatus(this.t, x),
-          perfeito: this.t.champion === x && x.wins === 3 && x.losses === 0 && x.mapsLostPlayoffs === 0,
-          squad: Object.fromEntries(ROLES.map((r) => [r, this.players[x.slot].draft.picks[r].nick])),
-        })),
-        mvp: mvp ? { nick: mvp.nick, team: mvp.teamNome, kills: mvp.kills, deaths: mvp.deaths } : null,
-      };
-    }
+    if (this.running) Object.assign(out, runView(this.run, (slot, role) => this.players[slot].draft.picks[role].nick));
     return out;
   }
 }

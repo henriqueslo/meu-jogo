@@ -42,3 +42,14 @@ export const MAX_MESSAGE_BYTES = 2048;
 /* Utilitários das mensagens das salas. */
 export const hex = (n) => [...globalThis.crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
 export const str = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
+
+/* Alarme do Durable Object: UM só por sala. Acorda no que vier primeiro: o prazo do jogo (se houver relógio,
+ * como o leilão) ou o fim da sala (TTL, 1 h sem atividade). */
+export const nextAlarm = ({ ttlAt, deadline }) => (deadline == null ? ttlAt : Math.min(ttlAt, deadline));
+
+/* O que fazer quando o alarme toca: "expire" (sala vencida), "tick" (prazo do jogo vencido) ou "wait" (acordou cedo). */
+export function decideAlarm({ now, ttlAt, deadline }) {
+  if (ttlAt != null && now >= ttlAt) return "expire";
+  if (deadline != null && now >= deadline) return "tick";
+  return "wait";
+}

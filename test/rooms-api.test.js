@@ -90,3 +90,25 @@ test("info tem rate limit por rede (anti-varredura de códigos)", async () => {
   const r = await get();
   assert.equal(r.status, 429); assert.equal(r.headers.get("retry-after"), "3600");
 });
+
+test("leilão: POST /auctions usa o namespace AUCTION e tem limite próprio (independente do campeonato)", async () => {
+  const env = { ...mkEnv(), AUCTION: fakeRoomNs() }, store = memoryStore();
+  const mk = () => handleRooms(new Request("http://x/api/v1/auctions", { method: "POST", headers: { "cf-connecting-ip": "6.6.6.6" } }), env, store, NOW);
+  for (let i = 0; i < MAX_ROOMS_PER_HOUR; i++) assert.equal((await mk()).status, 201);
+  assert.equal((await mk()).status, 429);
+  assert.equal(env.AUCTION.rooms.size, MAX_ROOMS_PER_HOUR); assert.equal(env.CUP.rooms.size, 0);
+  assert.equal((await post(env, store, "6.6.6.6")).status, 201);       // campeonato na mesma rede não foi afetado
+});
+
+test("leilão: WebSocket e consulta de sala vão para o DO AUCTION, com as mesmas checagens", async () => {
+  const env = { ...mkEnv(), AUCTION: fakeRoomNs() }, s = memoryStore();
+  const req = (h) => handleRooms(new Request("https://minhalineup.com/api/v1/auctions/abc234/ws", { headers: h }), env, s, NOW);
+  assert.equal((await req({ upgrade: "websocket", origin: "https://evil.example" })).status, 403);
+  assert.equal((await req({ upgrade: "websocket", origin: "https://minhalineup.com" })).status, 200);
+  assert.deepEqual(env.AUCTION.forwarded, ["ABC234"]); assert.deepEqual(env.CUP.forwarded, []);
+  const { code } = await (await handleRooms(new Request("http://x/api/v1/auctions", { method: "POST", headers: { "cf-connecting-ip": "7.7.7.7" } }), env, s, NOW)).json();
+  const info = await handleRooms(new Request(`http://x/api/v1/auctions/${code}`, { headers: { "cf-connecting-ip": "7.7.7.7" } }), env, s, NOW);
+  assert.equal(info.status, 200);
+  const outro = await handleRooms(new Request(`http://x/api/v1/cups/${code}`, { headers: { "cf-connecting-ip": "7.7.7.7" } }), env, s, NOW);
+  assert.equal(outro.status, 404);                                      // o código é de leilão, não de campeonato
+});

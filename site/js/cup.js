@@ -1,4 +1,5 @@
-/* Cliente do Campeonato multiplayer (Fase 3). Espelho do estado do servidor: manda intenções
+/* Cliente das salas multiplayer: campeonato e leilão (os dois compartilham tudo, menos as fases antes do torneio).
+ * Espelho do estado do servidor: manda intenções
  * (start, refresh, pick, style, force, advance) e renderiza o que volta. Texto de outros jogadores
  * (nomes de time) é dado não confiável: sempre via esc().
  * A experiência segue a do jogo solo (estilo com contexto, campanha à vista, herói e jornada no resultado,
@@ -10,7 +11,8 @@ import {
   styleChooserHTML, squadLineHTML, wireStyleChooser, STYLE_NAME, cupJourney, campaignPanelHTML, campaignStatusText, NEXT_AFTER,
   heroOutcome, journeyHTML, cupShare,
 } from "./parts.js";
-import { shareResult } from "./share.js";
+import { shareResult, prepareShare } from "./share.js";
+import { auctionHTML, auctionStyleHTML, auctionKey, boardHTML, checkBid } from "./auction.js";
 
 const $ = (id) => document.getElementById(id);
 const DEFAULT_STYLE = "tatico";
@@ -20,36 +22,89 @@ const STATUS = {
 };
 const EVENT_TITLE = { qf: "Quartas de final · Bo3", sf: "Semifinal · Bo3", final: "Grande final · Bo5", seed: "Playoffs · chaveamento" };
 
+/* Dois tipos de sala usam este cliente. Só mudam os textos, o link de convite e as fases antes do torneio
+ * (draft, ou leilão + estilo); depois o torneio e o resultado são os mesmos. */
+const KIND = {
+  cups: { nome: "Campeonato", baixo: "campeonato", param: "campeonato" },
+  auctions: { nome: "Leilão", baixo: "leilão", param: "leilao" },
+};
+let kind = "cups";
 let conn = null, view = null, myCode = "", myName = "", notice = "";
 let pendingStyle = DEFAULT_STYLE;          // o que está marcado na tela (só vai ao servidor ao confirmar)
 let onExit = () => {};
 
-export const createCup = () => createRoomOf("cups");
+/* Leilão: o que a pessoa digita e o relógio do cliente (o servidor diz quanto falta; o resto é contagem local). */
+let bidText = "", lastKey = null, lastIdx = null;
+let ticker = null, deadlineAt = 0, totalMs = 0, timerKey = "";
 
-export function openCup({ code, name, exit }) {
+export const createCup = () => createRoomOf("cups");
+export const createAuction = () => createRoomOf("auctions");
+
+function openRoom(k, { code, name, exit }) {
+  kind = k;
   myCode = normalizeCode(code); myName = name; onExit = exit; view = null; notice = ""; pendingStyle = DEFAULT_STYLE;
+  bidText = ""; lastKey = null; lastIdx = null;
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   $("screen-cup").classList.add("active");
   render();
-  conn = connect({ kind: "cups", code: myCode, name, onState: (s) => { view = s; render(); }, onNotice: (t) => { notice = t; render(); }, onStatus: (t) => { notice = t; render(); } });
+  startTicker();
+  conn = connect({ kind: k, code: myCode, name, onState: (s) => { view = s; render(); }, onNotice: (t) => { notice = t; render(); }, onStatus: (t) => { notice = t; render(); } });
 }
+export const openCup = (a) => openRoom("cups", a);
+export const openAuction = (a) => openRoom("auctions", a);
 
 const send = (obj) => { notice = ""; conn && conn.send(obj); };
-const leave = () => { conn && conn.leave(); conn = null; view = null; onExit(); };
+const leave = () => { stopTicker(); conn && conn.leave(); conn = null; view = null; onExit(); };
 /* Sai da tela sem encerrar a sessão da sala (o logo leva à home; a sala continua guardada para "voltar"). */
-export function closeCup() { conn && conn.detach(); conn = null; view = null; }
-const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">Sair do campeonato</button>`;
+export function closeCup() { stopTicker(); conn && conn.detach(); conn = null; view = null; }
+const leaveBtn = () => `<button class="secondary" id="cup-leave" type="button">Sair do ${KIND[kind].baixo}</button>`;
+
+/* Contagem regressiva do leilão: a cada estado o servidor diz quantos ms faltam; o relógio local só desenha. */
+function startTicker() { stopTicker(); ticker = setInterval(tickTimer, 250); }
+function stopTicker() { if (ticker) clearInterval(ticker); ticker = null; }
+function setDeadline(v) {
+  deadlineAt = performance.now() + v.msLeft;
+  const k = `${v.idx}|${v.step}`;
+  if (k !== timerKey) { timerKey = k; totalMs = v.msLeft; }              // o 1º valor de cada etapa é o tempo total dela
+}
+function tickTimer() {
+  const el = $("auction-timer"); if (!el) return;
+  const ms = Math.max(0, deadlineAt - performance.now());
+  el.textContent = `${Math.ceil(ms / 1000)}s`;
+  const fill = $("timer-fill"); if (fill && totalMs > 0) fill.style.width = `${Math.min(100, (ms / totalMs) * 100)}%`;
+}
 
 /* ------------------------------ Render ------------------------------ */
+const CUP_VIEWS = { lobby: (v) => lobbyHTML(v), draft: (v) => draftHTML(v), running: (v) => runningHTML(v), done: (v) => doneHTML(v) };
+const AUCTION_VIEWS = {
+  lobby: (v) => lobbyHTML(v),
+  auction: (v) => auctionHTML(v, bidText, leaveBtn()),
+  style: (v) => auctionStyleHTML(v, pendingStyle, leaveBtn()),
+  running: (v) => runningHTML(v), done: (v) => doneHTML(v),
+};
+
 function render() {
   const c = $("cup-content");
   c.dataset.phase = view ? view.phase : "conectando";
-  const head = `<div class="stage-label">Campeonato · sala <span class="mono">${esc(view?.code ?? myCode)}</span></div>
-    <p style="color:var(--danger); min-height:18px; margin:0 0 6px;">${esc(notice)}</p>`;
+  const leilaoAberto = view?.kind === "auction" && view.phase === "auction";
+  if (leilaoAberto) {
+    setDeadline(view);
+    if (view.idx !== lastIdx) { lastIdx = view.idx; bidText = ""; }       // outro leilão: campo limpo
+    const key = auctionKey(view);
+    if (key === lastKey && $("auction-root")) {                            // só mudou o quadro: não mexe no que está sendo digitado
+      $("auction-board").innerHTML = boardHTML(view);
+      const n = $("room-notice"); if (n) n.textContent = notice;
+      return;
+    }
+    lastKey = key;
+  } else lastKey = null;
+  const head = `<div class="stage-label">${KIND[kind].nome} · sala <span class="mono">${esc(view?.code ?? myCode)}</span></div>
+    <p id="room-notice" style="color:var(--danger); min-height:18px; margin:0 0 6px;">${esc(notice)}</p>`;
   let body = `<p style="color:var(--dim);">Conectando…</p>${leaveBtn()}`;
-  if (view) body = { lobby: lobbyHTML, draft: draftHTML, running: runningHTML, done: doneHTML }[view.phase](view);
+  if (view) body = (view.kind === "auction" ? AUCTION_VIEWS : CUP_VIEWS)[view.phase](view);
   c.innerHTML = head + body;
   bind();
+  if (leilaoAberto) { const input = $("bid-input"); if (input) { input.value = bidText; validateBid(); } tickTimer(); }
 }
 
 const playersHTML = (v, withProgress) => `<div class="card" style="padding:8px 12px;">${v.players.map((p, i) => `
@@ -59,16 +114,20 @@ const playersHTML = (v, withProgress) => `<div class="card" style="padding:8px 1
   </div>`).join("")}</div>`;
 
 function lobbyHTML(v) {
-  const link = `${location.origin}/?campeonato=${encodeURIComponent(v.code)}`;
+  const leilao = v.kind === "auction", T = KIND[leilao ? "auctions" : "cups"];
+  const link = `${location.origin}/?${T.param}=${encodeURIComponent(v.code)}`;
   const host = v.you.host, n = v.players.length;
+  const regra = leilao
+    ? `Convide de ${v.min_players} a ${v.max_players} jogadores. Cada um começa com 100 moedas e disputa cada craque num lance fechado: ninguém vê o lance dos outros. Depois o campeonato é simulado, completado com times históricos até 16.`
+    : `Convide de ${v.min_players} a ${v.max_players} jogadores. As vagas até 16 times são completadas com lineups históricas.`;
   return `<div class="card" style="text-align:center;">
       <div style="color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:1.2px;">Código da sala</div>
       <div class="mono" style="font-size:34px; letter-spacing:6px; margin:6px 0;">${esc(v.code)}</div>
-      <p style="color:var(--dim); font-size:13px;">Convide de ${v.min_players} a ${v.max_players} jogadores. As vagas até 16 times são completadas com lineups históricas.</p>
+      <p style="color:var(--dim); font-size:13px;">${regra}</p>
       <button class="secondary" id="cup-copy" type="button" data-link="${esc(link)}">📋 Copiar link</button>
     </div>
     <div class="stage-label">Jogadores (${n}/${v.max_players})</div>${playersHTML(v, false)}
-    ${host ? `<button class="primary" id="cup-start" type="button" ${n < v.min_players ? "disabled" : ""}>🏁 Iniciar campeonato</button>
+    ${host ? `<button class="primary" id="cup-start" type="button" ${n < v.min_players ? "disabled" : ""}>🏁 Iniciar ${T.baixo}</button>
       ${n < v.min_players ? `<p style="color:var(--dim); font-size:12px;">Precisa de pelo menos ${v.min_players} jogadores.</p>` : ""}`
       : `<p style="color:var(--dim); font-size:13px;">Aguardando o dono iniciar…</p>`}${leaveBtn()}`;
 }
@@ -178,11 +237,12 @@ function shareOf(v) {
   const { me, cleanPlayoffs, champion, playoffs, vice } = summaryOf(v);
   return cupShare({
     team: me.name, wins: me.wins, losses: me.losses, perfeito: !!me.perfeito, champion, vice, playoffs, cleanPlayoffs,
-    lineup: ROLES.map((ro) => ({ papel: ro, nick: me.squad[ro] })), players: v.result.humans.length,
+    lineup: ROLES.map((ro) => ({ papel: ro, nick: me.squad[ro] })), players: v.result.humans.length, nome: KIND[kind].baixo,
   });
 }
 
 function doneHTML(v) {
+  prepareShare(shareOf(v).data);                          // a imagem do card já fica pronta antes do toque em Compartilhar
   const { r, me, journey, lost, cleanPlayoffs, champion } = summaryOf(v);
   const hero = heroOutcome({ perfeito: !!me.perfeito, champion, cleanPlayoffs, outAt: outAtOf(me.status), wins: me.wins, losses: me.losses, lost });
   const mvp = r.mvp ? `<div class="stage-label">MVP do campeonato</div><div class="card row"><b>${esc(r.mvp.nick)}</b><span class="mono">${r.mvp.kills}/${r.mvp.deaths} · ${esc(r.mvp.team)}</span></div>` : "";
@@ -215,5 +275,30 @@ function bind() {
     const b = e.currentTarget;
     try { await navigator.clipboard.writeText(b.dataset.link); b.textContent = "✅ Link copiado!"; } catch { b.textContent = b.dataset.link; }
   });
+  bindAuction();
+}
+
+/* ------------------------------ Leilão: lance ------------------------------ */
+function validateBid() {
+  const box = $("bid-box"); if (!box) return;
+  const r = checkBid($("bid-input").value, Number(box.dataset.max));
+  const btn = $("bid-send");
+  btn.disabled = !r.ok; btn.textContent = r.ok ? `Dar lance de ${r.amount}` : "Dar lance";
+  $("bid-msg").textContent = r.msg;
+}
+
+function bindAuction() {
+  const box = $("bid-box"); if (!box) return;
+  const input = $("bid-input"), max = Number(box.dataset.max);
+  const set = (txt) => { input.value = txt; bidText = txt; validateBid(); };
+  input.addEventListener("input", () => { bidText = input.value; validateBid(); });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") $("bid-send").click(); });
+  box.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => set(String(Math.min(max, (parseInt(input.value, 10) || 0) + Number(b.dataset.add))))));
+  box.querySelector("[data-bid-max]").addEventListener("click", () => set(String(max)));
+  $("bid-send").addEventListener("click", (e) => {
+    const r = checkBid(input.value, max); if (!r.ok) return;
+    e.currentTarget.disabled = true; send({ t: "bid", amount: r.amount });
+  });
+  $("bid-pass").addEventListener("click", () => send({ t: "pass" }));
 }
 

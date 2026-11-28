@@ -2,7 +2,7 @@
  *   estilo com contexto (força, efeitos, sugestão) · rodadas com a campanha à vista ·
  *   resultado com herói e jornada · compartilhar · ações na barra fixa. */
 import { test, expect } from "@playwright/test";
-import { abrirSala, campeonato } from "./mp.js";
+import { abrirSala, campeonato, textoCompartilhado } from "./mp.js";
 
 test.use({ viewport: { width: 375, height: 812 } });
 
@@ -10,22 +10,6 @@ const heroi = (page) => page.locator(".result-hero h2");
 const compartilhar = (page) => page.getByRole("button", { name: /Compartilhar/ });
 const estilo = (page, nome) => page.getByRole("radio", { name: nome });
 const compartilhado = (page) => page.evaluate(() => window.__shared);
-
-/* Espera o texto compartilhado; se não vier, a falha diz o que o botão mostra e quais erros a página teve. */
-async function textoCompartilhado(page) {
-  const erros = [];
-  page.on("pageerror", (e) => erros.push(e.message));
-  page.on("console", (m) => { if (m.type() === "error") erros.push(m.text()); });
-  await compartilhar(page).click();
-  try {
-    await expect.poll(() => compartilhado(page), { timeout: 10000 }).not.toBeNull();
-  } catch (e) {
-    throw new Error(`${e.message}
-rótulo do botão: ${JSON.stringify(await compartilhar(page).innerText().catch(() => "?"))}
-erros da página: ${JSON.stringify(erros)}`);
-  }
-  return compartilhado(page);
-}
 
 /* O botão fixo não pode aparecer antes das opções: a 1ª carta de estilo tem de caber inteira acima da barra, sem rolar. */
 async function cartaAcimaDaBarra(page, nome) {
@@ -120,6 +104,17 @@ test.describe("campeonato", () => {
     expect(text).toMatch(/Meu Time/);
     expect(text).toMatch(/Jog1/);
     expect(text).toMatch(/minhalineup\.com/);
+  });
+
+  test("compartilhar não fica esperando a imagem do card: se ela demora, compartilha só o texto em poucos segundos", async ({ page }) => {
+    await page.addInitScript(() => {            // aparelho lento: a imagem do card só fica pronta depois de 6 s
+      const orig = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (cb, ...a) { return orig.call(this, (b) => setTimeout(() => cb(b), 6000), ...a); };
+    });
+    await abrirSala(page, { view: campeonato({ phase: "done", script: ["V", "V", "V", "qf:V", "sf:V", "final:V"], status: "champion", wins: 3, losses: 0 }) });
+    await compartilhar(page).click();
+    await expect.poll(() => compartilhado(page), { timeout: 3500 }).not.toBeNull();     // o navegador só aceita o compartilhar logo depois do toque
+    expect((await compartilhado(page)).text).toMatch(/minhalineup.com/);
   });
 
   test("telas do campeonato: sem rolagem lateral, alvos ≥ 44px e texto ≥ 12px em 320, 375 e 414", async ({ browser }) => {

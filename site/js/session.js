@@ -9,7 +9,7 @@
 export const ACTIVE_KEY = "ml_active";
 export const ACTIVE_TTL_MS = 55 * 60 * 1000;
 
-const KINDS = new Set(["cups"]);
+const KINDS = new Set(["cups", "auctions"]);
 const CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/;
 const TOKEN_RE = /^[0-9a-f]{32}$/;
 
@@ -35,5 +35,5 @@ export function loadActive(storage, now = Date.now()) {
 export const clearActive = (storage) => safe(() => storage.removeItem(ACTIVE_KEY), undefined);
 
 /* Rótulo para o banner (texto puro; quem renderiza deve escapar o nome). */
-const LABEL = { cups: "campeonato" };
+const LABEL = { cups: "campeonato", auctions: "leilão" };
 export const kindLabel = (kind) => LABEL[kind] ?? "jogo";

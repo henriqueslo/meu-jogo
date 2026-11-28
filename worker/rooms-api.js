@@ -1,13 +1,13 @@
-/* Rotas HTTP/WebSocket das salas de campeonato.
- *   POST /api/v1/cups               -> 201 { code }   (cria a sala; rate limit por rede)
- *   GET  /api/v1/cups/:code/ws      -> upgrade WebSocket (mesma origem obrigatória)
+/* Rotas HTTP/WebSocket das salas multiplayer (campeonato e leilão).
+ *   POST /api/v1/{cups|auctions}            -> 201 { code }   (cria a sala; rate limit por rede)
+ *   GET  /api/v1/{cups|auctions}/:code/ws   -> upgrade WebSocket (mesma origem obrigatória)
  * Protocolo das mensagens: docs/API.md. */
 import { ApiError, json, problem, secretOf, sha256Hex } from "./handler.js";
 import { newCode, isCode, normalizeCode, originAllowed } from "./rooms.js";
 import { log } from "./log.js";
 
 export const MAX_ROOMS_PER_HOUR = 10;
-const KINDS = { cups: { ns: "CUP", key: "cup" } };
+const KINDS = { cups: { ns: "CUP", key: "cup" }, auctions: { ns: "AUCTION", key: "auction" } };
 
 const randomSeed = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
 
@@ -58,14 +58,14 @@ export async function handleRooms(request, env, store, now = new Date()) {
   const { pathname } = new URL(request.url);
   const path = pathname.replace(/\/+$/, "");
   try {
-    const c = path.match(/^\/api\/v1\/(cups)$/);
+    const c = path.match(/^\/api\/v1\/(cups|auctions)$/);
     if (c) {
       if (request.method !== "POST") throw new ApiError(405, "method-not-allowed", "Method not allowed", "Use POST.");
       return await createRoom(request, env, store, now, KINDS[c[1]]);
     }
-    const m = path.match(/^\/api\/v1\/(cups)\/([^/]+)\/ws$/);
+    const m = path.match(/^\/api\/v1\/(cups|auctions)\/([^/]+)\/ws$/);
     if (m && request.method === "GET") return await roomSocket(request, env, m[2], KINDS[m[1]]);
-    const i = path.match(/^\/api\/v1\/(cups)\/([^/]+)$/);
+    const i = path.match(/^\/api\/v1\/(cups|auctions)\/([^/]+)$/);
     if (i && request.method === "GET") return await roomInfo(request, env, store, i[2], KINDS[i[1]], now);
     return null;
   } catch (e) {

@@ -5,7 +5,7 @@
  *   - hash do IP (ip_hash): só serve para limitar abuso NO MESMO DIA; é zerado a partir do dia seguinte;
  *   - contadores (metrics): agregados e sem dados pessoais; apagados após METRICS_RETENTION_DAYS dias;
  *   - rate_limits: janelas de 1 h; apagadas após 2 h;
- *   - salas (campeonato): somem sozinhas após 1 h sem atividade (alarm do Durable Object). */
+ *   - salas (campeonato e leilão): somem sozinhas após 1 h sem atividade (alarm do Durable Object). */
 import { dayOf } from "./handler.js";
 import { log } from "./log.js";
 

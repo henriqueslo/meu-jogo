@@ -24,7 +24,7 @@ export const inRoomFlag = () => ss((s) => s.getItem(IN_ROOM), null);
 /* Reentrada: devolve ao token da aba o que estava guardado na "sala ativa". */
 export const adoptActive = (a) => setToken(a.kind, a.code, a.token);
 
-/* kind: "cups" (campeonato) */
+/* kind: "cups" (campeonato) | "auctions" (leilão) */
 export async function createRoom(kind) {
   try {
     const r = await fetch(`/api/v1/${kind}`, { method: "POST", headers: { accept: "application/json" } });
@@ -43,7 +43,7 @@ export async function roomExists(kind, code) {
 }
 
 /* Tipos de sala (um novo tipo entra aqui, em session.js, em ui.js e no servidor). */
-export const ROOM_KINDS = ["cups"];
+export const ROOM_KINDS = ["cups", "auctions"];
 
 /* Descobre de que tipo é o código. Um tipo de ROOM_KINDS | null (não existe) | "error" (não deu para saber). */
 export async function resolveRoomKind(code) {
