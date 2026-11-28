@@ -77,7 +77,9 @@ function revealHTML(v) {
   const l = v.last;
   const frase = l.winner !== null ? `${esc(v.players[l.winner].name)} levou ${esc(l.lot.nick)} por ${l.price} moedas`
                                   : `Ninguém levou ${esc(l.lot.nick)}: sem lances, ele vai para os descartados`;
-  return `<section class="reveal" role="region" aria-label="Revelação"><p class="reveal-win">${frase}</p>
+  const empate = l.tie === "speed" ? `Empate em ${l.price}: ${esc(v.players[l.winner].name)} levou por ter dado o lance primeiro.`
+               : l.tie === "draw" ? `Empate em ${l.price} no mesmo instante: decidido por sorteio.` : "";
+  return `<section class="reveal" role="region" aria-label="Revelação"><p class="reveal-win">${frase}</p>${empate ? `<p class="reveal-tie">${empate}</p>` : ""}
     <ul class="reveal-bids" aria-label="Lances revelados">${l.bids.map((b) => `<li class="${b.slot === l.winner ? "win" : ""}"><span>${esc(b.name)}</span><b>${b.amount > 0 ? `🪙 ${b.amount}` : "passou"}</b></li>`).join("")}</ul></section>`;
 }
 

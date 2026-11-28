@@ -217,6 +217,29 @@ test("revelação sem lances: o jogador é descartado", async ({ page }) => {
   await expect(page.getByRole("region", { name: /Revelação/ })).toContainText(/ninguém levou|descartado/i);
 });
 
+test("revelação com empate: diz que levou quem deu o lance primeiro", async ({ page }) => {
+  const empate = { ...REVELACAO, tie: "speed", bids: REVELACAO.bids.map((b) => (b.slot === 0 ? { ...b, amount: 41 } : b)) };
+  await sala(page, leilao({ step: "reveal", msLeft: 4000, last: empate, canBid: false }));
+  const r = page.getByRole("region", { name: /Revelação/ });
+  await expect(r).toContainText(/Rival FC levou s1mple por 41/);
+  await expect(r).toContainText(/Empate em 41.*Rival FC.*lance primeiro/i);
+});
+
+test("revelação com empate no mesmo instante: diz que foi sorteio", async ({ page }) => {
+  await sala(page, leilao({ step: "reveal", msLeft: 4000, last: { ...REVELACAO, tie: "draw" }, canBid: false }));
+  await expect(page.getByRole("region", { name: /Revelação/ })).toContainText(/mesmo instante.*sorteio/i);
+});
+
+test("sem empate a revelação não fala em desempate", async ({ page }) => {
+  await sala(page, leilao({ step: "reveal", msLeft: 4000, last: { ...REVELACAO, tie: null }, canBid: false }));
+  await expect(page.getByRole("region", { name: /Revelação/ })).not.toContainText(/empate/i);
+});
+
+test("a regra do desempate aparece no lobby, antes de começar", async ({ page }) => {
+  await sala(page, leilao({ phase: "lobby", jogadores: 2 }));
+  await expect(page.locator("#cup-content").getByText(/empate.*lance primeiro/i)).toBeVisible();
+});
+
 test("no leilão seguinte, um resumo curto do leilão anterior continua à vista", async ({ page }) => {
   await sala(page, leilao({ last: REVELACAO }));
   await expect(page.getByText(/Último: Rival FC levou s1mple por 41/)).toBeVisible();

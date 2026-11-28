@@ -10,6 +10,7 @@ import {
   campaignStatusText, campaignPanelHTML, heroOutcome, journeyHTML,
 } from "./parts.js";
 import { shareResult, prepareShare } from "./share.js";
+import { iniciarTema } from "./theme.js";
 import { fetchDaily, fetchBoard, submitEntry, playedToday, markPlayed, boardHTML, topFiveHTML } from "./daily.js";
 import { esc, flagEmoji, slotHTML, draftSlotsHTML, offersHTML, lineupById } from "./render.js";
 import { moderateName, NAME_BLOCKED_MESSAGE } from "./moderation.js";
@@ -19,6 +20,7 @@ import { loadActive, clearActive, kindLabel } from "./session.js";
 
 const DEFAULT_STYLE = "tatico";           // já vem selecionado: o jogador só decide se quiser mudar
 const $ = (id) => document.getElementById(id);
+iniciarTema($("theme-toggle"));
 
 /* ------------------------------- Estado ------------------------------- */
 const state = {

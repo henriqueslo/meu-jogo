@@ -11,7 +11,7 @@
  *  - lance fechado e simultâneo: ninguém vê o lance dos outros até a revelação; passar é livre;
  *  - reserva: lance máximo = saldo − (vagas vazias − 1), para ninguém ficar sem moedas para completar o time;
  *  - 10 leilões por jogador, o mesmo número de cada papel (oferta = o dobro da demanda);
- *  - empate: quem tem menos jogadores; persistindo, sorteio pela semente do servidor;
+ *  - empate: leva quem deu o lance PRIMEIRO (pelo relógio do servidor); só no mesmíssimo instante, sorteio pela semente;
  *  - vaga que sobra recebe, de graça, o melhor descartado do papel (os times mais fracos escolhem primeiro).
  * O servidor é a autoridade: o cliente manda intenções (start, bid, pass, style, force, advance). */
 import { LINEUPS, ROLES } from "../site/js/data.js";
@@ -47,10 +47,10 @@ export function buildPool(seed, n) {
 const isInt = (v) => Number.isInteger(v);
 
 export class Auction {
-  constructor({ code, seed, started = false, n = 0, players = [], idx = 0, step = null, deadline = null, bids = {}, history = [], fills = [], over = false, steps = 0 }) {
+  constructor({ code, seed, started = false, n = 0, players = [], idx = 0, step = null, deadline = null, bids = {}, bidTimes = {}, history = [], fills = [], over = false, steps = 0 }) {
     this.code = code; this.seed = seed >>> 0; this.started = started; this.n = n;
     this.players = players.map((p) => ({ name: p.name, token: p.token, style: p.style ?? null }));
-    this.idx = idx; this.step = step; this.deadline = deadline; this.bids = { ...bids };
+    this.idx = idx; this.step = step; this.deadline = deadline; this.bids = { ...bids }; this.bidTimes = { ...bidTimes };   // bidTimes: quando cada lance chegou (desempate)
     this.history = history.map((h) => ({ ...h, bids: [...h.bids] })); this.fills = fills.map((f) => ({ ...f }));
     this.over = over; this.steps = steps;
     this._pool = null; this.run = null;
@@ -71,7 +71,7 @@ export class Auction {
   toJSON() {
     return {
       code: this.code, seed: this.seed, started: this.started, n: this.n, idx: this.idx, step: this.step, deadline: this.deadline,
-      bids: this.bids, history: this.history, fills: this.fills, over: this.over, steps: this.steps,
+      bids: this.bids, bidTimes: this.bidTimes, history: this.history, fills: this.fills, over: this.over, steps: this.steps,
       players: this.players.map((p) => ({ name: p.name, token: p.token, style: p.style })),
     };
   }
@@ -128,23 +128,27 @@ export class Auction {
       const sq = this._squads();
       if (this.idx >= this.pool.length || sq.every((s) => Object.keys(s).length === ROLES.length)) return this._finish();
       const lot = this.pool[this.idx];
-      if (sq.some((s) => !s[lot.role])) { this.step = "bidding"; this.deadline = now + BID_MS; this.bids = {}; return; }
+      if (sq.some((s) => !s[lot.role])) { this.step = "bidding"; this.deadline = now + BID_MS; this.bids = {}; this.bidTimes = {}; return; }
       this.history.push({ lot: this.idx, bids: this.players.map(() => 0), winner: null, price: 0, skipped: true });
       this.idx++;
     }
   }
 
   _reveal(at) {
-    const sq = this._squads(), amounts = this.players.map((_, s) => this.bids[s] ?? 0), top = Math.max(...amounts);
-    let winner = null, price = 0;
+    const amounts = this.players.map((_, s) => this.bids[s] ?? 0), top = Math.max(...amounts);
+    let winner = null, price = 0, tie = null;
     if (top > 0) {
-      let tied = amounts.map((a, s) => (a === top ? s : -1)).filter((s) => s >= 0);
-      const menos = Math.min(...tied.map((s) => Object.keys(sq[s]).length));
-      tied = tied.filter((s) => Object.keys(sq[s]).length === menos);        // empate: quem tem menos jogadores
-      winner = tied.length === 1 ? tied[0] : tied[hashSeed(`${this.seed}|tie|${this.idx}`) % tied.length];   // ainda empatado: sorteio da semente
+      const tied = amounts.map((a, s) => (a === top ? s : -1)).filter((s) => s >= 0);
       price = top;
+      if (tied.length === 1) winner = tied[0];
+      else {                                                                  // empate: leva quem deu o lance primeiro
+        const quando = (s) => this.bidTimes[s] ?? Infinity;
+        const primeiro = Math.min(...tied.map(quando)), rapidos = tied.filter((s) => quando(s) === primeiro);
+        if (rapidos.length === 1) { winner = rapidos[0]; tie = "speed"; }
+        else { winner = rapidos[hashSeed(`${this.seed}|tie|${this.idx}`) % rapidos.length]; tie = "draw"; }   // mesmo instante: sorteio da semente
+      }
     }
-    this.history.push({ lot: this.idx, bids: amounts, winner, price });
+    this.history.push({ lot: this.idx, bids: amounts, winner, price, tie });
     this.step = "reveal"; this.deadline = at + REVEAL_MS;
   }
 
@@ -188,7 +192,7 @@ export class Auction {
           if (msg.amount > this._maxBid(slot, sq)) throw new GameError("bid-too-high", `Lance máximo agora: ${this._maxBid(slot, sq)} (você precisa reservar 1 moeda para cada vaga que falta).`);
           amount = msg.amount;
         }
-        this.bids[slot] = amount;
+        this.bids[slot] = amount; this.bidTimes[slot] = now;
         if (this._shouldCloseEarly(connected)) this._reveal(now);
         return;
       }
@@ -268,7 +272,7 @@ export class Auction {
       idx: phase === "auction" ? this.idx + 1 : this.started ? pool.length : 0,
       total: this.started ? pool.length : 0,
       remaining,
-      last: ultimo ? { lot: { ...pool[ultimo.lot] }, bids: this.players.map((p, s) => ({ slot: s, name: p.name, amount: ultimo.bids[s] })), winner: ultimo.winner, price: ultimo.price } : null,
+      last: ultimo ? { lot: { ...pool[ultimo.lot] }, bids: this.players.map((p, s) => ({ slot: s, name: p.name, amount: ultimo.bids[s] })), winner: ultimo.winner, price: ultimo.price, tie: ultimo.tie ?? null } : null,
       fills: this.fills.map((f) => ({ slot: f.slot, role: f.role, nick: pool[f.lot].nick, forca: pool[f.lot].forca, team: pool[f.lot].team })),
       you: me ? {
         slot, name: me.name, host: slot === 0, canControl: slot === 0 || !connected[0], style: me.style,

@@ -118,7 +118,7 @@ function lobbyHTML(v) {
   const link = `${location.origin}/?${T.param}=${encodeURIComponent(v.code)}`;
   const host = v.you.host, n = v.players.length;
   const regra = leilao
-    ? `Convide de ${v.min_players} a ${v.max_players} jogadores. Cada um começa com 100 moedas e disputa cada craque num lance fechado: ninguém vê o lance dos outros. Depois o campeonato é simulado, completado com times históricos até 16.`
+    ? `Convide de ${v.min_players} a ${v.max_players} jogadores. Cada um começa com 100 moedas e disputa cada craque num lance fechado: ninguém vê o lance dos outros. Em caso de empate, leva quem der o lance primeiro. Depois o campeonato é simulado, completado com times históricos até 16.`
     : `Convide de ${v.min_players} a ${v.max_players} jogadores. As vagas até 16 times são completadas com lineups históricas.`;
   return `<div class="card" style="text-align:center;">
       <div style="color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:1.2px;">Código da sala</div>

@@ -13,7 +13,20 @@
     --good:#58B368;
     --chamfer: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     --chamfer-sm: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    --bg-rgb:13,17,20; --panel-rgb:21,27,31; --overlay:rgba(13,17,20,.95);
+    --t-fill:#E0953A; --gold-fill:#D9B44A;      /* preenchimentos com texto escuro por cima: iguais nos dois temas */
+    color-scheme:dark;
   }
+  /* ===== Modo claro: só troca os valores das variáveis. Os acentos (azul, laranja, dourado) ficam mais escuros
+   * para o TEXTO ter contraste AA; os preenchimentos de botões e etiquetas (--t-fill, --gold-fill) não mudam. ===== */
+  :root[data-theme="light"]{
+    --bg:#F3F5F7; --panel:#FFFFFF; --panel2:#E9EEF2; --line:#D3DBE1; --line-strong:#B4C0C9;
+    --text:#141C23; --dim:#52646F;
+    --ct:#1B6AAE; --t:#9A5207; --gold:#7D6100; --danger:#B3261E;
+    --bg-rgb:243,245,247; --panel-rgb:255,255,255; --overlay:rgba(243,245,247,.95);
+    color-scheme:light;
+  }
+
   *{box-sizing:border-box;}
   html{scrollbar-color:var(--line-strong) var(--bg);}
   body{
@@ -31,7 +44,7 @@
   /* ============ HEADER: barra de scoreboard ============ */
   header{
     border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg, rgba(21,27,31,.9), rgba(13,17,20,.4));
+    background:linear-gradient(180deg, rgba(var(--panel-rgb),.9), rgba(var(--bg-rgb),.4));
     padding:14px 20px 12px;
     display:flex; align-items:center; gap:14px; flex-wrap:wrap;
     position:relative;
@@ -97,7 +110,7 @@
     cursor:pointer; margin:4px 4px 4px 0;
     transition:filter .12s ease, transform .12s ease;
   }
-  .primary{background:linear-gradient(180deg, #EDA84E, var(--t)); color:#17110A;}
+  .primary{background:linear-gradient(180deg, #EDA84E, var(--t-fill)); color:#17110A;}
   .primary:hover:not(:disabled){filter:brightness(1.08);}
   .primary:active:not(:disabled){transform:translateY(1px);}
   .secondary{background:var(--panel2); color:var(--text); box-shadow:inset 0 0 0 1px var(--line-strong);}
@@ -293,12 +306,12 @@
     padding-top:36px; /* espaço para a etiqueta não cobrir o nome do adversário */
   }
   .card.mine::before{
-    background:linear-gradient(90deg, var(--gold), rgba(217,180,74,.35) 50%, var(--gold));
+    background:linear-gradient(90deg, var(--gold-fill), rgba(217,180,74,.35) 50%, var(--gold-fill));
     height:4px;
   }
   .card.mine .mine-tag{
     position:absolute; top:12px; right:0;
-    background:var(--gold); color:#171204;
+    background:var(--gold-fill); color:#171204;
     font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
     padding:3px 12px 3px 10px;
     clip-path:polygon(6px 0, 100% 0, 100% 100%, 0 100%);
@@ -315,7 +328,7 @@
   .phase-overlay{
     position:fixed; inset:0; z-index:60;
     display:none; align-items:center; justify-content:center;
-    background:rgba(13,17,20,.95);
+    background:var(--overlay);
     cursor:pointer;
   }
   .phase-overlay.show{display:flex; animation:phaseFade .28s ease;}
@@ -391,7 +404,7 @@ button.player-chip:disabled{cursor:not-allowed;}
   position:sticky; bottom:0; z-index:20;
   display:flex; flex-wrap:wrap; gap:8px;
   margin:16px -16px 0; padding:14px 16px calc(12px + env(safe-area-inset-bottom));
-  background:linear-gradient(180deg, rgba(13,17,20,0) 0, rgba(13,17,20,.94) 24%, var(--bg) 100%);
+  background:linear-gradient(180deg, rgba(var(--bg-rgb),0) 0, rgba(var(--bg-rgb),.94) 24%, var(--bg) 100%);
   border-top:1px solid var(--line);
 }
 .action-bar > button{flex:1 1 140px; margin:0;}
@@ -483,7 +496,7 @@ button.player-chip:disabled{cursor:not-allowed;}
 
 .style-opt{text-align:left; padding:12px 14px; display:flex; flex-direction:column; gap:4px;}
 .style-opt small{font-size:13px; line-height:1.4; color:var(--dim);}
-.style-opt .tag-sug{align-self:flex-start; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#171204; background:var(--gold); padding:1px 8px;}
+.style-opt .tag-sug{align-self:flex-start; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#171204; background:var(--gold-fill); padding:1px 8px;}
 .style-meta{display:flex; align-items:center; gap:10px; margin-top:4px; font-size:13px; color:var(--dim);}
 .risk{font-size:14px; letter-spacing:2px; color:var(--t);}
 .style-advice{margin:2px 0 14px; color:var(--text); font-size:14px; line-height:1.45;}
@@ -636,6 +649,7 @@ button.player-chip:disabled{cursor:not-allowed;}
 .reveal-bids{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px;}
 .reveal-bids li{display:flex; justify-content:space-between; gap:10px; margin:0; padding:6px 8px; background:var(--panel2); font-size:14px;}
 .reveal-bids li.win{border-left:3px solid var(--gold);}
+.reveal-tie{margin:0 0 8px; color:var(--dim); font-size:14px;}
 .me-line{margin:0; font-size:15px; font-weight:600;}
 .auction-squad, .auction-board, .fills{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px;}
 .auction-squad li{display:grid; grid-template-columns:76px minmax(0,1fr) auto; gap:8px; align-items:center; background:var(--panel); padding:7px 10px; margin:0; font-size:14px; min-height:38px;}
@@ -651,3 +665,15 @@ button.player-chip:disabled{cursor:not-allowed;}
 @media (min-width:1024px){
   .auction-layout{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px; align-items:start;}
 }
+
+/* ===== Botão de tema (☀️/🌙) no cabeçalho ===== */
+.theme-toggle{
+  position:absolute; top:6px; right:12px; width:44px; height:44px; min-height:44px; margin:0; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1;
+  background:var(--panel); border:1px solid var(--line); color:var(--text); cursor:pointer; clip-path:var(--chamfer-sm);
+}
+.theme-toggle:hover{border-color:var(--ct);}
+@media (min-width:1024px){
+  .theme-toggle{top:50%; transform:translateY(-50%); right:max(12px, calc((100% - 1120px) / 2 + 12px));}
+}
+:root[data-theme="light"] .score.loser{opacity:1;}     /* o placar de quem perdeu já é a cor "apagada": sem opacidade extra (contraste) */
